@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Historial de Recogidas</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Estilos específicos para el historial mejorado */
+    .historial-header {
+background: rgba(128, 105, 105, 0.329);
+      color: white;
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 20px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .historial-header h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .stats-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .stat-item {
+      background: rgba(42, 187, 180, 0.2);
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: bold;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      opacity: 0.9;
+    }
+
+    .filtros-container {
+      background: rgba(128, 105, 105, 0.329);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(255, 255, 255, 0.219);
+    }
+
+    .filtros-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .filtro-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filtro-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 5px;
+    }
+
+    .filtro-input {
+      padding: 12px;
+      border: 2px solid #e1e5e900;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0);
+    }
+
+    .filtro-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .recogida-card {
+      background: linear-gradient(145deg, #4d2f2f 0%, #567ba048 100%);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(150, 126, 126, 0.377);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .recogida-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    .recogida-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #002fff33, #764ba2);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .fecha-badge {
+      background: linear-gradient(135deg, #2525298c, #764ba2);
+      color: white;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .calidad-badge {
+      padding: 6px 12px;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .calidad-extra { background: #d4edda; color: #155724; }
+    .calidad-primera { background: #cce5ff; color: #004085; }
+    .calidad-segunda { background: #fff3cd; color: #856404; }
+    .calidad-tercera { background: #f8d7da; color: #721c24; }
+
+    .card-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .info-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-label {
+      font-size: 0.8rem;
+      color: #ffffff;
+      font-weight: 600;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #333;
+    }
+
+    .info-value.fruta {
+      color: #9edf4983;
+    }
+
+    .info-value.kilos {
+      color: #9ea77fd5;
+    }
+
+    .info-value.valor {
+      color: #dc3545;
+      font-size: 1.2rem;
+    }
+
+    .card-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 15px 0;
+      padding: 15px;
+      background: rgba(102, 126, 234, 0.05);
+      border-radius: 10px;
+    }
+
+    .metric-item {
+      text-align: center;
+    }
+
+    .metric-value {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #ffffff;
+      display: block;
+    }
+
+    .metric-label {
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+    }
+
+    .usuario-info {
+      display: flex;
+      align-items: center;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .usuario-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .editar-btn {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .editar-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+
+    .no-resultados {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+    }
+
+    .filtros-activos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .filtro-activo {
+      background: #667eea;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .limpiar-filtro {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .volver-btn {
+      transform: translateY(-75px);
+      position: absolute;
+      background: linear-gradient(135deg, #6c757d, #495057);
+      color: white;
+      border: none;
+      padding: 15px 25px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+      width: 100%;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .volver-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+    }
+
+    /* 🔥 NUEVOS ESTILOS PARA OCULTAR PRECIOS */
+    .ocultar-precios .info-value.valor {
+      display: none;
+    }
+
+    .ocultar-precios .card-metrics .metric-item:last-child {
+      display: none;
+    }
+
+    .ocultar-precios .stats-summary .stat-item:nth-child(3) {
+      display: none;
+    }
+
+    /* Responsive para iPhone 12 Pro */
+    @media (max-width: 428px) {
+      .container {
+        padding: 15px;
+      }
+
+      .filtros-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .card-content {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .card-metrics {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .stats-summary {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .card-footer {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .editar-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+    <button class="volver-btn" onclick="window.history.back()">← Volver</button>
+
+
+  <div class="container">
+    <div class="historial-header">
+      <h2 id="titulo">Historial de recogidas</h2>
+      <div class="stats-summary" id="statsResumen">
+        <!-- Se llena dinámicamente -->
+      </div>
+    </div>
+
+    <div class="filtros-container">
+      <div class="filtros-grid">
+        <div class="filtro-group">
+          <label class="filtro-label">📅 Fecha</label>
+          <input type="date" id="filtroFecha" class="filtro-input" />
+        </div>
+        <div class="filtro-group">
+          <label class="filtro-label">🍉 Fruta</label>
+          <input type="text" id="filtroFruta" class="filtro-input" placeholder="Buscar fruta..." />
+        </div>
+        <div class="filtro-group">
+          <label class="filtro-label">⭐ Calidad</label>
+          <select id="filtroCalidad" class="filtro-input">
+            <option value="">Todas las calidades</option>
+            <option value="extra">Extra</option>
+            <option value="primera">Primera</option>
+            <option value="segunda">Segunda</option>
+            <option value="tercera">Tercera</option>
+          </select>
+        </div>
+        <div class="filtro-group">
+          <label class="filtro-label">👤 Usuario</label>
+          <input type="text" id="filtroUsuario" class="filtro-input" placeholder="Buscar por usuario..." />
+        </div>
+      </div>
+      <div class="filtros-activos" id="filtrosActivos"></div>
+    </div>
+
+    <div id="listaRecogidas"></div>
+  </div>
+
+  <script type="module">
+    import { apiFetch } from "./api.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const fincaId = params.get("id");
+    const fincaNombre = params.get("finca");
+    const usuario = params.get("usuario"); // 🔥 OBTENER USUARIO DE URL
+
+    const titulo = document.getElementById("titulo");
+    const lista = document.getElementById("listaRecogidas");
+    const statsResumen = document.getElementById("statsResumen");
+    const filtrosActivos = document.getElementById("filtrosActivos");
+    const filtros = {
+      fecha: document.getElementById("filtroFecha"),
+      fruta: document.getElementById("filtroFruta"),
+      calidad: document.getElementById("filtroCalidad"),
+      usuario: document.getElementById("filtroUsuario"),
+    };
+
+    titulo.textContent = `Historial de recogidas: ${fincaNombre}`;
+
+    let todasLasRecogidas = [];
+    
+    // 🔥 VARIABLES PARA CONTROL DE USUARIO
+    let sessionData = {};
+    let isSubusuario = false;
+    let tipoUsuarioVerificado = null;
+    let esAdministradorViendo = false;
+
+    // 🔥 FUNCIÓN PARA VERIFICAR TIPO DE USUARIO
+    async function verificarTipoUsuario() {
+      console.log("=== VERIFICANDO TIPO DE USUARIO EN HISTORIAL ===");
+      
+      try {
+        // 1. Primero intentar desde sessionStorage
+        const storedData = sessionStorage.getItem('userData');
+        console.log("📦 Datos en sessionStorage:", storedData);
+        
+        if (storedData) {
+          sessionData = JSON.parse(storedData);
+          console.log("✅ SessionData parseado:", sessionData);
+          
+          if (sessionData.tipo) {
+            tipoUsuarioVerificado = sessionData.tipo;
+            isSubusuario = sessionData.tipo === 2;
+            esAdministradorViendo = sessionData.tipo === 1; // Tipo 1 = Administrador
+            console.log("✅ Tipo desde sessionStorage:", tipoUsuarioVerificado, "Es subusuario:", isSubusuario, "Es admin viendo:", esAdministradorViendo);
+            return isSubusuario;
+          }
+        } else {
+          console.log("⚠️ No hay datos en sessionStorage");
+        }
+        
+        // 2. Si no hay datos en sessionStorage, verificar desde el servidor
+        if (usuario) {
+          console.log("🔍 Consultando servidor para usuario:", usuario);
+          
+          const response = await fetch(`http://localhost:3000/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+          
+          if (!response.ok) {
+            console.error("❌ Error en respuesta del servidor:", response.status);
+            return false;
+          }
+          
+          const userData = await response.json();
+          console.log("📊 Datos recibidos del servidor:", userData);
+          
+          tipoUsuarioVerificado = userData.tipo;
+          isSubusuario = userData.tipo === 2;
+          esAdministradorViendo = userData.tipo === 1; // Tipo 1 = Administrador
+          
+          // Guardar en sessionStorage para futuras consultas
+          sessionData = {
+            tipo: userData.tipo,
+            alias: userData.alias,
+            username: userData.username
+          };
+          
+          sessionStorage.setItem('userData', JSON.stringify(sessionData));
+          console.log("💾 Datos guardados en sessionStorage");
+          
+        } else {
+          console.error("❌ No hay usuario en los parámetros URL");
+          return false;
+        }
+        
+        console.log("=== RESULTADO FINAL HISTORIAL ===");
+        console.log("- Tipo de usuario:", tipoUsuarioVerificado);
+        console.log("- Es subusuario:", isSubusuario);
+        console.log("- Es administrador viendo:", esAdministradorViendo);
+        console.log("- SessionData:", sessionData);
+        console.log("===================================");
+        
+        return isSubusuario;
+        
+      } catch (error) {
+        console.error("❌ Error al verificar tipo de usuario:", error);
+        return false;
+      }
+    }
+
+    // 🔥 FUNCIÓN PARA CONFIGURAR INTERFAZ SEGÚN TIPO DE USUARIO
+    async function configurarInterfazHistorial() {
+      console.log("🎨 Configurando interfaz de historial según tipo de usuario...");
+      
+      // Verificar tipo de usuario
+      await verificarTipoUsuario();
+      
+      // Determinar si debe ocultar precios
+      const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
+      
+      console.log("🔍 Análisis de visibilidad en historial:");
+      console.log("- Es subusuario:", isSubusuario);
+      console.log("- Es administrador viendo:", esAdministradorViendo);
+      console.log("- Debe ocultar precios:", debeOcultarPrecios);
+      
+      if (debeOcultarPrecios) {
+        console.log("🚫 Configurando historial para subusuario - ocultando precios");
+        document.body.classList.add('ocultar-precios');
+      } else {
+        console.log("✅ Configurando historial para administrador - mostrando todos los elementos");
+        document.body.classList.remove('ocultar-precios');
+      }
+    }
+
+    async function cargarHistorial() {
+      try {
+        const recogidas = await apiFetch(`/recogidas/por-finca/${fincaId}`, "GET");
+        todasLasRecogidas = recogidas;
+        
+        // Configurar interfaz antes de mostrar datos
+        await configurarInterfazHistorial();
+        
+        mostrarEstadisticas();
+        aplicarFiltros();
+      } catch (err) {
+        alert("Error al cargar historial: " + err.message);
+      }
+    }
+
+    function mostrarEstadisticas() {
+      const totalRecogidas = todasLasRecogidas.length;
+      const totalKilos = todasLasRecogidas.reduce((sum, r) => sum + r.totalKilos, 0);
+      const totalValor = todasLasRecogidas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
+      const promedioKilos = totalRecogidas > 0 ? (totalKilos / totalRecogidas).toFixed(1) : 0;
+
+      // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
+      const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
+
+      if (debeOcultarPrecios) {
+        // Para subusuarios: solo mostrar estadísticas sin dinero
+        statsResumen.innerHTML = `
+          <div class="stat-item">
+            <span class="stat-value">${totalRecogidas}</span>
+            <span class="stat-label">Recogidas</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${totalKilos.toLocaleString()}</span>
+            <span class="stat-label">Kg Total</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${promedioKilos}</span>
+            <span class="stat-label">Kg Promedio</span>
+          </div>
+        `;
+      } else {
+        // Para administradores: mostrar todas las estadísticas
+        statsResumen.innerHTML = `
+          <div class="stat-item">
+            <span class="stat-value">${totalRecogidas}</span>
+            <span class="stat-label">Recogidas</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${totalKilos.toLocaleString()}</span>
+            <span class="stat-label">Kg Total</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${totalValor.toLocaleString()}</span>
+            <span class="stat-label">Valor Total</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${promedioKilos}</span>
+            <span class="stat-label">Kg Promedio</span>
+          </div>
+        `;
+      }
+    }
+
+    function mostrarFiltrosActivos() {
+      const activos = [];
+      
+      if (filtros.fecha.value) activos.push({tipo: 'fecha', valor: filtros.fecha.value, label: `📅 ${filtros.fecha.value}`});
+      if (filtros.fruta.value) activos.push({tipo: 'fruta', valor: filtros.fruta.value, label: `🍉 ${filtros.fruta.value}`});
+      if (filtros.calidad.value) activos.push({tipo: 'calidad', valor: filtros.calidad.value, label: `⭐ ${filtros.calidad.value}`});
+      if (filtros.usuario.value) activos.push({tipo: 'usuario', valor: filtros.usuario.value, label: `👤 ${filtros.usuario.value}`});
+
+      filtrosActivos.innerHTML = activos.map(filtro => `
+        <div class="filtro-activo">
+          ${filtro.label}
+          <button class="limpiar-filtro" onclick="limpiarFiltro('${filtro.tipo}')">×</button>
+        </div>
+      `).join('');
+    }
+
+    window.limpiarFiltro = function(tipo) {
+      filtros[tipo].value = '';
+      aplicarFiltros();
+    }
+
+    function aplicarFiltros() {
+      const fecha = filtros.fecha.value;
+      const fruta = filtros.fruta.value.toLowerCase();
+      const calidad = filtros.calidad.value;
+      const usuario = filtros.usuario.value.toLowerCase();
+
+      const filtradas = todasLasRecogidas.filter(r => {
+        const coincideFecha = !fecha || r.fecha === fecha;
+        const coincideFruta = !fruta || r.fruta.toLowerCase().includes(fruta);
+        const coincideCalidad = !calidad || r.calidad === calidad;
+        const coincideUsuario = !usuario || (r.usuario || "").toLowerCase().includes(usuario);
+        return coincideFecha && coincideFruta && coincideCalidad && coincideUsuario;
+      });
+
+      mostrarFiltrosActivos();
+      mostrarRecogidas(filtradas);
+    }
+
+    function obtenerIniciales(nombre) {
+      if (!nombre) return "?";
+      return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    function formatearFecha(fecha) {
+      const opciones = { 
+        weekday: 'short', 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      };
+      return new Date(fecha + 'T00:00:00').toLocaleDateString('es-ES', opciones);
+    }
+
+function mostrarRecogidas(listaFiltrada) {
+  lista.innerHTML = "";
+  if (listaFiltrada.length === 0) {
+    lista.innerHTML = `
+      <div class="no-resultados">
+        <h3>🔍 No hay coincidencias</h3>
+        <p>Intenta ajustar los filtros para encontrar más resultados</p>
+      </div>
+    `;
+    return;
+  }
+
+  listaFiltrada.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
+  const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
+
+  listaFiltrada.forEach(r => {
+    const card = document.createElement("div");
+    card.className = "recogida-card";
+    
+    const promedioKilo = r.pesas.length > 0 ? (r.totalKilos / r.pesas.length).toFixed(1) : 0;
+    const fechaFormateada = formatearFecha(r.fecha);
+    
+    // 🔥 CONDICIONAR CONTENIDO SEGÚN TIPO DE USUARIO
+    let metricsHTML = '';
+    let valorTotalHTML = '';
+    
+    if (debeOcultarPrecios) {
+      // Para subusuarios: solo mostrar pesas y promedio de kilos
+      metricsHTML = `
+        <div class="card-metrics">
+          <div class="metric-item">
+            <span class="metric-value">${r.pesas.length}</span>
+            <span class="metric-label">Pesas</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">${promedioKilo}</span>
+            <span class="metric-label">Kg/Pesa</span>
+          </div>
+        </div>
+      `;
+      valorTotalHTML = ''; // Sin valor total
+    } else {
+      // Para administradores: mostrar todo
+      const precioKilo = r.totalKilos > 0 && r.valorPagar ? (r.valorPagar / r.totalKilos).toFixed(0) : 0;
+      
+      metricsHTML = `
+        <div class="card-metrics">
+          <div class="metric-item">
+            <span class="metric-value">${r.pesas.length}</span>
+            <span class="metric-label">Pesas</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">${promedioKilo}</span>
+            <span class="metric-label">Kg/Pesa</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">${precioKilo}</span>
+            <span class="metric-label">$/Kg</span>
+          </div>
+        </div>
+      `;
+      
+      valorTotalHTML = `
+        <div class="info-group" style="margin-bottom: 15px;">
+          <span class="info-label">💰 Total a Pagar</span>
+          <span class="info-value valor">${(r.valorPagar || 0).toLocaleString()}</span>
+        </div>
+      `;
+    }
+    
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="fecha-badge">${fechaFormateada}</div>
+        <div class="calidad-badge calidad-${r.calidad}">${r.calidad}</div>
+      </div>
+      
+      <div class="card-content">
+        <div class="info-group">
+          <span class="info-label">🍉 Fruta</span>
+          <span class="info-value fruta">${r.fruta}</span>
+        </div>
+        <div class="info-group">
+          <span class="info-label">⚖️ Total Kilos</span>
+          <span class="info-value kilos">${r.totalKilos} kg</span>
+        </div>
+      </div>
+
+      ${metricsHTML}
+      ${valorTotalHTML}
+
+      <div class="card-footer">
+        <div class="usuario-info">
+          <div class="usuario-avatar">${obtenerIniciales(r.usuario)}</div>
+          <span>Recogida realizada por: ${r.usuario || "Usuario no registrado"}</span>
+        </div>
+        <button class="editar-btn" data-id="${r._id}">✏️ Editar</button>
+      </div>
+    `;
+
+    card.querySelector(".editar-btn").addEventListener("click", () => {
+      // 🔥 PASAR USUARIO EN LA URL AL EDITAR
+      window.location.href = `recogida.html?modo=editar&idRecogida=${r._id}&fincaId=${r.fincaId}&usuario=${encodeURIComponent(usuario)}`;
+    });
+
+    lista.appendChild(card);
+  });
+}
+
+
+    // Escuchar filtros
+    Object.values(filtros).forEach(input => {
+      input.addEventListener("input", aplicarFiltros);
+    });
+
+    cargarHistorial();
+  </script>
+</body>
+</html>

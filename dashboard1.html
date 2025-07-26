@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Tipo 1</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    .card-glass {
+      background: var(--glass-bg, rgba(255, 255, 255, 0.1));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .finca-header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+
+    .finca-title {
+      font-size: 1.3em;
+      font-weight: bold;
+      color: var(--primary-color, #00d4ff);
+      margin-bottom: 5px;
+    }
+
+    .propietario {
+      opacity: 0.8;
+      font-size: 0.95em;
+    }
+
+    .recogida-info {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+      font-size: 0.9em;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+    }
+
+    .info-label {
+      font-weight: bold;
+      opacity: 0.8;
+    }
+
+    .info-value {
+      color: var(--primary-color, #00d4ff);
+      font-weight: bold;
+    }
+
+    .sin-recogidas {
+      text-align: center;
+      opacity: 0.6;
+      font-style: italic;
+      padding: 20px;
+    }
+
+    .botones-container {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+
+    .botones-container button {
+      flex: 1;
+      min-width: 120px;
+      padding: 8px 12px;
+      font-size: 0.85em;
+    }
+
+    .loading-info {
+      opacity: 0.6;
+      text-align: center;
+      padding: 10px;
+      font-style: italic;
+    }
+
+    .historial-btn {
+      position: absolute;
+      transform: translateY(-80px);
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 15px 25px;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  width: 100%;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.historial-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+
+  </style>
+</head>
+<body>
+ 
+
+  
+  <div class="container">
+    <h1 id="saludo">Bienvenido</h1>
+    <button id="btnAgregarFinca">➕ Agregar Finca</button>
+    <input type="text" id="buscarFinca" placeholder="Buscar finca o propietario...">
+    <div id="listaFincas"></div>
+  </div>
+
+  <div id="modalFinca" class="modal hidden">
+    <div class="modal-content">
+      <h3>Agregar Finca</h3>
+      <input type="text" id="nombreFinca" placeholder="Nombre de la finca">
+      <input type="text" id="propietarioFinca" placeholder="Nombre del propietario">
+      <button id="guardarFinca">Guardar</button>
+    </div>
+  </div>
+
+  
+
+ <script type="module">
+  import { apiFetch } from "./api.js";
+
+  // 🔍 DEBUG: Verificar la URL completa
+  console.log("=== URL Y PARÁMETROS ===");
+  console.log("URL completa:", window.location.href);
+  console.log("Search params:", window.location.search);
+
+  // Obtener los parámetros de la URL
+  const params = new URLSearchParams(window.location.search);
+  const usuario = params.get("usuario");
+  let alias = params.get("alias");
+  let adminAlias = alias; // 🔧 Para admins, su propio alias es el adminAlias
+
+  // Si no se encuentra alias en la URL, hacer una llamada al servidor para obtenerlo
+  if (!alias && usuario) {
+    console.log("Alias no encontrado en la URL, haciendo una llamada al servidor para obtenerlo...");
+
+    // Llamar al backend para obtener el alias basado en el usuario (usamos apiFetch para esto)
+    async function obtenerAliasDesdeServidor() {
+      try {
+        const response = await apiFetch(`/auth/get-alias?usuario=${usuario}`, "GET");
+        alias = response.alias || 'Alias no disponible'; // Asignamos el alias obtenido o un valor por defecto
+        adminAlias = alias; // 🔧 Para admins, su propio alias es el adminAlias
+        console.log("Alias obtenido desde el servidor:", alias);
+        
+        // Actualizar el saludo o lo que sea necesario con el alias
+        mostrarUsuarioYAlias();
+      } catch (error) {
+        console.error("Error al obtener alias desde el servidor:", error);
+        alias = 'Alias no disponible'; // Si ocurre un error, asignamos un valor por defecto
+        adminAlias = alias;
+        mostrarUsuarioYAlias();
+      }
+    }
+
+    // Llamada a la función para obtener el alias
+    obtenerAliasDesdeServidor();
+  } else {
+    // Si el alias está presente en la URL, simplemente lo mostramos
+    console.log("Alias encontrado en la URL:", alias);
+    adminAlias = alias; // 🔧 Para admins, su propio alias es el adminAlias
+    mostrarUsuarioYAlias();
+  }
+
+  // 🔥 FUNCIÓN PARA CREAR EL BOTÓN DE HISTORIAL DE RECOGIDAS
+function crearBotonHistorialRecogidas() {
+  // Verificar si ya existe el botón
+  const existingButton = document.getElementById('historial-recogidas-btn');
+  if (existingButton) return;
+
+  // Obtener parámetros de URL
+  const params = new URLSearchParams(window.location.search);
+  const usuario = params.get('usuario');
+  const alias = params.get('alias');
+
+  if (!usuario) {
+    console.warn('⚠️ No se encontró usuario en los parámetros URL');
+    return;
+  }
+
+  // Crear el botón
+  const button = document.createElement('button');
+  button.id = 'historial-recogidas-btn';
+  button.className = 'historial-btn';
+  button.innerHTML = '📊 Historial Completo';
+  
+  // Estilos del botón
+  button.style.cssText = `
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+    margin: 10px;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  `;
+
+  // Efectos hover
+  button.addEventListener('mouseenter', () => {
+    button.style.transform = 'translateY(-2px)';
+    button.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+    button.style.background = 'linear-gradient(135deg, #5a6fd8, #6a4c93)';
+  });
+
+  button.addEventListener('mouseleave', () => {
+    button.style.transform = 'translateY(0)';
+    button.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+    button.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+  });
+
+  // Funcionalidad del botón
+  button.addEventListener('click', () => {
+    // Construir URL del historial completo
+    let historialUrl = `historial-recogidas.html?usuario=${encodeURIComponent(usuario)}`;
+    
+    if (alias) {
+      historialUrl += `&alias=${encodeURIComponent(alias)}`;
+    }
+
+    console.log('📊 Navegando al historial completo:', historialUrl);
+    
+    // Mostrar indicador de carga
+    button.innerHTML = '⏳ Cargando...';
+    button.disabled = true;
+    
+    // Redirigir después de un breve delay para mostrar el estado de carga
+    setTimeout(() => {
+      window.location.href = historialUrl;
+    }, 300);
+  });
+
+  return button;
+}
+
+// 🔥 FUNCIÓN PARA INSERTAR EL BOTÓN SIEMPRE ARRIBA Y FUERA DEL CONTAINER
+function insertarBotonHistorial() {
+  const button = crearBotonHistorialRecogidas();
+  if (!button) return;
+
+  // Siempre insertar arriba, fuera del container
+  insertarArribaFueraContainer(button);
+}
+
+// 🔥 INSERTAR SIEMPRE ARRIBA, FUERA DEL CONTAINER
+function insertarArribaFueraContainer(button) {
+  // Crear un contenedor fijo en la parte superior
+  const topContainer = document.createElement('div');
+  topContainer.id = 'historial-top-container';
+  topContainer.style.cssText = `
+    position: absolute;
+    top: 100px;
+    left: -2
+    
+    0px;
+    right: 0;
+
+  `;
+
+  // Ajustar estilos del botón para la posición superior
+  button.style.cssText = `
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 180px;
+  `;
+
+  // Agregar el botón al contenedor
+  topContainer.appendChild(button);
+
+  // Insertar al principio del body (antes que todo)
+  document.body.insertBefore(topContainer, document.body.firstChild);
+
+  // Ajustar el body para que no se superponga con el botón fijo
+  adjustBodyForFixedButton();
+
+  console.log('✅ Botón insertado arriba, fuera del container');
+}
+
+// 🔥 AJUSTAR EL BODY PARA EL BOTÓN FIJO
+function adjustBodyForFixedButton() {
+  // Agregar padding-top al body o al primer container
+  const body = document.body;
+  const container = document.querySelector('.container');
+  
+  // Calcular altura del botón (aproximadamente 60px incluyendo padding)
+  const buttonHeight = '70px';
+  
+  if (container) {
+    // Si hay container, agregarle margen superior
+    container.style.marginTop = buttonHeight;
+  } else {
+    // Si no hay container, ajustar el body
+    body.style.paddingTop = buttonHeight;
+  }
+
+  // Ajustar cualquier elemento que pueda tener position fixed en el top
+  const existingFixedElements = document.querySelectorAll('[style*="position: fixed"][style*="top:"]');
+  existingFixedElements.forEach(element => {
+    const currentTop = element.style.top;
+    if (currentTop === '0px' || currentTop === '0') {
+      element.style.top = buttonHeight;
+    }
+  });
+}
+
+// 🔥 FUNCIÓN PARA VERIFICAR PERMISOS DEL USUARIO
+async function verificarPermisosHistorial() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const usuario = params.get('usuario');
+    
+    if (!usuario) return false;
+
+    // Verificar desde sessionStorage primero
+    const storedData = sessionStorage.getItem('userData');
+    if (storedData) {
+      const userData = JSON.parse(storedData);
+      return userData.tipo === 1 || userData.tipo === 2; // Admin o Subusuario
+    }
+
+    // Si no hay datos en session, consultar servidor
+    const response = await fetch(`http://localhost:3000/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+    if (response.ok) {
+      const userData = await response.json();
+      return userData.tipo === 1 || userData.tipo === 2; // Admin o Subusuario
+    }
+
+    return false;
+  } catch (error) {
+    console.error('❌ Error al verificar permisos:', error);
+    return false;
+  }
+}
+
+// 🔥 FUNCIÓN PRINCIPAL PARA INICIALIZAR EL BOTÓN
+async function inicializarBotonHistorial() {
+  // Verificar permisos primero
+  const tienePermisos = await verificarPermisosHistorial();
+  
+  if (!tienePermisos) {
+    console.log('ℹ️ Usuario sin permisos para ver historial completo');
+    return;
+  }
+
+  // Verificar que no estemos ya en la página de historial completo
+  if (window.location.pathname.includes('historial-recogidas.html')) {
+    console.log('ℹ️ Ya estamos en la página de historial completo');
+    return;
+  }
+
+  // Insertar el botón
+  insertarBotonHistorial();
+}
+
+// 🔥 ESTILOS RESPONSIVOS PARA EL BOTÓN FIJO SUPERIOR
+function agregarEstilosResponsivos() {
+  const style = document.createElement('style');
+  style.textContent = `
+    /* Estilos para el contenedor superior fijo */
+    #historial-top-container {
+      transition: all 0.3s ease;
+    }
+
+    /* Efectos hover para el botón en posición fija */
+    #historial-top-container .historial-btn:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+      background: linear-gradient(135deg, #5a6fd8, #6a4c93) !important;
+    }
+
+    #historial-top-container .historial-btn:active {
+      transform: translateY(0) !important;
+    }
+
+    /* Responsive para tablets */
+    @media (max-width: 768px) {
+      #historial-top-container {
+        padding: 8px 15px;
+      }
+
+      #historial-top-container .historial-btn {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        min-width: 160px;
+      }
+
+      /* Ajustar margen del body/container */
+      body[style*="padding-top"] {
+        padding-top: 60px !important;
+      }
+      .container[style*="margin-top"] {
+        margin-top: 60px !important;
+      }
+    }
+
+    /* Responsive para móviles */
+    @media (max-width: 480px) {
+      #historial-top-container {
+        padding: 6px 10px;
+      }
+
+      #historial-top-container .historial-btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        min-width: 140px;
+        gap: 6px;
+      }
+
+      /* Ajustar margen del body/container para móviles */
+      body[style*="padding-top"] {
+        padding-top: 50px !important;
+      }
+      .container[style*="margin-top"] {
+        margin-top: 50px !important;
+      }
+    }
+
+    /* Animación de aparición desde arriba */
+    #historial-top-container {
+      animation: slideDownFromTop 0.5s ease forwards;
+    }
+
+    @keyframes slideDownFromTop {
+      from {
+        opacity: 0;
+        transform: translateY(-100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Efecto glassmorphism mejorado */
+    #historial-top-container {
+      background: rgba(255, 255, 255, 0.9) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* Para temas oscuros (opcional) */
+    @media (prefers-color-scheme: dark) {
+      #historial-top-container {
+        background: rgba(0, 0, 0, 0.8) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      }
+    }
+
+    /* Asegurar que esté por encima de todo */
+    #historial-top-container {
+      z-index: 99999 !important;
+    }
+
+    /* Evitar interferencia con elementos existentes */
+    body.has-fixed-historial-btn {
+      transition: padding-top 0.3s ease;
+    }
+
+    .container.has-fixed-historial-btn {
+      transition: margin-top 0.3s ease;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// 🔥 INICIALIZAR TODO AL CARGAR LA PÁGINA
+document.addEventListener('DOMContentLoaded', () => {
+  // Agregar estilos responsivos
+  agregarEstilosResponsivos();
+  
+  // Inicializar el botón con un pequeño delay para asegurar que la página esté lista
+  setTimeout(() => {
+    inicializarBotonHistorial();
+  }, 500);
+});
+
+// 🔥 TAMBIÉN INICIALIZAR SI LA PÁGINA YA ESTÁ CARGADA
+if (document.readyState === 'loading') {
+  // El evento DOMContentLoaded se ejecutará
+} else {
+  // La página ya está cargada
+  setTimeout(() => {
+    agregarEstilosResponsivos();
+    inicializarBotonHistorial();
+  }, 100);
+}
+
+// 🔥 FUNCIÓN PARA LIMPIAR EL BOTÓN AL SALIR DE LA PÁGINA (opcional)
+window.addEventListener('beforeunload', () => {
+  const topContainer = document.getElementById('historial-top-container');
+  if (topContainer) {
+    topContainer.remove();
+  }
+  
+  // Restaurar el padding/margin original del body/container
+  const body = document.body;
+  const container = document.querySelector('.container');
+  
+  if (body.style.paddingTop) {
+    body.style.paddingTop = '';
+  }
+  
+  if (container && container.style.marginTop) {
+    container.style.marginTop = '';
+  }
+});
+
+  // Función para mostrar el usuario y alias
+  function mostrarUsuarioYAlias() {
+    // Verificación y consola
+    console.log("=== DEBUG URL ===");
+    console.log("Usuario extraído de URL:", usuario);
+    console.log("Alias extraído de URL:", alias);
+    console.log("AdminAlias asignado:", adminAlias);
+
+    // Mostrar usuario y alias juntos
+    console.log("Usuario y Alias:", `Usuario: ${usuario}, Alias: ${alias || 'No disponible'}`);
+    console.log("=== FIN DEBUG URL ===");
+
+    // Saludo con el nombre de usuario
+    const saludo = document.getElementById("saludo");
+    if (usuario) {
+      saludo.textContent = `Bienvenido, ${alias}`;
+    } else {
+      saludo.textContent = "Bienvenido (usuario no identificado)";
+    }
+  }
+
+    const btnAgregar = document.getElementById("btnAgregarFinca");
+    const modal = document.getElementById("modalFinca");
+    const guardar = document.getElementById("guardarFinca");
+    const lista = document.getElementById("listaFincas");
+
+    // ✅ Variables globales
+    let todasLasFincas = [];
+
+    // Función para obtener información de la última recogida
+    async function obtenerInfoRecogida(fincaId) {
+      try {
+        const recogidas = await apiFetch(`/recogidas/por-finca/${fincaId}`, "GET");
+        
+        if (!recogidas || recogidas.length === 0) {
+          return null;
+        }
+
+        // Obtener la última recogida
+        const ultimaRecogida = recogidas[0];
+        
+        // Calcular estadísticas generales
+        const totalRecogidas = recogidas.length;
+        const totalKilosAcumulado = recogidas.reduce((sum, r) => sum + (r.totalKilos || 0), 0);
+        const totalPagadoAcumulado = recogidas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
+        
+        return {
+          ultimaRecogida,
+          totalRecogidas,
+          totalKilosAcumulado,
+          totalPagadoAcumulado
+        };
+      } catch (error) {
+        console.error("Error al obtener información de recogidas:", error);
+        return null;
+      }
+    }
+
+    // Función para formatear fecha
+    function formatearFecha(fecha) {
+      if (!fecha) return "No disponible";
+      const date = new Date(fecha);
+      return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+
+    // Función para formatear moneda
+    function formatearMoneda(valor) {
+      if (!valor && valor !== 0) return "$0";
+      return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(valor);
+    }
+
+    // Función para renderizar finca con información de recogidas
+// Función para renderizar finca con información de recogidas
+async function renderFinca(finca) {
+  const div = document.createElement("div");
+  div.className = "card-glass";
+  
+  // HTML inicial de la tarjeta
+  div.innerHTML = `
+    <div class="finca-header">
+      <div class="finca-title">${finca.nombre}</div>
+      <div class="propietario">Propietario: ${finca.propietario}</div>
+    </div>
+    
+    <div class="recogida-info">
+      <div class="loading-info">⏳ Cargando información de recogidas...</div>
+    </div>
+    
+    <div class="botones-container">
+      <button onclick="location.href='precios.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}'">💰 Precios</button>
+      <button onclick="location.href='recogida.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">📊 Recogida</button>
+      <button onclick="location.href='historial.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}'">📋 Historial</button>
+    </div>
+  `;
+  
+  lista.prepend(div);
+
+  // Cargar información de recogidas de forma asíncrona
+  const infoRecogidas = await obtenerInfoRecogida(finca._id);
+  const recogidaInfoDiv = div.querySelector('.recogida-info');
+  
+  if (infoRecogidas && infoRecogidas.ultimaRecogida) {
+    const { ultimaRecogida, totalRecogidas, totalKilosAcumulado, totalPagadoAcumulado } = infoRecogidas;
+    
+    // Priorizar el alias sobre el usuario
+    const usuarioMostrar = ultimaRecogida.alias || ultimaRecogida.usuario || 'Usuario desconocido';
+    
+    console.log("=== DEBUG USUARIO EN DASHBOARD ===");
+    console.log("alias:", ultimaRecogida.alias);
+    console.log("usuario:", ultimaRecogida.usuario);
+    console.log("usuarioMostrar:", usuarioMostrar);
+    console.log("=== FIN DEBUG ===");
+
+    // 🔥 CORRECCIÓN: Obtener tipo del usuario ACTUAL (no del que hizo la recogida)
+    // Los administradores SIEMPRE ven los precios, sin importar quién hizo la recogida
+    const storedData = sessionStorage.getItem('userData');
+    let tipoUsuarioActual = 1; // Por defecto administrador
+    
+    if (storedData) {
+      const userData = JSON.parse(storedData);
+      tipoUsuarioActual = userData.tipo;
+    } else if (usuario) {
+      // Si no hay datos en sessionStorage, hacer consulta
+      try {
+        const response = await fetch(`http://localhost:3000/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+        if (response.ok) {
+          const userData = await response.json();
+          tipoUsuarioActual = userData.tipo;
+        }
+      } catch (error) {
+        console.error("Error al obtener tipo de usuario:", error);
+      }
+    }
+
+    const esUsuarioActualSubusuario = tipoUsuarioActual === 2;
+    
+    console.log("👤 Tipo de usuario ACTUAL:", tipoUsuarioActual, "Es subusuario:", esUsuarioActualSubusuario);
+    
+    // 🔥 MOSTRAR PRECIOS solo si el usuario ACTUAL NO es subusuario
+    if (!esUsuarioActualSubusuario) {
+      // Administrador viendo - mostrar todos los datos incluyendo precios
+      recogidaInfoDiv.innerHTML = `
+        <div style="text-align: center; font-weight: bold; margin-bottom: 10px; color: var(--primary-color, #00d4ff);">
+          📊 Última Recogida - ${formatearFecha(ultimaRecogida.fecha)}
+        </div>
+
+        <div class="info-row">
+          <span class="info-label">👤 Usuario:</span>
+          <span class="info-value">${usuarioMostrar}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">🍎 Fruta:</span>
+          <span class="info-value">${ultimaRecogida.fruta || 'N/A'}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">⭐ Calidad:</span>
+          <span class="info-value">${ultimaRecogida.calidad || 'N/A'}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">⚖️ Kilos:</span>
+          <span class="info-value">${ultimaRecogida.totalKilos ? ultimaRecogida.totalKilos.toFixed(1) + ' kg' : 'N/A'}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">🧺 Pesas:</span>
+          <span class="info-value">${ultimaRecogida.pesas ? ultimaRecogida.pesas.length : 0}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">💵 A pagar:</span>
+          <span class="info-value">${formatearMoneda(ultimaRecogida.valorPagar)}</span>
+        </div>
+        
+        <div style="border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 10px;">
+          <div class="info-row">
+            <span class="info-label">📈 Total recogidas:</span>
+            <span class="info-value">${totalRecogidas}</span>
+          </div>
+          
+          <div class="info-row">
+            <span class="info-label">📦 Total kilos:</span>
+            <span class="info-value">${totalKilosAcumulado.toFixed(1)} kg</span>
+          </div>
+          
+          <div class="info-row">
+            <span class="info-label">💰 Total pagado:</span>
+            <span class="info-value">${formatearMoneda(totalPagadoAcumulado)}</span>
+          </div>
+        </div>
+      `;
+    } else {
+      // Subusuario viendo - ocultar precios y valores monetarios
+      recogidaInfoDiv.innerHTML = `
+        <div style="text-align: center; font-weight: bold; margin-bottom: 10px; color: var(--primary-color, #00d4ff);">
+          📊 Última Recogida - ${formatearFecha(ultimaRecogida.fecha)}
+        </div>
+
+        <div class="info-row">
+          <span class="info-label">👤 Usuario:</span>
+          <span class="info-value">${usuarioMostrar}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">🍎 Fruta:</span>
+          <span class="info-value">${ultimaRecogida.fruta || 'N/A'}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">⭐ Calidad:</span>
+          <span class="info-value">${ultimaRecogida.calidad || 'N/A'}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">⚖️ Kilos:</span>
+          <span class="info-value">${ultimaRecogida.totalKilos ? ultimaRecogida.totalKilos.toFixed(1) + ' kg' : 'N/A'}</span>
+        </div>
+        
+        <div class="info-row">
+          <span class="info-label">🧺 Pesas:</span>
+          <span class="info-value">${ultimaRecogida.pesas ? ultimaRecogida.pesas.length : 0}</span>
+        </div>
+        
+        <div style="border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 10px;">
+          <div class="info-row">
+            <span class="info-label">📈 Total recogidas:</span>
+            <span class="info-value">${totalRecogidas}</span>
+          </div>
+          
+          <div class="info-row">
+            <span class="info-label">📦 Total kilos:</span>
+            <span class="info-value">${totalKilosAcumulado.toFixed(1)} kg</span>
+          </div>
+        </div>
+      `;
+    }
+  } else {
+    recogidaInfoDiv.innerHTML = `
+      <div class="sin-recogidas">
+        📝 Sin recogidas registradas<br>
+        <small>¡Realiza tu primera recogida!</small>
+      </div>
+    `;
+  }
+}
+
+// Event listener para guardar finca
+    guardar.addEventListener("click", async () => {
+      const nombre = document.getElementById("nombreFinca").value.trim();
+      const propietario = document.getElementById("propietarioFinca").value.trim();
+
+      if (!nombre || !propietario) return alert("Completa todos los campos");
+
+      try {
+        // 🔧 INCLUIR EL ADMIN ALIAS AL CREAR FINCA
+        const finca = await apiFetch("/fincas/agregar", "POST", { 
+          nombre, 
+          propietario, 
+          usuario,     // Administrador que está creando
+          adminAlias   // 🔧 Su propio alias como adminAlias
+        });
+        
+        todasLasFincas.unshift(finca);
+        renderFinca(finca);
+        modal.classList.add("hidden");
+        
+        // Limpiar formulario
+        document.getElementById("nombreFinca").value = "";
+        document.getElementById("propietarioFinca").value = "";
+      } catch (err) {
+        console.error("Error al guardar finca:", err);
+        alert("Error al guardar finca: " + err.message);
+      }
+    });
+
+    async function cargarFincas() {
+      try {
+        console.log("🔍 Cargando fincas para administrador:", adminAlias);
+        
+        if (!adminAlias) {
+          console.error("❌ No hay adminAlias definido");
+          const todasFincas = await apiFetch("/fincas/listar", "GET");
+          const fincasUsuario = todasFincas.filter(f => f.usuario === usuario);
+          todasLasFincas = fincasUsuario;
+        } else {
+          // 🔧 USAR EL ENDPOINT POR ADMIN
+          const response = await fetch(`http://localhost:3000/fincas/por-admin/${adminAlias}`);
+          if (response.ok) {
+            const fincasAdmin = await response.json();
+            todasLasFincas = fincasAdmin;
+            console.log("📋 Fincas del administrador:", todasLasFincas.length);
+          } else {
+            // Fallback al método tradicional
+            const todasFincas = await apiFetch("/fincas/listar", "GET");
+            const fincasUsuario = todasFincas.filter(f => f.usuario === usuario || f.adminAlias === adminAlias);
+            todasLasFincas = fincasUsuario;
+          }
+        }
+        
+        console.log("📋 Total de fincas cargadas:", todasLasFincas.length);
+        await mostrarFincas(todasLasFincas);
+      } catch (err) {
+        console.error("Error al cargar fincas:", err);
+        alert("Error al cargar fincas: " + err.message);
+      }
+    }
+
+    async function mostrarFincas(fincas) {
+      lista.innerHTML = ""; // Limpiar
+      if (fincas.length === 0) {
+        lista.innerHTML = "<p>No tienes fincas registradas aún.</p>";
+      } else {
+        // Renderizar fincas de forma secuencial para mejor UX
+        for (const finca of fincas) {
+          await renderFinca(finca);
+        }
+      }
+    }
+
+    // Event listeners para el modal
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        modal.classList.add("hidden");
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        modal.classList.add("hidden");
+      }
+    });
+
+    btnAgregar.addEventListener("click", () => {
+      modal.classList.remove("hidden");
+    });
+
+    // Búsqueda de fincas
+    const inputBuscar = document.getElementById("buscarFinca");
+    inputBuscar.addEventListener("input", async () => {
+      const texto = inputBuscar.value.toLowerCase();
+
+      const filtradas = todasLasFincas.filter(finca =>
+        finca.nombre.toLowerCase().includes(texto) ||
+        finca.propietario.toLowerCase().includes(texto)
+      );
+
+      await mostrarFincas(filtradas);
+    });
+
+    // Cargar fincas al iniciar
+    cargarFincas();
+  </script>
+</body>
+</html>
