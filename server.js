@@ -12,12 +12,20 @@ require("dotenv").config();
 
 const app = express();
 
+// ✅ CONFIGURACIÓN CORS CORREGIDA
 app.use(cors({
-  origin: "*", 
-  credentials: true
+  origin: [
+    "https://jc-frutas.netlify.app",  // Tu frontend en Netlify
+    "http://localhost:3000",          // Para desarrollo local
+    "http://127.0.0.1:3000",         // Para desarrollo local alternativo
+    "http://localhost:5500",          // Para Live Server u otros puertos
+    "http://127.0.0.1:5500"          // Para Live Server alternativo
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  optionsSuccessStatus: 200 // Para navegadores legacy
 }));
-
-
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -28,6 +36,11 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+  }
 }));
 
 mongoose.connect(process.env.MONGO_URI)
