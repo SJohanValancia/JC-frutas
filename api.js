@@ -9,7 +9,7 @@ export async function apiFetch(endpoint, method = "GET", data = null) {
 
   if (data) options.body = JSON.stringify(data);
 
-  const response = await fetch(`http://localhost:3000${endpoint}`, options);
+  const response = await fetch(`https://jc-frutas.onrender.com${endpoint}`, options);
 
   if (!response.ok) {
     const error = await response.text();

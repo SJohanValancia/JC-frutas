@@ -553,7 +553,7 @@ if (enviarReciboBtn) {
 
 async function cargarDatosRecogida(id) {
   try {
-    const res = await fetch(`http://localhost:3000/recogidas/${id}`);
+    const res = await fetch(`https://jc-frutas.onrender.com/recogidas/${id}`);
     if (!res.ok) throw new Error("No se pudo obtener la recogida");
     const recogida = await res.json();
 

@@ -59,7 +59,7 @@ async function verificarTipoUsuario() {
     if (usuario) {
       console.log("🔍 Consultando servidor para usuario:", usuario);
       
-      const response = await fetch(`http://localhost:3000/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+      const response = await fetch(`https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
       
       if (!response.ok) {
         console.error("❌ Error en respuesta del servidor:", response.status);
@@ -120,7 +120,7 @@ async function obtenerAliasUsuario() {
 
     // 3. Consultar servidor
     if (usuario) {
-      const response = await fetch(`http://localhost:3000/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+      const response = await fetch(`https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
       const data = await response.json();
       console.log("✅ Alias desde servidor:", data.alias);
       return data.alias;
@@ -178,7 +178,7 @@ async function guardarRecogida() {
     
     try {
       const fincaId = new URLSearchParams(window.location.search).get("fincaId");
-      const res = await fetch(`http://localhost:3000/precios/por-finca/${fincaId}`);
+      const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
       if (res.ok) {
         const precios = await res.json();
         
@@ -240,7 +240,7 @@ async function guardarRecogida() {
 
   try {
     const metodo = modo === "editar" ? "PUT" : "POST";
-    const url = modo === "editar" ? `http://localhost:3000/recogidas/${idRecogida}` : "http://localhost:3000/recogidas/nueva";
+    const url = modo === "editar" ? `https://jc-frutas.onrender.com/recogidas/${idRecogida}` : "https://jc-frutas.onrender.com/recogidas/nueva";
 
     const response = await fetch(url, {
       method: metodo,
@@ -332,7 +332,7 @@ async function configurarInterfazSegunTipoUsuario() {
 // Cargar frutas
 async function cargarFrutas() {
   try {
-    const res = await fetch(`http://localhost:3000/precios/por-finca/${fincaId}`);
+    const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
     if (!res.ok) throw new Error("No se pudo cargar precios");
     const precios = await res.json();
 
@@ -382,7 +382,7 @@ async function cargarRecogidaExistente(id) {
   try {
     console.log("📥 Cargando recogida existente:", id);
     
-    const res = await fetch(`http://localhost:3000/recogidas/${id}`);
+    const res = await fetch(`https://jc-frutas.onrender.com/recogidas/${id}`);
     if (!res.ok) throw new Error("No se pudo obtener la recogida");
     const recogida = await res.json();
 

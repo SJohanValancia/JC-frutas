@@ -166,7 +166,7 @@
         return;
       }
 
-      const response = await fetch(`http://localhost:3000/fincas/por-admin/${adminAlias}`);
+      const response = await fetch(`https://jc-frutas.onrender.com/fincas/por-admin/${adminAlias}`);
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
