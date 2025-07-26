@@ -57,7 +57,7 @@ async function verificarTipoUsuario() {
     if (usuario) {
       console.log("🔍 Consultando servidor para usuario:", usuario);
       
-      const response = await fetch(`http://localhost:3000/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+      const response = await fetch(`https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
       
       if (!response.ok) {
         console.error("❌ Error en respuesta del servidor:", response.status);
@@ -162,7 +162,7 @@ async function configurarInterfazCalculadora() {
 
 async function cargarPreciosFrutas() {
   const fincaId = new URLSearchParams(window.location.search).get("fincaId");
-  const res = await fetch(`http://localhost:3000/precios/por-finca/${fincaId}`);
+  const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
   if (!res.ok) throw new Error("No se pudo cargar precios");
   const datos = await res.json();
 

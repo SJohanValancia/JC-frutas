@@ -39,5 +39,5 @@ app.use("/recogidas", recogidaRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor backend en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor backend en https://jc-frutas.onrender.com`);
 });
