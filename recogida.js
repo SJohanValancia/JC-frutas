@@ -410,6 +410,9 @@ function configurarBotonGuardar() {
   }
 }
 
+//
+
+
 // FUNCIÓN PARA CONFIGURAR INTERFAZ SEGÚN TIPO DE USUARIO
 async function configurarInterfazSegunTipoUsuario() {
   console.log("🎨 Configurando interfaz según tipo de usuario...");
