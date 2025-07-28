@@ -624,9 +624,371 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Resto de funciones existentes (enviarReciboWhatsApp, etc.) permanecen igual...
+// 🔥 FUNCIÓN SIMPLIFICADA: Solo generar página de totales con colores suaves
+let isSharingInProgress = false;
 
-// INICIALIZACIÓN MEJORADA
+async function enviarReciboWhatsApp() {
+  if (isSharingInProgress) {
+    console.log("Compartir ya está en curso, por favor espera.");
+    return;
+  }
+
+  // 💾 GUARDAR PESAS EN LOCALSTORAGE INMEDIATAMENTE
+  const pesasActuales = getPesas();
+  localStorage.setItem('pesas_backup', JSON.stringify(pesasActuales));
+  console.log("💾 Pesas guardadas en localStorage como backup:", pesasActuales);
+
+  isSharingInProgress = true;
+
+  try {
+    const pesas = getPesas();
+    if (pesas.length === 0) {
+      alert("No hay pesas para enviar");
+      return;
+    }
+
+    // 🔥 PREPARAR DATOS DE LA FACTURA
+    const finca = document.getElementById("finca")?.value || "Sin especificar";
+    const propietario = document.getElementById("propietario")?.value || "Sin especificar";
+    const fecha = document.getElementById("fecha")?.value || new Date().toLocaleDateString();
+
+    // 🔥 CREAR ITEMS DE FACTURA
+    const itemsFactura = pesas.map((pesa, index) => ({
+      numero: index + 1,
+      kilos: pesa.kilos,
+      fruta: pesa.fruta || 'Sin especificar',
+      calidad: pesa.calidad || 'Sin especificar',
+      precio: pesa.precio || 0,
+      valor: pesa.valor || 0
+    }));
+
+    // 🔥 CALCULAR TOTALES GENERALES
+    const totalKilosGeneral = itemsFactura.reduce((sum, item) => sum + item.kilos, 0);
+    const totalValorGeneral = itemsFactura.reduce((sum, item) => sum + item.valor, 0);
+
+    // 🔥 GENERAR SOLO LA PÁGINA DE TOTALES CON COLORES SUAVES
+    const divTotales = crearPaginaTotalesSuave(itemsFactura, totalKilosGeneral, totalValorGeneral, finca, propietario, fecha);
+    document.body.appendChild(divTotales);
+    await document.fonts.ready;
+
+    const canvasTotales = await html2canvas(divTotales, {
+      scale: 3,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: '#ffffff',
+      width: divTotales.offsetWidth,
+      height: divTotales.offsetHeight,
+      logging: false,
+      imageTimeout: 0
+    });
+
+    document.body.removeChild(divTotales);
+
+    const blobTotales = await new Promise(resolve => 
+      canvasTotales.toBlob(resolve, "image/png", 1.0)
+    );
+    const fileTotales = new File([blobTotales], `resumen_totales.png`, { type: "image/png" });
+
+    const mensaje = isSubusuario ? 
+      `¡Resumen de recogida con ${itemsFactura.length} productos!` : 
+      `¡Resumen de factura con ${itemsFactura.length} productos!`;
+
+    console.log(`📤 Compartiendo resumen de totales`);
+
+    await navigator.share({
+      title: isSubusuario ? 'Resumen de Registro' : 'Resumen de Factura',
+      text: mensaje,
+      files: [fileTotales],
+    });
+
+  } catch (err) {
+    console.error("Error al compartir:", err);
+    alert("Error al generar el resumen: " + err.message);
+  } finally {
+    isSharingInProgress = false;
+  }
+}
+
+// 🔥 FUNCIÓN PARA CREAR PÁGINA DE TOTALES CON COLORES SUAVES Y AGRADABLES - ACTUALIZADA
+function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGeneral, finca, propietario, fecha) {
+  const div = document.createElement("div");
+  div.style.cssText = `
+    width: 800px;
+    min-height: 1000px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    color: #2c3e50;
+    font-family: 'Arial', sans-serif;
+    padding: 30px;
+    margin: 0;
+    box-sizing: border-box;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  `;
+
+  // Agrupar por fruta y calidad para el resumen
+  const resumenPorFruta = {};
+  todosLosItems.forEach(item => {
+    const clave = `${item.fruta} - ${item.calidad}`;
+    if (!resumenPorFruta[clave]) {
+      resumenPorFruta[clave] = { kilos: 0, valor: 0, cantidad: 0 };
+    }
+    resumenPorFruta[clave].kilos += item.kilos;
+    resumenPorFruta[clave].valor += item.valor;
+    resumenPorFruta[clave].cantidad += 1;
+  });
+
+  div.innerHTML = `
+    <div style="text-align: center; margin-bottom: 30px;">
+      <h1 style="margin: 0; font-size: 36px; font-weight: bold; color: #34495e;">
+        📊 RESUMEN TOTAL
+      </h1>
+      <div style="width: 60px; height: 4px; background: linear-gradient(to right, #3498db, #2ecc71); margin: 15px auto; border-radius: 2px;"></div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 15px; margin-bottom: 25px; backdrop-filter: blur(10px);">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 16px;">
+        <div><strong>🏠 Finca:</strong> ${finca}</div>
+        <div><strong>👤 Propietario:</strong> ${propietario}</div>
+        <div><strong>📅 Fecha:</strong> ${fecha}</div>
+        <div><strong>📦 Total pesas:</strong> ${todosLosItems.length}</div>
+      </div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; margin-bottom: 25px; backdrop-filter: blur(10px);">
+      <h3 style="margin: 0 0 25px 0; text-align: center; font-size: 20px;">📋 RESUMEN POR FRUTA Y CALIDAD</h3>
+      <div style="display: grid; gap: 15px;">
+        ${Object.entries(resumenPorFruta).map(([clave, datos], index) => {
+          return `
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; display: grid; grid-template-columns: 2fr 1fr 1fr ${!isSubusuario ? '1fr' : ''}; gap: 15px; align-items: center; color: #2c3e50; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+            <div style="font-weight: bold; color: #2c3e50;">${clave}</div>
+            <div style="text-align: center; color: #2c3e50;">${datos.kilos} kg</div>
+            <div style="text-align: center; color: #2c3e50;">${datos.cantidad} pesas</div>
+            ${!isSubusuario ? `<div style="text-align: center; color: #2c3e50;">$${datos.valor.toLocaleString()}</div>` : ''}
+          </div>
+        `}).join('')}
+      </div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 15px; text-align: center; margin-top: 30px;">
+      <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #2c3e50; font-weight: bold;">
+        🎯 TOTALES GENERALES
+      </h2>
+      <div style="display: flex; justify-content: center; align-items: center; gap: 25px; margin-top: 15px; font-size: 18px; opacity: 0.9;">
+        <span style="color: #2c3e50; font-weight: bold;">Total: ${totalKilosGeneral} kg</span>
+        ${!isSubusuario ? `<span style="color: #2c3e50;">•</span><span style="color: #2c3e50; font-weight: bold;">$${totalValorGeneral.toLocaleString()}</span>` : ''}
+        <span style="color: #2c3e50;">•</span><span style="color: #2c3e50; font-weight: bold;">${todosLosItems.length} pesas</span>
+      </div>
+    </div>
+
+    <div style="position: absolute; bottom: 20px; right: 30px; font-size: 12px; color: #95a5a6;">
+      Generado: ${new Date().toLocaleString()}
+    </div>
+  `;
+
+  return div;
+}
+
+// 🔥 FUNCIÓN PARA CREAR PÁGINA INDIVIDUAL DE FACTURA - COLORES SUAVES
+function crearFactura(items, numeroPagina, totalPaginas, finca, propietario, fecha) {
+  const div = document.createElement("div");
+  div.style.cssText = `
+    width: 800px;
+    min-height: 1000px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    color: #2c3e50;
+    font-family: 'Arial', sans-serif;
+    padding: 30px;
+    margin: 0;
+    box-sizing: border-box;
+    position: relative;
+    border: 1px solid #e1e8ed;
+  `;
+
+  // Calcular totales de esta página
+  const totalKilosPagina = items.reduce((sum, item) => sum + item.kilos, 0);
+  const totalValorPagina = items.reduce((sum, item) => sum + item.valor, 0);
+
+  div.innerHTML = `
+    <div style="text-align: center; margin-bottom: 25px;">
+      <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #34495e; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);">
+        ${isSubusuario ? '📋 REGISTRO PREMIUM' : '🧾 FACTURA PREMIUM'}
+      </h1>
+      <p style="margin: 5px 0; font-size: 16px; color: #7f8c8d;">Página ${numeroPagina} de ${totalPaginas}</p>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.8); padding: 20px; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #e8f4f8;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 16px; color: #2c3e50;">
+        <div><strong style="color: #3498db;">🏠 Finca:</strong> ${finca}</div>
+        <div><strong style="color: #3498db;">👤 Propietario:</strong> ${propietario}</div>
+        <div><strong style="color: #3498db;">📅 Fecha:</strong> ${fecha}</div>
+        <div><strong style="color: #3498db;">📄 Página:</strong> ${numeroPagina}/${totalPaginas}</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+      ${items.map(item => `
+        <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e8f4f8; transition: transform 0.2s;">
+          <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px; color: #2c3e50;">Pesa ${item.numero}</div>
+          <div style="font-size: 24px; color: #e67e22; font-weight: bold; margin-bottom: 5px;">${item.kilos} kg</div>
+          <div style="font-size: 14px; margin-bottom: 3px; color: #27ae60; font-weight: 500;">${item.fruta}</div>
+          <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">${item.calidad}</div>
+          ${!isSubusuario ? `<div style="font-size: 16px; color: #2ecc71; font-weight: bold;">$${item.valor.toLocaleString()}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+
+    <div style="background: rgba(255,255,255,0.9); padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #e8f4f8;">
+      <h3 style="margin: 0 0 15px 0; font-size: 20px; color: #2c3e50;">📊 TOTALES DE ESTA PÁGINA</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 18px;">
+        <div style="background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%); padding: 15px; border-radius: 10px; border: 1px solid #dee2e6;">
+          <div style="font-size: 14px; color: #6c757d; margin-bottom: 5px;">Total Kilos</div>
+          <div style="font-size: 28px; font-weight: bold; color: #e67e22;">${totalKilosPagina} kg</div>
+        </div>
+        ${!isSubusuario ? `
+        <div style="background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%); padding: 15px; border-radius: 10px; border: 1px solid #dee2e6;">
+          <div style="font-size: 14px; color: #6c757d; margin-bottom: 5px;">Total Valor</div>
+          <div style="font-size: 28px; font-weight: bold; color: #2ecc71;">$${totalValorPagina.toLocaleString()}</div>
+        </div>
+        ` : `
+        <div style="background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%); padding: 15px; border-radius: 10px; border: 1px solid #dee2e6;">
+          <div style="font-size: 14px; color: #6c757d; margin-bottom: 5px;">Items</div>
+          <div style="font-size: 28px; font-weight: bold; color: #3498db;">${items.length} productos</div>
+        </div>
+        `}
+      </div>
+    </div>
+
+    <div style="position: absolute; bottom: 15px; right: 25px; font-size: 12px; color: #95a5a6;">
+      Generado: ${new Date().toLocaleString()}
+    </div>
+  `;
+
+  return div;
+}
+
+// 🔥 NUEVA FUNCIÓN PARA CREAR PÁGINA DE TOTALES GENERALES
+function crearPaginaTotales(todosLosItems, totalKilosGeneral, totalValorGeneral, numeroPagina, totalPaginas, finca, propietario, fecha) {
+  const div = document.createElement("div");
+  div.style.cssText = `
+    width: 800px;
+    min-height: 1000px;
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+    font-family: 'Arial', sans-serif;
+    padding: 30px;
+    margin: 0;
+    box-sizing: border-box;
+    position: relative;
+  `;
+
+  // Agrupar por fruta y calidad para el resumen
+  const resumenPorFruta = {};
+  todosLosItems.forEach(item => {
+    const clave = `${item.fruta} - ${item.calidad}`;
+    if (!resumenPorFruta[clave]) {
+      resumenPorFruta[clave] = { kilos: 0, valor: 0, cantidad: 0 };
+    }
+    resumenPorFruta[clave].kilos += item.kilos;
+    resumenPorFruta[clave].valor += item.valor;
+    resumenPorFruta[clave].cantidad += 1;
+  });
+
+  div.innerHTML = `
+    <div style="text-align: center; margin-bottom: 25px;">
+      <h1 style="margin: 0; font-size: 36px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+        📊 RESUMEN TOTAL
+      </h1>
+      <p style="margin: 5px 0; font-size: 16px; opacity: 0.9;">Página ${numeroPagina} de ${totalPaginas}</p>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 15px; margin-bottom: 25px; backdrop-filter: blur(10px);">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 16px;">
+        <div><strong>🏠 Finca:</strong> ${finca}</div>
+        <div><strong>👤 Propietario:</strong> ${propietario}</div>
+        <div><strong>📅 Fecha:</strong> ${fecha}</div>
+        <div><strong>📦 Total Items:</strong> ${todosLosItems.length}</div>
+      </div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.2); padding: 25px; border-radius: 15px; margin-bottom: 25px; backdrop-filter: blur(10px);">
+      <h2 style="margin: 0 0 20px 0; text-align: center; font-size: 24px;">🎯 TOTALES GENERALES</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; text-align: center;">
+          <div style="font-size: 16px; opacity: 0.8; margin-bottom: 8px;">TOTAL KILOS</div>
+          <div style="font-size: 28px; font-weight: bold; color: #ffd700;">${totalKilosGeneral} kg</div>
+        </div>
+        ${!isSubusuario ? `
+        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; text-align: center;">
+          <div style="font-size: 16px; opacity: 0.8; margin-bottom: 8px;">TOTAL VALOR</div>
+          <div style="font-size: 28px; font-weight: bold; color: #90ee90;">${totalValorGeneral.toLocaleString()}</div>
+        </div>
+        ` : `
+        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; text-align: center;">
+          <div style="font-size: 16px; opacity: 0.8; margin-bottom: 8px;">TOTAL ITEMS</div>
+          <div style="font-size: 28px; font-weight: bold; color: #87ceeb;">${todosLosItems.length}</div>
+        </div>
+        `}
+      </div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; margin-bottom: 25px; backdrop-filter: blur(10px);">
+      <h3 style="margin: 0 0 15px 0; text-align: center; font-size: 20px;">📋 RESUMEN POR FRUTA Y CALIDAD</h3>
+      <div style="display: grid; gap: 10px;">
+        ${Object.entries(resumenPorFruta).map(([clave, datos]) => `
+          <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; display: grid; grid-template-columns: 2fr 1fr 1fr ${!isSubusuario ? '1fr' : ''}; gap: 15px; align-items: center;">
+            <div style="font-weight: bold;">${clave}</div>
+            <div style="text-align: center;">${datos.kilos} kg</div>
+            <div style="text-align: center;">${datos.cantidad} pesas</div>
+            ${!isSubusuario ? `<div style="text-align: center; color: #90ee90; font-weight: bold;">${datos.valor.toLocaleString()}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div style="position: absolute; bottom: 15px; right: 25px; font-size: 12px; opacity: 0.7;">
+      Generado: ${new Date().toLocaleString()}
+    </div>
+  `;
+
+  return div;
+}
+
+if (enviarReciboBtn) {
+  enviarReciboBtn.addEventListener("click", enviarReciboWhatsApp);
+}
+
+async function cargarDatosRecogida(id) {
+  try {
+    const res = await fetch(`https://jc-frutas.onrender.com/recogidas/${id}`);
+    if (!res.ok) throw new Error("No se pudo obtener la recogida");
+    const recogida = await res.json();
+
+    document.getElementById("finca").value = recogida.finca;
+    document.getElementById("propietario").value = recogida.propietario;
+    document.getElementById("fecha").value = recogida.fecha;
+    frutaSelect.value = recogida.fruta;
+    calidadSelect.value = recogida.calidad;
+    
+    if (!isSubusuario) {
+      actualizarPrecioKiloVisible();
+    }
+
+    const pesasConInfo = recogida.pesas.map(pesa => ({
+      ...pesa,
+      fruta: pesa.fruta || recogida.fruta,
+      calidad: pesa.calidad || recogida.calidad,
+      precio: pesa.precio || recogida.precio
+    }));
+
+    savePesas(pesasConInfo);
+    renderPesas();
+
+  } catch (err) {
+    alert("Error al cargar la recogida: " + err.message);
+  }
+}
+
+// INICIALIZACIÓN
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Calculadora cargada, configurando interfaz mejorada...");
   
