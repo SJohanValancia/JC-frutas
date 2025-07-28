@@ -139,7 +139,56 @@ async function obtenerAliasUsuario() {
   }
 }
 
-// 🔥 FUNCIÓN MODIFICADA: Guardar recogida con múltiples frutas y calidades
+// 🔥 FUNCIÓN MEJORADA PARA LIMPIAR COMPLETAMENTE EL LOCALSTORAGE
+function limpiarPesasCompleto() {
+  try {
+    // Limpiar todas las claves relacionadas con pesas
+    const clavesALimpiar = [
+      "pesas_recogida",           // Clave principal
+      "pesas_backup",             // Backup principal
+      "pesas_backup_timestamp"    // Backup con timestamp si existe
+    ];
+    
+    // Limpiar claves específicas
+    clavesALimpiar.forEach(clave => {
+      if (localStorage.getItem(clave)) {
+        localStorage.removeItem(clave);
+        console.log(`🧹 Clave limpiada: ${clave}`);
+      }
+    });
+    
+    // Limpiar todos los backups con timestamp (formato: pesas_backup_TIMESTAMP)
+    const todasLasClaves = Object.keys(localStorage);
+    const clavesBackupTimestamp = todasLasClaves.filter(key => 
+      key.startsWith('pesas_backup_') && key !== 'pesas_backup'
+    );
+    
+    clavesBackupTimestamp.forEach(clave => {
+      localStorage.removeItem(clave);
+      console.log(`🧹 Backup con timestamp limpiado: ${clave}`);
+    });
+    
+    // Limpiar autoguardados si existen
+    const clavesAutoguardado = todasLasClaves.filter(key => 
+      key.startsWith('pesas_autosave_')
+    );
+    
+    clavesAutoguardado.forEach(clave => {
+      localStorage.removeItem(clave);
+      console.log(`🧹 Autoguardado limpiado: ${clave}`);
+    });
+    
+    console.log("✅ LocalStorage limpiado completamente");
+    console.log(`📊 Total claves limpiadas: ${clavesALimpiar.length + clavesBackupTimestamp.length + clavesAutoguardado.length}`);
+    
+    return true;
+  } catch (error) {
+    console.error("❌ Error al limpiar localStorage:", error);
+    return false;
+  }
+}
+
+// 🔥 FUNCIÓN GUARDAR RECOGIDA MODIFICADA - PARA RECOGIDA.JS
 async function guardarRecogida() {
   console.log("💾 Iniciando guardado de recogida con múltiples frutas/calidades...");
   
@@ -266,23 +315,98 @@ async function guardarRecogida() {
     const result = await response.json();
     console.log("✅ Recogida múltiple guardada:", result);
 
-    // 💥 Aquí agregamos el borrado de las pesas en localStorage
-    localStorage.removeItem("pesas_recogida");
-
-    mostrarAnimacionExito("✔ Recogida con múltiples frutas/calidades guardada");
-    setTimeout(() => window.location.reload(), 1500);
+    // 🔥 AQUÍ ESTÁ EL CAMBIO PRINCIPAL: LIMPIAR COMPLETAMENTE EL LOCALSTORAGE
+    const limpiezaExitosa = limpiarPesasCompleto();
+    
+    if (limpiezaExitosa) {
+      console.log("✅ LocalStorage limpiado exitosamente después de guardar");
+      mostrarAnimacionExito("✔ Recogida guardada y datos limpiados");
+    } else {
+      console.warn("⚠️ Hubo un problema al limpiar el localStorage");
+      mostrarAnimacionExito("✔ Recogida guardada (revisar limpieza de datos)");
+    }
+    
+    // Pequeña pausa antes de recargar para que el usuario vea el mensaje
+    setTimeout(() => {
+      // Verificar una vez más que esté limpio antes de recargar
+      const pesasRestantes = localStorage.getItem("pesas_recogida");
+      if (pesasRestantes) {
+        console.warn("⚠️ Aún quedan pesas en localStorage, forzando limpieza...");
+        localStorage.removeItem("pesas_recogida");
+      }
+      
+      window.location.reload();
+    }, 1500);
+    
   } catch (err) {
     console.error("❌ Error al guardar recogida múltiple:", err);
     alert("Error al guardar recogida: " + err.message);
   }
 }
 
-function limpiarPesasLocalStorage() {
-  try {
-    localStorage.removeItem("pesas_recogida");
-    console.log("🧹 Pesas eliminadas del localStorage");
-  } catch (error) {
-    console.error("Error al limpiar pesas del localStorage:", error);
+// 🔥 FUNCIÓN ADICIONAL PARA VERIFICAR SI EL LOCALSTORAGE ESTÁ LIMPIO
+function verificarLimpiezaLocalStorage() {
+  const clavesRelacionadas = [
+    "pesas_recogida",
+    "pesas_backup"
+  ];
+  
+  const clavesEncontradas = [];
+  
+  clavesRelacionadas.forEach(clave => {
+    if (localStorage.getItem(clave)) {
+      clavesEncontradas.push(clave);
+    }
+  });
+  
+  // Verificar también backups con timestamp
+  const todasLasClaves = Object.keys(localStorage);
+  const backupsEncontrados = todasLasClaves.filter(key => 
+    key.startsWith('pesas_backup_') || key.startsWith('pesas_autosave_')
+  );
+  
+  const totalClaves = clavesEncontradas.length + backupsEncontrados.length;
+  
+  if (totalClaves > 0) {
+    console.warn(`⚠️ Se encontraron ${totalClaves} claves sin limpiar:`, 
+                 [...clavesEncontradas, ...backupsEncontrados]);
+    return false;
+  } else {
+    console.log("✅ LocalStorage completamente limpio");
+    return true;
+  }
+}
+
+// 🔥 FUNCIÓN PARA LIMPIAR MANUALMENTE (útil para debugging)
+function limpiarManual() {
+  const limpio = limpiarPesasCompleto();
+  const verificado = verificarLimpiezaLocalStorage();
+  
+  if (limpio && verificado) {
+    console.log("🎉 Limpieza manual completada exitosamente");
+    alert("✅ LocalStorage limpiado completamente");
+  } else {
+    console.error("❌ Problemas en la limpieza manual");
+    alert("⚠️ Hubo problemas en la limpieza. Revisar consola.");
+  }
+}
+
+
+function configurarBotonGuardar() {
+  const guardarBtn = document.getElementById("guardarRecogida");
+  if (guardarBtn) {
+    // Remover cualquier listener existente
+    guardarBtn.removeEventListener("click", guardarRecogida);
+    
+    // Agregar el nuevo listener con limpieza mejorada
+    guardarBtn.addEventListener("click", async () => {
+      console.log("🚀 Botón guardar presionado - iniciando proceso con limpieza completa");
+      await guardarRecogida();
+    });
+    
+    console.log("✅ Botón guardar configurado con limpieza completa de localStorage");
+  } else {
+    console.warn("⚠️ Botón 'guardarRecogida' no encontrado en el DOM");
   }
 }
 
