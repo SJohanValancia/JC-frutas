@@ -410,7 +410,7 @@ function configurarBotonGuardar() {
   }
 }
 
-//
+
 
 
 // FUNCIÓN PARA CONFIGURAR INTERFAZ SEGÚN TIPO DE USUARIO
