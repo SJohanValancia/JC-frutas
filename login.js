@@ -1,5 +1,10 @@
 import { apiFetch } from "./api.js";
 
+// Limpiar localStorage cuando se carga la página de login
+document.addEventListener("DOMContentLoaded", () => {
+  localStorage.clear();
+});
+
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -9,6 +14,9 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   try {
     const res = await apiFetch("/auth/login", "POST", { username, password });
     alert("Inicio de sesión exitoso");
+
+    // Limpiar localStorage antes de redirigir al dashboard
+    window.localStorage.clear();
 
     // 🔍 DEBUG: Vamos a ver exactamente qué está devolviendo el servidor
     console.log("=== RESPUESTA COMPLETA DEL SERVIDOR ===");

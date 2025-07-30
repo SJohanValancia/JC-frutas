@@ -257,6 +257,25 @@ router.get("/resumen/:adminAlias", async (req, res) => {
   }
 });
 
+// Ruta para obtener las recogidas filtradas por fecha
+router.get("/recogidas/por-fecha/:fincaId", async (req, res) => {
+  const { fincaId } = req.params;
+  const { startDate, endDate } = req.query;
+
+  try {
+    const recogidas = await Recogida.find({
+      fincaId,
+      fecha: { $gte: new Date(startDate), $lte: new Date(endDate) }
+    }).sort({ fecha: -1 });
+
+    res.status(200).json(recogidas);
+  } catch (err) {
+    console.error("Error al obtener las recogidas filtradas:", err);
+    res.status(500).json({ error: "Error al obtener las recogidas filtradas" });
+  }
+});
+
+
 // GET /recogidas/resumen/:adminAlias - Nuevo endpoint para obtener resumen sin precios para subusuarios
 router.get("/resumen/:adminAlias", async (req, res) => {
   const { adminAlias } = req.params;

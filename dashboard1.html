@@ -88,18 +88,8 @@
 
     .historial-btn {
       position: absolute;
-      transform: translateY(-80px);
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  border: none;
-  padding: 15px 25px;
-  border-radius: 25px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 20px;
-  width: 100%;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+      transform: translateX(-270px);
+
 }
 
 .historial-btn:hover {
@@ -272,7 +262,7 @@ function insertarArribaFueraContainer(button) {
   topContainer.id = 'historial-top-container';
   topContainer.style.cssText = `
     position: absolute;
-    top: 100px;
+    top: 10px;
     left: -2
     
     0px;
@@ -638,11 +628,12 @@ async function renderFinca(finca) {
       <div class="loading-info">⏳ Cargando información de recogidas...</div>
     </div>
     
-    <div class="botones-container">
-      <button onclick="location.href='precios.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}'">💰 Precios</button>
-      <button onclick="location.href='recogida.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">📊 Recogida</button>
-      <button onclick="location.href='historial.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}'">📋 Historial</button>
-    </div>
+<div class="botones-container">
+  <button onclick="location.href='precios.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}'">💰 Precios</button>
+  <button onclick="location.href='recogida.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">📊 Recogida</button>
+  <button onclick="location.href='historial.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}'">📋 Historial</button>
+  <button onclick="location.href='liquidacion.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">💰 Liquidación</button>
+</div>
   `;
   
   lista.prepend(div);

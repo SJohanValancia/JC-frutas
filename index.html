@@ -6,7 +6,6 @@
   <link rel="stylesheet" href="style.css">
   <script type="module" src="login.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 </head>
 <body>
   <div class="container-account">
@@ -18,7 +17,14 @@
     </form>
     <p>¿No tienes cuenta? <a href="register.html">Regístrate</a></p>
   </div>
+
+  <script>
+    // Limpiar localStorage y sessionStorage cuando se carga la página de login (index.html)
+    document.addEventListener("DOMContentLoaded", () => {
+      localStorage.clear();  // Limpia localStorage
+      sessionStorage.clear();  // Limpia sessionStorage
+    });
+  </script>
 </body>
 <script type="module" src="login.js"></script>
-
 </html>
