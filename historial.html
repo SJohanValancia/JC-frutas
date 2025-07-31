@@ -654,15 +654,15 @@ background: rgba(128, 105, 105, 0.329);
       return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     }
 
-    function formatearFecha(fecha) {
-      const opciones = { 
-        weekday: 'short', 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-      };
-      return new Date(fecha + 'T00:00:00').toLocaleDateString('es-ES', opciones);
-    }
+function formatearFecha(fecha) {
+  const opciones = { 
+    weekday: 'short', 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  };
+  return new Date(fecha).toLocaleDateString('es-ES', opciones);
+}
 
 function mostrarRecogidas(listaFiltrada) {
   lista.innerHTML = "";
