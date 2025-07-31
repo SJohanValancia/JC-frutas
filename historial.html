@@ -191,6 +191,24 @@ background: rgba(128, 105, 105, 0.329);
       font-size: 1.2rem;
     }
 
+    /* 🔥 NUEVOS ESTILOS PARA FRUTAS MÚLTIPLES */
+    .frutas-multiple {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 5px;
+    }
+
+    .fruta-tag {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    }
+
     .card-metrics {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -374,6 +392,15 @@ background: rgba(128, 105, 105, 0.329);
 
       .editar-btn {
         width: 100%;
+      }
+
+      .frutas-multiple {
+        justify-content: flex-start;
+      }
+
+      .fruta-tag {
+        font-size: 0.7rem;
+        padding: 2px 6px;
       }
     }
   </style>
@@ -638,8 +665,27 @@ background: rgba(128, 105, 105, 0.329);
       const usuario = filtros.usuario.value.toLowerCase();
 
       const filtradas = todasLasRecogidas.filter(r => {
-        const coincideFecha = !fecha || r.fecha === fecha;
-        const coincideFruta = !fruta || r.fruta.toLowerCase().includes(fruta);
+        // 🔥 CORRECCIÓN DE FECHA: Manejo seguro de fechas
+        let coincideFecha = !fecha;
+        if (fecha && r.fecha) {
+          try {
+            const fechaRecogida = new Date(r.fecha).toISOString().split('T')[0];
+            coincideFecha = fechaRecogida === fecha;
+          } catch (error) {
+            console.error('Error al procesar fecha:', r.fecha);
+            coincideFecha = false;
+          }
+        }
+        
+        // 🔥 MEJORA EN FILTRO DE FRUTA: Buscar en todas las frutas de las pesas
+        let coincideFruta = !fruta;
+        if (fruta && r.pesas) {
+          const frutasRecogida = r.pesas.map(p => p.fruta || '').join(' ').toLowerCase();
+          coincideFruta = frutasRecogida.includes(fruta) || (r.fruta || '').toLowerCase().includes(fruta);
+        } else if (fruta) {
+          coincideFruta = (r.fruta || '').toLowerCase().includes(fruta);
+        }
+        
         const coincideCalidad = !calidad || r.calidad === calidad;
         const coincideUsuario = !usuario || (r.usuario || "").toLowerCase().includes(usuario);
         return coincideFecha && coincideFruta && coincideCalidad && coincideUsuario;
@@ -654,126 +700,166 @@ background: rgba(128, 105, 105, 0.329);
       return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     }
 
+    // 🔥 FUNCIÓN CORREGIDA PARA FECHAS
 function formatearFecha(fecha) {
-  const opciones = { 
-    weekday: 'short', 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
-  };
-  return new Date(fecha).toLocaleDateString('es-ES', opciones);
-}
-
-function mostrarRecogidas(listaFiltrada) {
-  lista.innerHTML = "";
-  if (listaFiltrada.length === 0) {
-    lista.innerHTML = `
-      <div class="no-resultados">
-        <h3>🔍 No hay coincidencias</h3>
-        <p>Intenta ajustar los filtros para encontrar más resultados</p>
-      </div>
-    `;
-    return;
-  }
-
-  listaFiltrada.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-  // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
-  const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
-
-  listaFiltrada.forEach(r => {
-    const card = document.createElement("div");
-    card.className = "recogida-card";
-    
-    const promedioKilo = r.pesas.length > 0 ? (r.totalKilos / r.pesas.length).toFixed(1) : 0;
-    const fechaFormateada = formatearFecha(r.fecha);
-    
-    // 🔥 CONDICIONAR CONTENIDO SEGÚN TIPO DE USUARIO
-    let metricsHTML = '';
-    let valorTotalHTML = '';
-    
-    if (debeOcultarPrecios) {
-      // Para subusuarios: solo mostrar pesas y promedio de kilos
-      metricsHTML = `
-        <div class="card-metrics">
-          <div class="metric-item">
-            <span class="metric-value">${r.pesas.length}</span>
-            <span class="metric-label">Pesas</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-value">${promedioKilo}</span>
-            <span class="metric-label">Kg/Pesa</span>
-          </div>
-        </div>
-      `;
-      valorTotalHTML = ''; // Sin valor total
-    } else {
-      // Para administradores: mostrar todo
-      const precioKilo = r.totalKilos > 0 && r.valorPagar ? (r.valorPagar / r.totalKilos).toFixed(0) : 0;
-      
-      metricsHTML = `
-        <div class="card-metrics">
-          <div class="metric-item">
-            <span class="metric-value">${r.pesas.length}</span>
-            <span class="metric-label">Pesas</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-value">${promedioKilo}</span>
-            <span class="metric-label">Kg/Pesa</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-value">${precioKilo}</span>
-            <span class="metric-label">$/Kg</span>
-          </div>
-        </div>
-      `;
-      
-      valorTotalHTML = `
-        <div class="info-group" style="margin-bottom: 15px;">
-          <span class="info-label">💰 Total a Pagar</span>
-          <span class="info-value valor">${(r.valorPagar || 0).toLocaleString()}</span>
-        </div>
-      `;
+  if (!fecha) return "No disponible";
+  
+  try {
+    // Si la fecha viene como string de tipo "2024-01-15" (formato YYYY-MM-DD)
+    if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = fecha.split('-');
+      return `${day}/${month}/${year}`;
     }
     
-    card.innerHTML = `
-      <div class="card-header">
-        <div class="fecha-badge">${fechaFormateada}</div>
-        <div class="calidad-badge calidad-${r.calidad}">${r.calidad}</div>
-      </div>
-      
-      <div class="card-content">
-        <div class="info-group">
-          <span class="info-label">🍉 Fruta</span>
-          <span class="info-value fruta">${r.fruta}</span>
-        </div>
-        <div class="info-group">
-          <span class="info-label">⚖️ Total Kilos</span>
-          <span class="info-value kilos">${r.totalKilos} kg</span>
-        </div>
-      </div>
-
-      ${metricsHTML}
-      ${valorTotalHTML}
-
-      <div class="card-footer">
-        <div class="usuario-info">
-          <div class="usuario-avatar">${obtenerIniciales(r.usuario)}</div>
-          <span>Recogida realizada por: ${r.usuario || "Usuario no registrado"}</span>
-        </div>
-        <button class="editar-btn" data-id="${r._id}">✏️ Editar</button>
-      </div>
-    `;
-
-    card.querySelector(".editar-btn").addEventListener("click", () => {
-      // 🔥 PASAR USUARIO EN LA URL AL EDITAR
-      window.location.href = `recogida.html?modo=editar&idRecogida=${r._id}&fincaId=${r.fincaId}&usuario=${encodeURIComponent(usuario)}`;
-    });
-
-    lista.appendChild(card);
-  });
+    // Si la fecha viene como ISO string o timestamp
+    const date = new Date(fecha);
+    
+    // 🔥 SOLUCIÓN: Usar getUTCDate, getUTCMonth, getUTCFullYear para evitar problemas de zona horaria
+    const dia = String(date.getUTCDate()).padStart(2, '0');
+    const mes = String(date.getUTCMonth() + 1).padStart(2, '0'); // getUTCMonth() devuelve 0-11
+    const año = date.getUTCFullYear();
+    
+    return `${dia}/${mes}/${año}`;
+  } catch (error) {
+    console.error("❌ Error al formatear fecha:", error, "Fecha recibida:", fecha);
+    return "Fecha inválida";
+  }
 }
 
+    // 🔥 FUNCIÓN PARA OBTENER FRUTAS ÚNICAS DE UNA RECOGIDA
+    function obtenerFrutasRecogida(recogida) {
+      if (!recogida.pesas || recogida.pesas.length === 0) {
+        return [recogida.fruta || 'Sin especificar'];
+      }
+      
+      const frutasUnicas = [...new Set(recogida.pesas.map(p => p.fruta).filter(f => f))];
+      return frutasUnicas.length > 0 ? frutasUnicas : [recogida.fruta || 'Sin especificar'];
+    }
+
+    function mostrarRecogidas(listaFiltrada) {
+      lista.innerHTML = "";
+      if (listaFiltrada.length === 0) {
+        lista.innerHTML = `
+          <div class="no-resultados">
+            <h3>🔍 No hay coincidencias</h3>
+            <p>Intenta ajustar los filtros para encontrar más resultados</p>
+          </div>
+        `;
+        return;
+      }
+
+      listaFiltrada.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+      // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
+      const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
+
+      listaFiltrada.forEach(r => {
+        const card = document.createElement("div");
+        card.className = "recogida-card";
+        
+        const promedioKilo = r.pesas.length > 0 ? (r.totalKilos / r.pesas.length).toFixed(1) : 0;
+        const fechaFormateada = formatearFecha(r.fecha);
+        
+        // 🔥 OBTENER TODAS LAS FRUTAS DE LA RECOGIDA
+        const frutasRecogida = obtenerFrutasRecogida(r);
+        
+        // 🔥 CREAR HTML PARA MOSTRAR FRUTAS (UNA O MÚLTIPLES)
+        let frutasHTML = '';
+        if (frutasRecogida.length === 1) {
+          frutasHTML = `<span class="info-value fruta">${frutasRecogida[0]}</span>`;
+        } else {
+          frutasHTML = `
+            <div class="frutas-multiple">
+              ${frutasRecogida.map(fruta => `<span class="fruta-tag">${fruta}</span>`).join('')}
+            </div>
+          `;
+        }
+        
+        // 🔥 CONDICIONAR CONTENIDO SEGÚN TIPO DE USUARIO
+        let metricsHTML = '';
+        let valorTotalHTML = '';
+        
+        if (debeOcultarPrecios) {
+          // Para subusuarios: solo mostrar pesas y promedio de kilos
+          metricsHTML = `
+            <div class="card-metrics">
+              <div class="metric-item">
+                <span class="metric-value">${r.pesas.length}</span>
+                <span class="metric-label">Pesas</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-value">${promedioKilo}</span>
+                <span class="metric-label">Kg/Pesa</span>
+              </div>
+            </div>
+          `;
+          valorTotalHTML = ''; // Sin valor total
+        } else {
+          // Para administradores: mostrar todo
+          const precioKilo = r.totalKilos > 0 && r.valorPagar ? (r.valorPagar / r.totalKilos).toFixed(0) : 0;
+          
+          metricsHTML = `
+            <div class="card-metrics">
+              <div class="metric-item">
+                <span class="metric-value">${r.pesas.length}</span>
+                <span class="metric-label">Pesas</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-value">${promedioKilo}</span>
+                <span class="metric-label">Kg/Pesa</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-value">${precioKilo}</span>
+                <span class="metric-label">$/Kg</span>
+              </div>
+            </div>
+          `;
+          
+          valorTotalHTML = `
+            <div class="info-group" style="margin-bottom: 15px;">
+              <span class="info-label">💰 Total a Pagar</span>
+              <span class="info-value valor">${(r.valorPagar || 0).toLocaleString()}</span>
+            </div>
+          `;
+        }
+        
+        card.innerHTML = `
+          <div class="card-header">
+            <div class="fecha-badge">${fechaFormateada}</div>
+            <div class="calidad-badge calidad-${r.calidad}">${r.calidad}</div>
+          </div>
+          
+          <div class="card-content">
+            <div class="info-group">
+              <span class="info-label">🍉 ${frutasRecogida.length > 1 ? 'Frutas' : 'Fruta'}</span>
+              ${frutasHTML}
+            </div>
+            <div class="info-group">
+              <span class="info-label">⚖️ Total Kilos</span>
+              <span class="info-value kilos">${r.totalKilos} kg</span>
+            </div>
+          </div>
+
+          ${metricsHTML}
+          ${valorTotalHTML}
+
+          <div class="card-footer">
+            <div class="usuario-info">
+              <div class="usuario-avatar">${obtenerIniciales(r.alias || r.usuario)}</div>
+              <span>Recogida realizada por: ${r.alias || r.usuario || "Usuario no registrado"}</span>
+            </div>
+            <button class="editar-btn" data-id="${r._id}">✏️ Editar</button>
+          </div>
+        `;
+
+        card.querySelector(".editar-btn").addEventListener("click", () => {
+          // 🔥 PASAR USUARIO EN LA URL AL EDITAR
+          window.location.href = `recogida.html?modo=editar&idRecogida=${r._id}&fincaId=${r.fincaId}&usuario=${encodeURIComponent(usuario)}`;
+        });
+
+        lista.appendChild(card);
+      });
+    }
 
     // Escuchar filtros
     Object.values(filtros).forEach(input => {

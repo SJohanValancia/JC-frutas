@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Dashboard Tipo 1</title>
   <link rel="stylesheet" href="style.css">
+  <script src="jc-loader.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     .card-glass {
@@ -589,16 +590,169 @@ window.addEventListener('beforeunload', () => {
       }
     }
 
-    // Función para formatear fecha
-    function formatearFecha(fecha) {
-      if (!fecha) return "No disponible";
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
+function formatearFecha(fecha) {
+  if (!fecha) return "No disponible";
+  
+  try {
+    // Si la fecha viene como string de tipo "2024-01-15" (formato YYYY-MM-DD)
+    if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = fecha.split('-');
+      return `${day}/${month}/${year}`;
     }
+    
+    // Si la fecha viene como ISO string o timestamp
+    const date = new Date(fecha);
+    
+    // 🔥 SOLUCIÓN: Usar getUTCDate, getUTCMonth, getUTCFullYear para evitar problemas de zona horaria
+    const dia = String(date.getUTCDate()).padStart(2, '0');
+    const mes = String(date.getUTCMonth() + 1).padStart(2, '0'); // getUTCMonth() devuelve 0-11
+    const año = date.getUTCFullYear();
+    
+    return `${dia}/${mes}/${año}`;
+  } catch (error) {
+    console.error("❌ Error al formatear fecha:", error, "Fecha recibida:", fecha);
+    return "Fecha inválida";
+  }
+}
+
+function formatearFechaLocal(fecha) {
+  if (!fecha) return "No disponible";
+  
+  try {
+    const date = new Date(fecha);
+    
+    // Verificar que la fecha sea válida
+    if (isNaN(date.getTime())) {
+      return "Fecha inválida";
+    }
+    
+    // Usar métodos locales pero ajustando por el offset de zona horaria
+    const dia = String(date.getDate()).padStart(2, '0');
+    const mes = String(date.getMonth() + 1).padStart(2, '0');
+    const año = date.getFullYear();
+    
+    return `${dia}/${mes}/${año}`;
+  } catch (error) {
+    console.error("❌ Error al formatear fecha local:", error, "Fecha recibida:", fecha);
+    return "Fecha inválida";
+  }
+}
+
+
+function formatearFechaConDebug(fecha) {
+  if (!fecha) return "No disponible";
+  
+  console.log("🔍 DEBUG FECHA:");
+  console.log("  - Fecha original:", fecha);
+  console.log("  - Tipo:", typeof fecha);
+  
+  try {
+    const date = new Date(fecha);
+    console.log("  - Date object:", date);
+    console.log("  - getDate():", date.getDate());
+    console.log("  - getUTCDate():", date.getUTCDate());
+    console.log("  - Timezone offset:", date.getTimezoneOffset());
+    
+    // Usar UTC para evitar problemas de zona horaria
+    const dia = String(date.getUTCDate()).padStart(2, '0');
+    const mes = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const año = date.getUTCFullYear();
+    
+    const fechaFormateada = `${dia}/${mes}/${año}`;
+    console.log("  - Fecha formateada:", fechaFormateada);
+    
+    return fechaFormateada;
+  } catch (error) {
+    console.error("❌ Error al formatear fecha:", error);
+    return "Fecha inválida";
+  }
+}
+
+// 🔥 FUNCIÓN ESPECÍFICA: Para fechas que vienen del backend en formato ISO
+function formatearFechaISO(fechaISO) {
+  if (!fechaISO) return "No disponible";
+  
+  try {
+    // Si es una fecha ISO como "2024-01-15T00:00:00.000Z"
+    const date = new Date(fechaISO);
+    
+    // Crear una nueva fecha usando solo la parte de la fecha (sin hora)
+    // Esto evita problemas de zona horaria
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    
+    // Crear fecha local con esos valores
+    const fechaLocal = new Date(year, month, day);
+    
+    const dia = String(fechaLocal.getDate()).padStart(2, '0');
+    const mes = String(fechaLocal.getMonth() + 1).padStart(2, '0');
+    const año = fechaLocal.getFullYear();
+    
+    return `${dia}/${mes}/${año}`;
+  } catch (error) {
+    console.error("❌ Error al formatear fecha ISO:", error);
+    return "Fecha inválida";
+  }
+}
+
+// 🔥 FUNCIÓN UNIVERSAL: Maneja todos los formatos de fecha comunes
+function formatearFechaUniversal(fecha) {
+  if (!fecha) return "No disponible";
+  
+  try {
+    let dateObj;
+    
+    // Caso 1: String en formato YYYY-MM-DD
+    if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = fecha.split('-');
+      // Crear fecha local directamente para evitar conversiones UTC
+      dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+    // Caso 2: String ISO o timestamp
+    else {
+      dateObj = new Date(fecha);
+      
+      // Si la fecha parece ser solo fecha (sin componente de tiempo significativo)
+      // usar UTC para evitar shifts de zona horaria
+      const timeComponent = dateObj.getUTCHours() + dateObj.getUTCMinutes() + dateObj.getUTCSeconds();
+      
+      if (timeComponent === 0) {
+        // Es solo fecha, usar UTC
+        const dia = String(dateObj.getUTCDate()).padStart(2, '0');
+        const mes = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+        const año = dateObj.getUTCFullYear();
+        return `${dia}/${mes}/${año}`;
+      }
+    }
+    
+    // Verificar que la fecha sea válida
+    if (isNaN(dateObj.getTime())) {
+      return "Fecha inválida";
+    }
+    
+    // Formatear usando fecha local
+    const dia = String(dateObj.getDate()).padStart(2, '0');
+    const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const año = dateObj.getFullYear();
+    
+    return `${dia}/${mes}/${año}`;
+    
+  } catch (error) {
+    console.error("❌ Error al formatear fecha universal:", error, "Fecha:", fecha);
+    return "Fecha inválida";
+  }
+}
+
+// 🔥 REEMPLAZAR EN EL DASHBOARD: Usar la función corregida
+// En la función renderFinca(), reemplazar la línea que usa formatearFecha() con:
+
+// ANTES:
+// 📊 Última Recogida - ${formatearFecha(ultimaRecogida.fecha)}
+
+// DESPUÉS:
+// 📊 Última Recogida - ${formatearFechaUniversal(ultimaRecogida.fecha)}
+
 
     // Función para formatear moneda
     function formatearMoneda(valor) {
@@ -654,8 +808,11 @@ async function renderFinca(finca) {
     console.log("usuarioMostrar:", usuarioMostrar);
     console.log("=== FIN DEBUG ===");
 
+    // 🔥 NUEVA FUNCIÓN: Analizar todas las frutas de la última recogida
+    const frutasInfo = analizarFrutasDeRecogida(ultimaRecogida);
+    console.log("🍎 Análisis de frutas en última recogida:", frutasInfo);
+
     // 🔥 CORRECCIÓN: Obtener tipo del usuario ACTUAL (no del que hizo la recogida)
-    // Los administradores SIEMPRE ven los precios, sin importar quién hizo la recogida
     const storedData = sessionStorage.getItem('userData');
     let tipoUsuarioActual = 1; // Por defecto administrador
     
@@ -692,15 +849,7 @@ async function renderFinca(finca) {
           <span class="info-value">${usuarioMostrar}</span>
         </div>
         
-        <div class="info-row">
-          <span class="info-label">🍎 Fruta:</span>
-          <span class="info-value">${ultimaRecogida.fruta || 'N/A'}</span>
-        </div>
-        
-        <div class="info-row">
-          <span class="info-label">⭐ Calidad:</span>
-          <span class="info-value">${ultimaRecogida.calidad || 'N/A'}</span>
-        </div>
+        ${generarHtmlFrutas(frutasInfo, false)}
         
         <div class="info-row">
           <span class="info-label">⚖️ Kilos:</span>
@@ -746,15 +895,7 @@ async function renderFinca(finca) {
           <span class="info-value">${usuarioMostrar}</span>
         </div>
         
-        <div class="info-row">
-          <span class="info-label">🍎 Fruta:</span>
-          <span class="info-value">${ultimaRecogida.fruta || 'N/A'}</span>
-        </div>
-        
-        <div class="info-row">
-          <span class="info-label">⭐ Calidad:</span>
-          <span class="info-value">${ultimaRecogida.calidad || 'N/A'}</span>
-        </div>
+        ${generarHtmlFrutas(frutasInfo, true)}
         
         <div class="info-row">
           <span class="info-label">⚖️ Kilos:</span>
@@ -789,6 +930,235 @@ async function renderFinca(finca) {
   }
 }
 
+// 🔥 NUEVA FUNCIÓN: Analizar todas las frutas de una recogida
+function analizarFrutasDeRecogida(recogida) {
+  const frutasInfo = {
+    frutasUnicas: [],
+    calidadesUnicas: [],
+    resumenDetallado: {},
+    esSoloUnaFruta: false,
+    esSoloUnaCalidad: false
+  };
+
+  // Si hay pesas individuales, analizarlas
+  if (recogida.pesas && recogida.pesas.length > 0) {
+    console.log("🔍 Analizando pesas individuales:", recogida.pesas.length);
+    
+    recogida.pesas.forEach(pesa => {
+      const fruta = pesa.fruta || recogida.fruta || 'Sin especificar';
+      const calidad = pesa.calidad || recogida.calidad || 'Sin especificar';
+      
+      // Recopilar frutas únicas
+      if (!frutasInfo.frutasUnicas.includes(fruta)) {
+        frutasInfo.frutasUnicas.push(fruta);
+      }
+      
+      // Recopilar calidades únicas
+      if (!frutasInfo.calidadesUnicas.includes(calidad)) {
+        frutasInfo.calidadesUnicas.push(calidad);
+      }
+      
+      // Crear resumen detallado
+      const clave = `${fruta} (${calidad})`;
+      if (!frutasInfo.resumenDetallado[clave]) {
+        frutasInfo.resumenDetallado[clave] = {
+          fruta: fruta,
+          calidad: calidad,
+          kilos: 0,
+          pesas: 0
+        };
+      }
+      
+      frutasInfo.resumenDetallado[clave].kilos += pesa.kilos || 0;
+      frutasInfo.resumenDetallado[clave].pesas += 1;
+    });
+  } else {
+    // Si no hay pesas individuales, usar datos generales
+    const fruta = recogida.fruta || 'Sin especificar';
+    const calidad = recogida.calidad || 'Sin especificar';
+    
+    frutasInfo.frutasUnicas = [fruta];
+    frutasInfo.calidadesUnicas = [calidad];
+    
+    const clave = `${fruta} (${calidad})`;
+    frutasInfo.resumenDetallado[clave] = {
+      fruta: fruta,
+      calidad: calidad,
+      kilos: recogida.totalKilos || 0,
+      pesas: recogida.pesas ? recogida.pesas.length : 1
+    };
+  }
+
+  // Determinar si es solo una fruta o una calidad
+  frutasInfo.esSoloUnaFruta = frutasInfo.frutasUnicas.length === 1;
+  frutasInfo.esSoloUnaCalidad = frutasInfo.calidadesUnicas.length === 1;
+
+  console.log("📊 Análisis completado:", {
+    totalFrutas: frutasInfo.frutasUnicas.length,
+    totalCalidades: frutasInfo.calidadesUnicas.length,
+    frutas: frutasInfo.frutasUnicas,
+    calidades: frutasInfo.calidadesUnicas,
+    combinaciones: Object.keys(frutasInfo.resumenDetallado).length
+  });
+
+  return frutasInfo;
+}
+
+// 🔥 NUEVA FUNCIÓN: Generar HTML para mostrar las frutas
+function generarHtmlFrutas(frutasInfo, esSubusuario = false) {
+  let html = '';
+
+  if (frutasInfo.esSoloUnaFruta && frutasInfo.esSoloUnaCalidad) {
+    // Caso simple: solo una fruta y una calidad
+    const fruta = frutasInfo.frutasUnicas[0];
+    const calidad = frutasInfo.calidadesUnicas[0];
+    
+    html += `
+      <div class="info-row">
+        <span class="info-label">🍎 Fruta:</span>
+        <span class="info-value">${fruta}</span>
+      </div>
+      
+      <div class="info-row">
+        <span class="info-label">⭐ Calidad:</span>
+        <span class="info-value">${calidad}</span>
+      </div>
+    `;
+  } else {
+    // Caso complejo: múltiples frutas y/o calidades
+    if (frutasInfo.frutasUnicas.length > 1) {
+      // Múltiples frutas
+      html += `
+        <div class="info-row">
+          <span class="info-label">🍎 Frutas:</span>
+          <span class="info-value">${frutasInfo.frutasUnicas.join(', ')}</span>
+        </div>
+      `;
+    } else {
+      // Solo una fruta pero múltiples calidades
+      html += `
+        <div class="info-row">
+          <span class="info-label">🍎 Fruta:</span>
+          <span class="info-value">${frutasInfo.frutasUnicas[0]}</span>
+        </div>
+      `;
+    }
+
+    if (frutasInfo.calidadesUnicas.length > 1) {
+      // Múltiples calidades
+      html += `
+        <div class="info-row">
+          <span class="info-label">⭐ Calidades:</span>
+          <span class="info-value">${frutasInfo.calidadesUnicas.join(', ')}</span>
+        </div>
+      `;
+    } else {
+      // Solo una calidad pero múltiples frutas
+      html += `
+        <div class="info-row">
+          <span class="info-label">⭐ Calidad:</span>
+          <span class="info-value">${frutasInfo.calidadesUnicas[0]}</span>
+        </div>
+      `;
+    }
+
+    // Mostrar detalle de combinaciones si hay más de una
+    const combinaciones = Object.keys(frutasInfo.resumenDetallado);
+    if (combinaciones.length > 1) {
+      html += `
+        <div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <div style="font-size: 0.85em; font-weight: bold; margin-bottom: 5px; opacity: 0.9;">
+            📋 Detalle por combinación:
+          </div>
+      `;
+      
+      combinaciones.forEach(clave => {
+        const detalle = frutasInfo.resumenDetallado[clave];
+        html += `
+          <div style="font-size: 0.8em; margin: 2px 0; opacity: 0.8;">
+            • ${clave}: ${detalle.kilos.toFixed(1)} kg (${detalle.pesas} pesas)
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+    }
+  }
+
+  return html;
+}
+
+// CSS adicional para mejorar la visualización
+const estilosAdicionales = `
+<style>
+.recogida-info .info-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 0;
+  align-items: flex-start;
+}
+
+.recogida-info .info-value {
+  color: var(--primary-color, #00d4ff);
+  font-weight: bold;
+  text-align: right;
+  max-width: 60%;
+  word-wrap: break-word;
+}
+
+.recogida-info .info-label {
+  font-weight: bold;
+  opacity: 0.8;
+  min-width: 35%;
+}
+
+/* Estilos para el detalle de combinaciones */
+.detalle-combinaciones {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 0.85em;
+}
+
+.detalle-combinaciones .titulo {
+  font-weight: bold;
+  margin-bottom: 5px;
+  opacity: 0.9;
+}
+
+.detalle-combinaciones .item {
+  margin: 2px 0;
+  opacity: 0.8;
+  padding-left: 10px;
+}
+
+/* Responsive para textos largos */
+@media (max-width: 480px) {
+  .recogida-info .info-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .recogida-info .info-value {
+    text-align: left;
+    max-width: 100%;
+  }
+  
+  .recogida-info .info-label {
+    min-width: auto;
+  }
+}
+</style>
+`;
+
+// Agregar los estilos al documento
+if (!document.getElementById('estilos-frutas-multiples')) {
+  const styleElement = document.createElement('div');
+  styleElement.id = 'estilos-frutas-multiples';
+  styleElement.innerHTML = estilosAdicionales;
+  document.head.appendChild(styleElement);
+}
 // Event listener para guardar finca
     guardar.addEventListener("click", async () => {
       const nombre = document.getElementById("nombreFinca").value.trim();

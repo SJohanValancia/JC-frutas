@@ -709,16 +709,16 @@ async function enviarReciboWhatsApp() {
   }
 }
 
-// 🔥 FUNCIÓN PARA CREAR PÁGINA DE TOTALES CON COLORES SUAVES Y AGRADABLES - ACTUALIZADA
+// 🔥 FUNCIÓN MEJORADA PARA CREAR PÁGINA DE TOTALES - PARA ADMIN MUESTRA PRECIO POR KILO
 function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGeneral, finca, propietario, fecha) {
   const div = document.createElement("div");
   div.style.cssText = `
-    width: 800px;
+    width: 1200px;
     min-height: 1000px;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     color: #2c3e50;
     font-family: 'Arial', sans-serif;
-    padding: 30px;
+    padding: 40px;
     margin: 0;
     box-sizing: border-box;
     position: relative;
@@ -730,7 +730,14 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
   todosLosItems.forEach(item => {
     const clave = `${item.fruta} - ${item.calidad}`;
     if (!resumenPorFruta[clave]) {
-      resumenPorFruta[clave] = { kilos: 0, valor: 0, cantidad: 0 };
+      resumenPorFruta[clave] = { 
+        kilos: 0, 
+        valor: 0, 
+        cantidad: 0, 
+        precio: item.precio,
+        fruta: item.fruta,
+        calidad: item.calidad
+      };
     }
     resumenPorFruta[clave].kilos += item.kilos;
     resumenPorFruta[clave].valor += item.valor;
@@ -750,7 +757,7 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
         <div><strong>🏠 Finca:</strong> ${finca}</div>
         <div><strong>👤 Propietario:</strong> ${propietario}</div>
         <div><strong>📅 Fecha:</strong> ${fecha}</div>
-        <div><strong>📦 Total pesas:</strong> ${todosLosItems.length}</div>
+        <div><strong>📦 Total productos:</strong> ${Object.keys(resumenPorFruta).length}</div>
       </div>
     </div>
 
@@ -759,26 +766,37 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
       <div style="display: grid; gap: 15px;">
         ${Object.entries(resumenPorFruta).map(([clave, datos], index) => {
           return `
-          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; display: grid; grid-template-columns: 2fr 1fr 1fr ${!isSubusuario ? '1fr' : ''}; gap: 15px; align-items: center; color: #2c3e50; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-            <div style="font-weight: bold; color: #2c3e50;">${clave}</div>
-            <div style="text-align: center; color: #2c3e50;">${datos.kilos} kg</div>
-            <div style="text-align: center; color: #2c3e50;">${datos.cantidad} pesas</div>
-            ${!isSubusuario ? `<div style="text-align: center; color: #2c3e50;">$${datos.valor.toLocaleString()}</div>` : ''}
+          <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; color: #2c3e50; box-shadow: 0 5px 15px rgba(0,0,0,0.1); white-space: nowrap;">
+            <div style="font-weight: bold; color: #2c3e50; font-size: 18px; margin-right: 20px;">${datos.fruta} - ${datos.calidad}</div>
+            <div style="display: flex; align-items: center; gap: 30px;">
+              <span style="color: #2c3e50; font-weight: bold; font-size: 16px;">${datos.kilos} kg</span>
+              ${!isSubusuario ? `<span style="color: #e67e22; font-weight: bold; font-size: 16px;">${datos.precio.toLocaleString()} /kg</span>` : ''}
+              ${!isSubusuario ? `<span style="color: #27ae60; font-weight: bold; font-size: 18px;">${datos.valor.toLocaleString()}</span>` : ''}
+            </div>
           </div>
         `}).join('')}
       </div>
     </div>
 
-    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 15px; text-align: center; margin-top: 30px;">
-      <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #2c3e50; font-weight: bold;">
-        🎯 TOTALES GENERALES
+    ${!isSubusuario ? `
+    <div style="background: rgba(255,255,255,0.15); padding: 30px; border-radius: 15px; text-align: center; margin-top: 30px;">
+      <h2 style="margin: 0 0 20px 0; font-size: 28px; color: #2c3e50; font-weight: bold;">
+        💰 TOTAL GENERAL
       </h2>
-      <div style="display: flex; justify-content: center; align-items: center; gap: 25px; margin-top: 15px; font-size: 18px; opacity: 0.9;">
-        <span style="color: #2c3e50; font-weight: bold;">Total: ${totalKilosGeneral} kg</span>
-        ${!isSubusuario ? `<span style="color: #2c3e50;">•</span><span style="color: #2c3e50; font-weight: bold;">$${totalValorGeneral.toLocaleString()}</span>` : ''}
-        <span style="color: #2c3e50;">•</span><span style="color: #2c3e50; font-weight: bold;">${todosLosItems.length} pesas</span>
+      <div style="font-size: 32px; font-weight: bold; color: #27ae60;">
+        ${totalValorGeneral.toLocaleString()}
       </div>
     </div>
+    ` : `
+    <div style="background: rgba(255,255,255,0.15); padding: 30px; border-radius: 15px; text-align: center; margin-top: 30px;">
+      <h2 style="margin: 0 0 20px 0; font-size: 28px; color: #2c3e50; font-weight: bold;">
+        📊 TOTAL KILOS
+      </h2>
+      <div style="font-size: 32px; font-weight: bold; color: #3498db;">
+        ${totalKilosGeneral} kg
+      </div>
+    </div>
+    `}
 
     <div style="position: absolute; bottom: 20px; right: 30px; font-size: 12px; color: #95a5a6;">
       Generado: ${new Date().toLocaleString()}
@@ -792,7 +810,7 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
 function crearFactura(items, numeroPagina, totalPaginas, finca, propietario, fecha) {
   const div = document.createElement("div");
   div.style.cssText = `
-    width: 800px;
+    width: 2500px;
     min-height: 1000px;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     color: #2c3e50;
@@ -832,7 +850,7 @@ function crearFactura(items, numeroPagina, totalPaginas, finca, propietario, fec
           <div style="font-size: 24px; color: #e67e22; font-weight: bold; margin-bottom: 5px;">${item.kilos} kg</div>
           <div style="font-size: 14px; margin-bottom: 3px; color: #27ae60; font-weight: 500;">${item.fruta}</div>
           <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">${item.calidad}</div>
-          ${!isSubusuario ? `<div style="font-size: 16px; color: #2ecc71; font-weight: bold;">$${item.valor.toLocaleString()}</div>` : ''}
+          ${!isSubusuario ? `<div style="font-size: 16px; color: #2ecc71; font-weight: bold;">${item.valor.toLocaleString()}</div>` : ''}
         </div>
       `).join('')}
     </div>
@@ -847,7 +865,7 @@ function crearFactura(items, numeroPagina, totalPaginas, finca, propietario, fec
         ${!isSubusuario ? `
         <div style="background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%); padding: 15px; border-radius: 10px; border: 1px solid #dee2e6;">
           <div style="font-size: 14px; color: #6c757d; margin-bottom: 5px;">Total Valor</div>
-          <div style="font-size: 28px; font-weight: bold; color: #2ecc71;">$${totalValorPagina.toLocaleString()}</div>
+          <div style="font-size: 28px; font-weight: bold; color: #2ecc71;">${totalValorPagina.toLocaleString()}</div>
         </div>
         ` : `
         <div style="background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%); padding: 15px; border-radius: 10px; border: 1px solid #dee2e6;">
@@ -870,7 +888,7 @@ function crearFactura(items, numeroPagina, totalPaginas, finca, propietario, fec
 function crearPaginaTotales(todosLosItems, totalKilosGeneral, totalValorGeneral, numeroPagina, totalPaginas, finca, propietario, fecha) {
   const div = document.createElement("div");
   div.style.cssText = `
-    width: 800px;
+    width: 2500px;
     min-height: 1000px;
     background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     color: white;
