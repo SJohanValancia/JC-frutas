@@ -249,125 +249,165 @@ btnEditarPrecios.addEventListener("click", () => {
     let todasLasRecogidas = {}; // Cache de recogidas por finca
     let tipoUsuarioActual = 1; // Por defecto administrador
 
-    // 🔥 FUNCIÓN PARA CREAR EL BOTÓN DE HISTORIAL DE RECOGIDAS
-    function crearBotonHistorialRecogidas() {
-      const existingButton = document.getElementById('historial-recogidas-btn');
-      if (existingButton) return;
+function crearBotonHistorialRecogidas() {
+  // Verificar si ya existe el botón
+  const existingButton = document.getElementById('historial-recogidas-btn');
+  if (existingButton) return;
 
-      const params = new URLSearchParams(window.location.search);
-      const usuario = params.get('usuario');
-      const alias = params.get('alias');
+  // Obtener parámetros de URL
+  const params = new URLSearchParams(window.location.search);
+  const usuario = params.get('usuario');
+  const alias = params.get('alias');
 
-      if (!usuario) {
-        console.warn('⚠️ No se encontró usuario en los parámetros URL');
-        return;
-      }
+  if (!usuario) {
+    console.warn('⚠️ No se encontró usuario en los parámetros URL');
+    return;
+  }
 
-      const button = document.createElement('button');
-      button.id = 'historial-recogidas-btn';
-      button.className = 'historial-btn';
-      button.innerHTML = '📊 Historial Completo';
-      
-      button.style.cssText = `
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border: none;
-        padding: 15px 25px;
-        border-radius: 25px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 1rem;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        transition: all 0.3s ease;
-        margin: 10px;
-        min-width: 200px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-      `;
+  // Crear el botón
+  const button = document.createElement('button');
+  button.id = 'historial-recogidas-btn';
+  button.className = 'historial-btn';
+  button.innerHTML = '📊 Historial Completo';
+  
+  // Estilos del botón
+  button.style.cssText = `
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+    margin: 10px;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  `;
 
-      button.addEventListener('mouseenter', () => {
-        button.style.transform = 'translateY(-2px)';
-        button.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
-        button.style.background = 'linear-gradient(135deg, #5a6fd8, #6a4c93)';
-      });
+  // Efectos hover
+  button.addEventListener('mouseenter', () => {
+    button.style.transform = 'translateY(-2px)';
+    button.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+    button.style.background = 'linear-gradient(135deg, #5a6fd8, #6a4c93)';
+  });
 
-      button.addEventListener('mouseleave', () => {
-        button.style.transform = 'translateY(0)';
-        button.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
-        button.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
-      });
+  button.addEventListener('mouseleave', () => {
+    button.style.transform = 'translateY(0)';
+    button.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+    button.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+  });
 
-      button.addEventListener('click', () => {
-        let historialUrl = `historial-recogidas.html?usuario=${encodeURIComponent(usuario)}`;
-        
-        if (alias) {
-          historialUrl += `&alias=${encodeURIComponent(alias)}`;
-        }
-
-        console.log('📊 Navegando al historial completo:', historialUrl);
-        
-        button.innerHTML = '⏳ Cargando...';
-        button.disabled = true;
-        
-        setTimeout(() => {
-          window.location.href = historialUrl;
-        }, 300);
-      });
-
-      return button;
+  // Funcionalidad del botón
+  button.addEventListener('click', () => {
+    // Construir URL del historial completo
+    let historialUrl = `historial-recogidas.html?usuario=${encodeURIComponent(usuario)}`;
+    
+    if (alias) {
+      historialUrl += `&alias=${encodeURIComponent(alias)}`;
     }
 
-    function insertarBotonHistorial() {
-      const button = crearBotonHistorialRecogidas();
-      if (!button) return;
+    console.log('📊 Navegando al historial completo:', historialUrl);
+    
+    // Mostrar indicador de carga
+    button.innerHTML = '⏳ Cargando...';
+    button.disabled = true;
+    
+    // Redirigir después de un breve delay para mostrar el estado de carga
+    setTimeout(() => {
+      window.location.href = historialUrl;
+    }, 300);
+  });
 
-      const topContainer = document.createElement('div');
-      topContainer.id = 'historial-top-container';
-      topContainer.style.cssText = `
-        position: absolute;
-        top: 10px;
-        left: -20px;
-        right: 0;
-      `;
+  return button;
+}
 
-      button.style.cssText = `
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 25px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 0.95rem;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        min-width: 180px;
-      `;
+// 🔥 FUNCIÓN PARA INSERTAR EL BOTÓN SIEMPRE ARRIBA Y FUERA DEL CONTAINER
+function insertarBotonHistorial() {
+  const button = crearBotonHistorialRecogidas();
+  if (!button) return;
 
-      topContainer.appendChild(button);
-      document.body.insertBefore(topContainer, document.body.firstChild);
-      adjustBodyForFixedButton();
+  // Siempre insertar arriba, fuera del container
+  insertarArribaFueraContainer(button);
+}
 
-      console.log('✅ Botón insertado arriba, fuera del container');
+// 🔥 INSERTAR SIEMPRE ARRIBA, FUERA DEL CONTAINER
+function insertarArribaFueraContainer(button) {
+  // Crear un contenedor fijo en la parte superior
+  const topContainer = document.createElement('div');
+  topContainer.id = 'historial-top-container';
+  topContainer.style.cssText = `
+    position: absolute;
+    top: -1px;
+    left: -2
+    
+    0px;
+    right: 0;
+
+  `;
+
+  // Ajustar estilos del botón para la posición superior
+  button.style.cssText = `
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 180px;
+  `;
+
+  // Agregar el botón al contenedor
+  topContainer.appendChild(button);
+
+  // Insertar al principio del body (antes que todo)
+  document.body.insertBefore(topContainer, document.body.firstChild);
+
+  // Ajustar el body para que no se superponga con el botón fijo
+  adjustBodyForFixedButton();
+
+  console.log('✅ Botón insertado arriba, fuera del container');
+}
+
+// 🔥 AJUSTAR EL BODY PARA EL BOTÓN FIJO
+function adjustBodyForFixedButton() {
+  // Agregar padding-top al body o al primer container
+  const body = document.body;
+  const container = document.querySelector('.container');
+  
+  // Calcular altura del botón (aproximadamente 60px incluyendo padding)
+  const buttonHeight = '70px';
+  
+  if (container) {
+    // Si hay container, agregarle margen superior
+    container.style.marginTop = buttonHeight;
+  } else {
+    // Si no hay container, ajustar el body
+    body.style.paddingTop = buttonHeight;
+  }
+
+  // Ajustar cualquier elemento que pueda tener position fixed en el top
+  const existingFixedElements = document.querySelectorAll('[style*="position: fixed"][style*="top:"]');
+  existingFixedElements.forEach(element => {
+    const currentTop = element.style.top;
+    if (currentTop === '0px' || currentTop === '0') {
+      element.style.top = buttonHeight;
     }
-
-    function adjustBodyForFixedButton() {
-      const body = document.body;
-      const container = document.querySelector('.container');
-      const buttonHeight = '70px';
-      
-      if (container) {
-        container.style.marginTop = buttonHeight;
-      } else {
-        body.style.paddingTop = buttonHeight;
-      }
-    }
+  });
+}
 
     async function verificarPermisosHistorial() {
       try {
