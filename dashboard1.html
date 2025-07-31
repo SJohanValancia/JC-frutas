@@ -167,56 +167,29 @@
       }
     }
 
-    .floating-btn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background-color: #00d4ff;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  font-size: 24px;
-  padding: 20px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-}
-
-.floating-btn:hover {
-  background-color: #007bff;
-}
-
-.modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: white;
-  padding: 20px;
-  border-radius: 10px;
-  width: 80%;
-  max-width: 600px;
-}
-
+    
 
   </style>
 </head>
 <body>
 
   <div id="modalPrecios" class="modal hidden">
-    <div class="modal-content">
-        <h3>Editar Precios de Frutas</h3>
-        <div id="frutasContainer"></div>
-        <button id="guardarPrecios">Guardar Cambios</button>
+    <div class="modal-content precios-modal">
+        <div class="modal-header">
+          <h3>🍎 Editar Precios de Frutas</h3>
+          <button class="close-btn" id="cerrarModalPrecios">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="loading-container" id="loadingPrecios">
+            <div class="loader-spinner"></div>
+            <p>Cargando precios...</p>
+          </div>
+          <div id="frutasContainer" class="frutas-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="guardarPrecios" class="btn-primary">💾 Guardar Cambios</button>
+          <button id="cancelarPrecios" class="btn-secondary">❌ Cancelar</button>
+        </div>
     </div>
 </div>
 
@@ -251,9 +224,50 @@
 
     // Obtener los parámetros de la URL
     const params = new URLSearchParams(window.location.search);
+    const fincaId = params.get("id");
     const usuario = params.get("usuario");
     let alias = params.get("alias");
     let adminAlias = alias;
+
+    const btnEditarPrecios = document.getElementById("btnEditarPrecios");
+const modalPrecios = document.getElementById("modalPrecios");
+
+btnEditarPrecios.addEventListener("click", () => {
+  modalPrecios.classList.remove("hidden"); // Abre la ventana modal
+  cargarPreciosGuardados();  // Llama a la función que carga los precios de las frutas
+});
+
+async function cargarPreciosGuardados() {
+  try {
+    // Solicitar todos los precios de frutas sin duplicados
+    const frutasFinales = await apiFetch(`/precios/todos-los-precios`, "GET");
+
+    // Renderizar frutas sin duplicados
+    renderFrutasGuardadas(frutasFinales);  // Llama a la función para renderizar los precios de las frutas
+  } catch (err) {
+    console.error("Error al cargar precios guardados:", err);
+  }
+}
+function renderFrutasGuardadas(frutas) {
+  const frutasContainer = document.getElementById("frutasContainer");
+  frutasContainer.innerHTML = "";
+
+  frutas.forEach(fruta => {
+    const div = document.createElement("div");
+    div.className = "fruta-card";
+    div.innerHTML = `
+      <div class="fruta-card-content">
+        <h4>${fruta.nombre}</h4>
+        <p>Precio Primera: ${fruta.precios.primera}</p>
+        <p>Precio Segunda: ${fruta.precios.segunda}</p>
+        <p>Precio Tercera: ${fruta.precios.tercera}</p>
+      </div>
+    `;
+    frutasContainer.appendChild(div);
+  });
+}
+
+
 
     // Si no se encuentra alias en la URL, hacer una llamada al servidor para obtenerlo
     if (!alias && usuario) {

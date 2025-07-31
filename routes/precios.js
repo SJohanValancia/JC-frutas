@@ -55,6 +55,82 @@ router.get("/por-finca/:id", async (req, res) => {
   }
 });
 
+// Obtener precios de todas las fincas sin duplicar frutas
+router.get("/todos-los-precios", async (req, res) => {
+  try {
+    // Obtener precios de todas las fincas
+    let precios = await PrecioFruta.find({}).lean();
+
+    // Unir todas las frutas de todas las fincas
+    let frutasFinales = [];
+    precios.forEach(precio => {
+      precio.frutas.forEach(fruta => {
+        // Evitar duplicados, si la fruta ya está en frutasFinales, no se agrega
+        if (!frutasFinales.some(f => f.nombre === fruta.nombre)) {
+          frutasFinales.push(fruta);
+        }
+      });
+    });
+
+    res.status(200).json(frutasFinales); // Enviar todas las frutas sin duplicados
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error al buscar precios");
+  }
+});
+
+// Actualizar precios de forma masiva
+router.post("/actualizar-masivo", async (req, res) => {
+  const { fincaId, frutas, usuario, adminAlias, actualizarBase } = req.body;
+
+  if (!frutas || !Array.isArray(frutas) || frutas.length === 0 || !usuario || !adminAlias) {
+    return res.status(400).send("Datos incompletos");
+  }
+
+  try {
+    let resultado;
+
+    if (actualizarBase) {
+      // Actualizar precios base (fincaId: null)
+      resultado = await PrecioFruta.findOneAndUpdate(
+        { fincaId: null },
+        { 
+          frutas: frutas,
+          usuario: usuario,
+          adminAlias: adminAlias,
+          fechaActualizacion: new Date()
+        },
+        { 
+          new: true, 
+          upsert: true // Crear si no existe
+        }
+      );
+    } else {
+      // Actualizar precios de una finca específica
+      resultado = await PrecioFruta.findOneAndUpdate(
+        { fincaId: fincaId },
+        { 
+          frutas: frutas,
+          usuario: usuario,
+          adminAlias: adminAlias,
+          fechaActualizacion: new Date()
+        },
+        { 
+          new: true, 
+          upsert: true // Crear si no existe
+        }
+      );
+    }
+
+    res.status(200).json(resultado);
+  } catch (err) {
+    console.error("Error en actualización masiva:", err);
+    res.status(500).send("Error al actualizar precios masivamente");
+  }
+});
+
+module.exports = router;
+
 // Actualizar fruta
 router.put("/actualizar/:idFruta", async (req, res) => {
   const idFruta = req.params.idFruta;
