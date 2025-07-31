@@ -207,6 +207,189 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
     res.status(500).send("Error al buscar precios");
   }
 });
+// ✅ NUEVA RUTA: Actualizar precios GLOBALMENTE (solo desde gestion-precios.html)
+router.put("/actualizar-global/:frutaId", async (req, res) => {
+  const frutaId = req.params.frutaId;
+  const { nombre, precios, usuario, adminAlias } = req.body;
+
+  if (!precios || !usuario || !adminAlias) {
+    return res.status(400).send("Datos incompletos");
+  }
+
+  try {
+    // ✅ Buscar TODAS las fincas que tengan esa fruta
+    const fincasConFruta = await PrecioFruta.find({ "frutas._id": frutaId });
+    
+    let fincasActualizadas = 0;
+
+    // ✅ Actualizar cada finca que tenga esa fruta
+    for (const finca of fincasConFruta) {
+      const frutaIndex = finca.frutas.findIndex(f => f._id.toString() === frutaId);
+      
+      if (frutaIndex !== -1) {
+        // Actualizar los precios de la fruta
+        if (nombre) finca.frutas[frutaIndex].nombre = nombre;
+        finca.frutas[frutaIndex].precios = precios;
+        finca.usuario = usuario;
+        finca.adminAlias = adminAlias;
+        finca.fechaActualizacion = new Date();
+        
+        await finca.save();
+        fincasActualizadas++;
+      }
+    }
+
+    // ✅ También actualizar los precios base (fincaId: null) si existe
+    const preciosBase = await PrecioFruta.findOne({ fincaId: null });
+    if (preciosBase) {
+      const frutaBaseIndex = preciosBase.frutas.findIndex(f => f._id.toString() === frutaId);
+      if (frutaBaseIndex !== -1) {
+        if (nombre) preciosBase.frutas[frutaBaseIndex].nombre = nombre;
+        preciosBase.frutas[frutaBaseIndex].precios = precios;
+        preciosBase.usuario = usuario;
+        preciosBase.adminAlias = adminAlias;
+        preciosBase.fechaActualizacion = new Date();
+        await preciosBase.save();
+        fincasActualizadas++;
+      }
+    }
+
+    console.log(`✅ Precios actualizados GLOBALMENTE en ${fincasActualizadas} registros`);
+    res.status(200).json({ 
+      message: "Precios actualizados globalmente en todas las fincas",
+      fincasActualizadas: fincasActualizadas
+    });
+    
+  } catch (err) {
+    console.error("Error al actualizar precios globalmente:", err);
+    res.status(500).send("Error al actualizar precios globalmente");
+  }
+});
+
+// ✅ NUEVA RUTA: Obtener precios con frecuencias (precio más común)
+router.get("/fruta-con-frecuencia/:frutaId", async (req, res) => {
+  const frutaId = req.params.frutaId;
+  
+  try {
+    // Buscar todas las fincas que tengan esa fruta
+    const fincasConFruta = await PrecioFruta.find({ "frutas._id": frutaId }).lean();
+    
+    if (fincasConFruta.length === 0) {
+      return res.status(404).send("Fruta no encontrada");
+    }
+    
+    // Recopilar todos los precios de esa fruta
+    const todosLosPrecios = [];
+    let nombreFruta = "";
+    
+    fincasConFruta.forEach(finca => {
+      const fruta = finca.frutas.find(f => f._id.toString() === frutaId);
+      if (fruta) {
+        nombreFruta = fruta.nombre;
+        todosLosPrecios.push({
+          primera: fruta.precios?.primera || 0,
+          segunda: fruta.precios?.segunda || 0,
+          tercera: fruta.precios?.tercera || 0
+        });
+      }
+    });
+
+    // ✅ Calcular el precio más frecuente para cada calidad
+    const precioMasFrecuente = {
+      primera: calcularPrecioMasFrecuente(todosLosPrecios.map(p => p.primera)),
+      segunda: calcularPrecioMasFrecuente(todosLosPrecios.map(p => p.segunda)),
+      tercera: calcularPrecioMasFrecuente(todosLosPrecios.map(p => p.tercera))
+    };
+
+    const resultado = {
+      _id: frutaId,
+      nombre: nombreFruta,
+      precios: precioMasFrecuente,
+      estadisticas: {
+        totalFincas: todosLosPrecios.length,
+        variacionesPrecios: todosLosPrecios
+      }
+    };
+    
+    res.status(200).json(resultado);
+  } catch (err) {
+    console.error("Error al buscar fruta con frecuencia:", err);
+    res.status(500).send("Error al buscar fruta");
+  }
+});
+
+// ✅ Función auxiliar para calcular el precio más frecuente
+function calcularPrecioMasFrecuente(precios) {
+  if (precios.length === 0) return 0;
+  
+  // Contar frecuencias
+  const frecuencias = {};
+  precios.forEach(precio => {
+    const precioStr = precio.toString();
+    frecuencias[precioStr] = (frecuencias[precioStr] || 0) + 1;
+  });
+  
+  // Encontrar el precio con mayor frecuencia
+  let maxFrecuencia = 0;
+  let precioMasFrecuente = precios[0];
+  
+  Object.entries(frecuencias).forEach(([precio, frecuencia]) => {
+    if (frecuencia > maxFrecuencia) {
+      maxFrecuencia = frecuencia;
+      precioMasFrecuente = parseFloat(precio);
+    }
+  });
+  
+  return precioMasFrecuente;
+}
+
+// ✅ MODIFICAR la ruta existente /todos-los-precios para incluir precios más frecuentes
+router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
+  try {
+    // Obtener precios de todas las fincas
+    const precios = await PrecioFruta.find({}).lean();
+
+    // Agrupar todas las frutas por nombre
+    const frutasPorNombre = {};
+    
+    precios.forEach(precio => {
+      precio.frutas.forEach(fruta => {
+        const nombreLower = fruta.nombre.toLowerCase();
+        if (!frutasPorNombre[nombreLower]) {
+          frutasPorNombre[nombreLower] = {
+            _id: fruta._id,
+            nombre: fruta.nombre,
+            precios: []
+          };
+        }
+        frutasPorNombre[nombreLower].precios.push(fruta.precios || { primera: 0, segunda: 0, tercera: 0 });
+      });
+    });
+
+    // Calcular precio más frecuente para cada fruta
+    const frutasFinales = Object.values(frutasPorNombre).map(fruta => {
+      const precioMasFrecuente = {
+        primera: calcularPrecioMasFrecuente(fruta.precios.map(p => p.primera)),
+        segunda: calcularPrecioMasFrecuente(fruta.precios.map(p => p.segunda)),
+        tercera: calcularPrecioMasFrecuente(fruta.precios.map(p => p.tercera))
+      };
+
+      return {
+        _id: fruta._id,
+        nombre: fruta.nombre,
+        precios: precioMasFrecuente,
+        estadisticas: {
+          totalVariaciones: fruta.precios.length
+        }
+      };
+    });
+
+    res.status(200).json(frutasFinales);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error al buscar precios");
+  }
+});
 
 
 // ✅ AGREGAR FRUTA - SOLO A LA FINCA ESPECÍFICA
