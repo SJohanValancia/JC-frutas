@@ -184,6 +184,31 @@ router.delete("/eliminar/:idFruta", async (req, res) => {
   }
 });
 
+// Define this route in your backend
+router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
+  try {
+    // Implement the logic to get all prices with frequency
+    let precios = await PrecioFruta.find({}).lean();
+    let frutasFinales = [];
+    
+    // Logic to calculate the frequency of prices or any necessary data
+    precios.forEach(precio => {
+      precio.frutas.forEach(fruta => {
+        if (!frutasFinales.some(f => f.nombre === fruta.nombre)) {
+          frutasFinales.push(fruta);
+        }
+      });
+    });
+
+    // Send response back
+    res.status(200).json(frutasFinales); 
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error al buscar precios");
+  }
+});
+
+
 // ✅ AGREGAR FRUTA - SOLO A LA FINCA ESPECÍFICA
 router.post("/agregar-fruta/:fincaId", async (req, res) => {
   const fincaId = req.params.fincaId;
