@@ -8,7 +8,11 @@ const cantidadInput = document.getElementById("cantidadFrutas");
 const frutasContainer = document.getElementById("frutasContainer");
 const guardarBtn = document.getElementById("guardarPrecios");
 
+
+
 cargarPreciosGuardados();
+
+
 
 async function cargarPreciosGuardados() {
   try {
