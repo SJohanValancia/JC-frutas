@@ -1,4 +1,4 @@
-// recogida.js - CORREGIDO PARA MÚLTIPLES FRUTAS Y CALIDADES
+// recogida.js - CORREGIDO PARA MANTENER FRUTAS Y CALIDADES INDIVIDUALES POR PESA
 const params = new URLSearchParams(window.location.search);
 const fincaId = params.get("fincaId");
 const fincaNombre = params.get("finca");
@@ -25,7 +25,7 @@ const precioPorKiloInput = document.getElementById("precioPorKilo");
 let sessionData = {};
 let isSubusuario = false;
 let tipoUsuarioVerificado = null;
-let preciosDisponibles = []; // 🔥 NUEVA VARIABLE para almacenar precios
+let preciosDisponibles = [];
 
 // Set defaults - solo si los elementos existen
 if (fechaInput) {
@@ -88,12 +88,6 @@ async function verificarTipoUsuario() {
       return false;
     }
     
-    console.log("=== RESULTADO FINAL ===");
-    console.log("- Tipo de usuario:", tipoUsuarioVerificado);
-    console.log("- Es subusuario:", isSubusuario);
-    console.log("- SessionData:", sessionData);
-    console.log("========================");
-    
     return isSubusuario;
     
   } catch (error) {
@@ -102,7 +96,7 @@ async function verificarTipoUsuario() {
   }
 }
 
-// 🔥 NUEVA FUNCIÓN: Obtener precio para fruta y calidad específicas
+// 🔥 FUNCIÓN: Obtener precio para fruta y calidad específicas
 function getPrecioPorFrutaYCalidad(fruta, calidad) {
   const frutaObj = preciosDisponibles.find(f => f.nombre === fruta);
   return frutaObj?.precios?.[calidad] || 0;
@@ -142,14 +136,12 @@ async function obtenerAliasUsuario() {
 // 🔥 FUNCIÓN MEJORADA PARA LIMPIAR COMPLETAMENTE EL LOCALSTORAGE
 function limpiarPesasCompleto() {
   try {
-    // Limpiar todas las claves relacionadas con pesas
     const clavesALimpiar = [
-      "pesas_recogida",           // Clave principal
-      "pesas_backup",             // Backup principal
-      "pesas_backup_timestamp"    // Backup con timestamp si existe
+      "pesas_recogida",
+      "pesas_backup",
+      "pesas_backup_timestamp"
     ];
     
-    // Limpiar claves específicas
     clavesALimpiar.forEach(clave => {
       if (localStorage.getItem(clave)) {
         localStorage.removeItem(clave);
@@ -157,7 +149,6 @@ function limpiarPesasCompleto() {
       }
     });
     
-    // Limpiar todos los backups con timestamp (formato: pesas_backup_TIMESTAMP)
     const todasLasClaves = Object.keys(localStorage);
     const clavesBackupTimestamp = todasLasClaves.filter(key => 
       key.startsWith('pesas_backup_') && key !== 'pesas_backup'
@@ -168,7 +159,6 @@ function limpiarPesasCompleto() {
       console.log(`🧹 Backup con timestamp limpiado: ${clave}`);
     });
     
-    // Limpiar autoguardados si existen
     const clavesAutoguardado = todasLasClaves.filter(key => 
       key.startsWith('pesas_autosave_')
     );
@@ -179,8 +169,6 @@ function limpiarPesasCompleto() {
     });
     
     console.log("✅ LocalStorage limpiado completamente");
-    console.log(`📊 Total claves limpiadas: ${clavesALimpiar.length + clavesBackupTimestamp.length + clavesAutoguardado.length}`);
-    
     return true;
   } catch (error) {
     console.error("❌ Error al limpiar localStorage:", error);
@@ -188,9 +176,9 @@ function limpiarPesasCompleto() {
   }
 }
 
-// 🔥 FUNCIÓN GUARDAR RECOGIDA MODIFICADA - PARA RECOGIDA.JS
+// 🔥 FUNCIÓN GUARDAR RECOGIDA COMPLETAMENTE CORREGIDA
 async function guardarRecogida() {
-  console.log("💾 Iniciando guardado de recogida con múltiples frutas/calidades...");
+  console.log("💾 Iniciando guardado de recogida MANTENIENDO frutas y calidades individuales...");
   
   const pesas = getPesas();
   const totalKilos = pesas.reduce((sum, n) => sum + parseInt(n.kilos), 0);
@@ -200,31 +188,31 @@ async function guardarRecogida() {
     return;
   }
 
-  // Verificar que todas las pesas tengan fruta y calidad
+  // 🔥 VALIDACIÓN CRÍTICA: Verificar que cada pesa tenga su fruta y calidad
   const pesasSinInfo = pesas.filter(pesa => !pesa.fruta || !pesa.calidad);
   if (pesasSinInfo.length > 0) {
+    console.error("❌ Pesas sin información completa:", pesasSinInfo);
     alert("Hay pesas sin información de fruta o calidad. Por favor revisa los datos.");
     return;
   }
 
   await verificarTipoUsuario();
   
-  console.log("=== DATOS PARA GUARDAR RECOGIDA MÚLTIPLE ===");
-  console.log("- Tipo usuario verificado:", tipoUsuarioVerificado);
-  console.log("- Es subusuario:", isSubusuario);
+  console.log("=== GUARDANDO RECOGIDA CON FRUTAS INDIVIDUALES ===");
   console.log("- Total pesas:", pesas.length);
+  console.log("- Pesas completas:", pesas);
 
-  // Obtener alias del usuario
   const currentUserAlias = await obtenerAliasUsuario();
   if (!currentUserAlias) {
     alert("Error: No se pudo obtener el alias del usuario");
     return;
   }
 
-  // 🔥 NUEVA LÓGICA: Procesar cada pesa con su precio individual
+  // 🔥 PROCESAR CADA PESA MANTENIENDO SU INFORMACIÓN INDIVIDUAL
   let valorTotalFinal = 0;
-  const pesasConValoresCorrectos = [];
+  const pesasParaGuardar = [];
 
+  // 🔥 CRÍTICO: NO MODIFICAR LAS FRUTAS Y CALIDADES DE CADA PESA
   for (const pesa of pesas) {
     let precioParaEstaPesa = 0;
     
@@ -232,31 +220,35 @@ async function guardarRecogida() {
       // Para subusuarios: obtener precio desde la base de datos
       precioParaEstaPesa = getPrecioPorFrutaYCalidad(pesa.fruta, pesa.calidad);
     } else {
-      // Para administradores: usar el precio que ya tiene la pesa (o calcular si no existe)
+      // Para administradores: usar el precio que ya tiene la pesa
       precioParaEstaPesa = pesa.precio || getPrecioPorFrutaYCalidad(pesa.fruta, pesa.calidad);
     }
     
     const valorPesa = parseInt(pesa.kilos) * precioParaEstaPesa;
     valorTotalFinal += valorPesa;
     
-    pesasConValoresCorrectos.push({
+    // 🔥 MANTENER EXACTAMENTE LA FRUTA Y CALIDAD ORIGINAL
+    pesasParaGuardar.push({
       kilos: parseInt(pesa.kilos),
       valor: valorPesa,
-      fruta: pesa.fruta,
-      calidad: pesa.calidad,
+      fruta: pesa.fruta, // 🔥 MANTENER FRUTA ORIGINAL
+      calidad: pesa.calidad, // 🔥 MANTENER CALIDAD ORIGINAL
       precio: precioParaEstaPesa
     });
   }
 
-  // 🔥 NUEVA LÓGICA: Determinar fruta y calidad principales (la más frecuente)
+  console.log("📊 Pesas procesadas individualmente:", pesasParaGuardar);
+
+  // 🔥 CALCULAR RESÚMENES PARA CAMPOS DE REFERENCIA (SIN SOBRESCRIBIR PESAS)
   const frutaContador = {};
   const calidadContador = {};
   
-  pesas.forEach(pesa => {
+  pesasParaGuardar.forEach(pesa => {
     frutaContador[pesa.fruta] = (frutaContador[pesa.fruta] || 0) + pesa.kilos;
     calidadContador[pesa.calidad] = (calidadContador[pesa.calidad] || 0) + pesa.kilos;
   });
   
+  // Solo para campos de referencia (no afecta las pesas individuales)
   const frutaPrincipal = Object.keys(frutaContador).reduce((a, b) => 
     frutaContador[a] > frutaContador[b] ? a : b
   );
@@ -267,14 +259,14 @@ async function guardarRecogida() {
   
   const precioPrincipal = getPrecioPorFrutaYCalidad(frutaPrincipal, calidadPrincipal);
 
-  console.log("📊 Análisis de recogida múltiple:", {
+  console.log("📊 Resumen de referencia (NO sobrescribe pesas individuales):", {
     frutaPrincipal,
     calidadPrincipal,
-    precioPrincipal,
-    valorTotalFinal,
-    totalPesas: pesasConValoresCorrectos.length
+    frutaContador,
+    calidadContador
   });
 
+  // 🔥 DATOS FINALES PARA GUARDAR - CON PESAS INDIVIDUALES INTACTAS
   const data = {
     fincaId,
     finca: fincaNombre,
@@ -282,18 +274,22 @@ async function guardarRecogida() {
     fecha: fechaInput ? fechaInput.value : new Date().toISOString().split("T")[0],
     usuario: usuario,
     alias: currentUserAlias,
-    fruta: frutaPrincipal, // Fruta con más kilos
-    calidad: calidadPrincipal, // Calidad con más kilos
-    precio: precioPrincipal, // Precio de la combinación principal
+    fruta: frutaPrincipal, // Solo para referencia
+    calidad: calidadPrincipal, // Solo para referencia
+    precio: precioPrincipal, // Solo para referencia
     totalKilos,
     valorPagar: valorTotalFinal,
-    pesas: pesasConValoresCorrectos, // Cada pesa con su fruta, calidad y precio específico
-    esRecogidaMultiple: true, // 🔥 MARCADOR para identificar recogidas múltiples
-    resumenFrutas: frutaContador, // Resumen de kilos por fruta
-    resumenCalidades: calidadContador // Resumen de kilos por calidad
+    pesas: pesasParaGuardar, // 🔥 CADA PESA CON SU FRUTA Y CALIDAD ESPECÍFICA
+    esRecogidaMultiple: true,
+    resumenFrutas: frutaContador,
+    resumenCalidades: calidadContador
   };
 
-  console.log("📤 Datos finales de recogida múltiple a enviar:", data);
+  console.log("📤 DATOS FINALES - Pesas con frutas individuales:", data);
+  console.log("🔍 Verificación de pesas individuales:");
+  data.pesas.forEach((pesa, idx) => {
+    console.log(`   Pesa ${idx + 1}: ${pesa.kilos}kg de ${pesa.fruta} (${pesa.calidad})`);
+  });
 
   try {
     const metodo = modo === "editar" ? "PUT" : "POST";
@@ -313,22 +309,28 @@ async function guardarRecogida() {
     }
 
     const result = await response.json();
-    console.log("✅ Recogida múltiple guardada:", result);
+    console.log("✅ Recogida guardada con frutas individuales:", result);
 
-    // 🔥 AQUÍ ESTÁ EL CAMBIO PRINCIPAL: LIMPIAR COMPLETAMENTE EL LOCALSTORAGE
+    // Verificar que se guardaron las frutas individuales
+    if (result.recogida && result.recogida.pesas) {
+      console.log("🔍 Verificación final - Pesas guardadas:");
+      result.recogida.pesas.forEach((pesa, idx) => {
+        console.log(`   ✓ Pesa ${idx + 1}: ${pesa.kilos}kg de ${pesa.fruta} (${pesa.calidad})`);
+      });
+    }
+
+    // Limpiar localStorage después del guardado exitoso
     const limpiezaExitosa = limpiarPesasCompleto();
     
     if (limpiezaExitosa) {
       console.log("✅ LocalStorage limpiado exitosamente después de guardar");
-      mostrarAnimacionExito("✔ Recogida guardada y datos limpiados");
+      mostrarAnimacionExito("✔ Recogida guardada con frutas individuales");
     } else {
       console.warn("⚠️ Hubo un problema al limpiar el localStorage");
-      mostrarAnimacionExito("✔ Recogida guardada (revisar limpieza de datos)");
+      mostrarAnimacionExito("✔ Recogida guardada (revisar limpieza)");
     }
     
-    // Pequeña pausa antes de recargar para que el usuario vea el mensaje
     setTimeout(() => {
-      // Verificar una vez más que esté limpio antes de recargar
       const pesasRestantes = localStorage.getItem("pesas_recogida");
       if (pesasRestantes) {
         console.warn("⚠️ Aún quedan pesas en localStorage, forzando limpieza...");
@@ -339,79 +341,25 @@ async function guardarRecogida() {
     }, 1500);
     
   } catch (err) {
-    console.error("❌ Error al guardar recogida múltiple:", err);
+    console.error("❌ Error al guardar recogida:", err);
     alert("Error al guardar recogida: " + err.message);
   }
 }
 
-// 🔥 FUNCIÓN ADICIONAL PARA VERIFICAR SI EL LOCALSTORAGE ESTÁ LIMPIO
-function verificarLimpiezaLocalStorage() {
-  const clavesRelacionadas = [
-    "pesas_recogida",
-    "pesas_backup"
-  ];
-  
-  const clavesEncontradas = [];
-  
-  clavesRelacionadas.forEach(clave => {
-    if (localStorage.getItem(clave)) {
-      clavesEncontradas.push(clave);
-    }
-  });
-  
-  // Verificar también backups con timestamp
-  const todasLasClaves = Object.keys(localStorage);
-  const backupsEncontrados = todasLasClaves.filter(key => 
-    key.startsWith('pesas_backup_') || key.startsWith('pesas_autosave_')
-  );
-  
-  const totalClaves = clavesEncontradas.length + backupsEncontrados.length;
-  
-  if (totalClaves > 0) {
-    console.warn(`⚠️ Se encontraron ${totalClaves} claves sin limpiar:`, 
-                 [...clavesEncontradas, ...backupsEncontrados]);
-    return false;
-  } else {
-    console.log("✅ LocalStorage completamente limpio");
-    return true;
-  }
-}
-
-// 🔥 FUNCIÓN PARA LIMPIAR MANUALMENTE (útil para debugging)
-function limpiarManual() {
-  const limpio = limpiarPesasCompleto();
-  const verificado = verificarLimpiezaLocalStorage();
-  
-  if (limpio && verificado) {
-    console.log("🎉 Limpieza manual completada exitosamente");
-    alert("✅ LocalStorage limpiado completamente");
-  } else {
-    console.error("❌ Problemas en la limpieza manual");
-    alert("⚠️ Hubo problemas en la limpieza. Revisar consola.");
-  }
-}
-
-
+// Resto de funciones (sin cambios críticos, solo mejoras menores)
 function configurarBotonGuardar() {
   const guardarBtn = document.getElementById("guardarRecogida");
   if (guardarBtn) {
-    // Remover cualquier listener existente
     guardarBtn.removeEventListener("click", guardarRecogida);
-    
-    // Agregar el nuevo listener con limpieza mejorada
     guardarBtn.addEventListener("click", async () => {
-      console.log("🚀 Botón guardar presionado - iniciando proceso con limpieza completa");
+      console.log("🚀 Iniciando guardado con mantención de frutas individuales");
       await guardarRecogida();
     });
-    
-    console.log("✅ Botón guardar configurado con limpieza completa de localStorage");
+    console.log("✅ Botón guardar configurado correctamente");
   } else {
-    console.warn("⚠️ Botón 'guardarRecogida' no encontrado en el DOM");
+    console.warn("⚠️ Botón 'guardarRecogida' no encontrado");
   }
 }
-
-
-
 
 // FUNCIÓN PARA CONFIGURAR INTERFAZ SEGÚN TIPO DE USUARIO
 async function configurarInterfazSegunTipoUsuario() {
@@ -419,10 +367,8 @@ async function configurarInterfazSegunTipoUsuario() {
   
   await verificarTipoUsuario();
   
-  console.log("🎨 Configurando para tipo:", tipoUsuarioVerificado, "Es subusuario:", isSubusuario);
-  
   if (isSubusuario) {
-    console.log("🚫 Configurando interfaz para subusuario - ocultando elementos de dinero");
+    console.log("🚫 Configurando interfaz para subusuario");
     
     if (precioExtraInput) {
       precioExtraInput.style.display = "none";
@@ -448,24 +394,7 @@ async function configurarInterfazSegunTipoUsuario() {
     
     console.log("✅ Interfaz configurada para subusuario");
   } else {
-    console.log("✅ Configurando interfaz para administrador - mostrando todos los elementos");
-    
-    if (precioExtraInput) {
-      precioExtraInput.style.display = "block";
-      const labelPrecioExtra = document.querySelector('label[for="precioExtra"]');
-      if (labelPrecioExtra) labelPrecioExtra.style.display = "block";
-    }
-    
-    if (precioPorKiloInput) {
-      precioPorKiloInput.style.display = "block";
-      const labelPrecioPorKilo = document.querySelector('label[for="precioPorKilo"]');
-      if (labelPrecioPorKilo) labelPrecioPorKilo.style.display = "block";
-    }
-    
-    const valorTotalElement = document.getElementById("valorTotal");
-    if (valorTotalElement && valorTotalElement.parentElement) {
-      valorTotalElement.parentElement.style.display = "block";
-    }
+    console.log("✅ Configurando interfaz completa para administrador");
   }
 }
 
@@ -480,8 +409,6 @@ async function cargarFrutas() {
   }
 
   try {
-    console.log("🔄 Haciendo petición a:", `https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
-    
     const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
     
     if (!res.ok) {
@@ -489,7 +416,7 @@ async function cargarFrutas() {
     }
     
     const precios = await res.json();
-    console.log("📊 Precios recibidos del servidor:", precios);
+    console.log("📊 Precios recibidos:", precios);
 
     let frutasFinales = [];
     for (const doc of precios) {
@@ -498,10 +425,8 @@ async function cargarFrutas() {
       }
     }
 
-    // 🔥 GUARDAR precios disponibles para uso posterior
     preciosDisponibles = frutasFinales;
     console.log("💰 Precios cargados:", preciosDisponibles.length, "frutas disponibles");
-    console.log("🍎 Frutas cargadas:", preciosDisponibles.map(f => f.nombre));
 
     if (frutaSelect) {
       frutaSelect.innerHTML = '<option value="">Selecciona una fruta</option>';
@@ -511,12 +436,8 @@ async function cargarFrutas() {
         opt.textContent = fruta.nombre;
         frutaSelect.appendChild(opt);
       });
-      console.log("✅ Select de frutas poblado con", frutasFinales.length, "opciones");
-    } else {
-      console.warn("⚠️ Elemento frutaSelect no encontrado en el DOM");
     }
 
-    // Configurar calidades si existe el select
     if (calidadSelect) {
       calidadSelect.innerHTML = `
         <option value="">Selecciona calidad</option>
@@ -525,7 +446,6 @@ async function cargarFrutas() {
         <option value="tercera">Tercera</option>
         <option value="extra">Extra</option>
       `;
-      console.log("✅ Select de calidades configurado");
     }
 
     return frutasFinales;
@@ -557,10 +477,10 @@ function mostrarAnimacionExito(mensaje) {
   setTimeout(() => div.remove(), 1300);
 }
 
-// 🔥 FUNCIÓN MODIFICADA: Cargar recogida existente con soporte múltiple
+// 🔥 FUNCIÓN CORREGIDA: Cargar recogida existente manteniendo frutas individuales
 async function cargarRecogidaExistente(id) {
   try {
-    console.log("📥 Cargando recogida existente con soporte múltiple:", id);
+    console.log("📥 Cargando recogida existente con frutas individuales:", id);
     
     const res = await fetch(`https://jc-frutas.onrender.com/recogidas/${id}`);
     if (!res.ok) throw new Error("No se pudo obtener la recogida");
@@ -568,13 +488,11 @@ async function cargarRecogidaExistente(id) {
 
     console.log("📊 Datos de recogida cargados:", recogida);
 
-    // Configurar selección inicial con la fruta/calidad principal
+    // Configurar selección inicial
     if (frutaSelect) frutaSelect.value = recogida.fruta || '';
     if (calidadSelect) calidadSelect.value = recogida.calidad || '';
 
     if (!isSubusuario) {
-      console.log("💰 Administrador detectado - mostrando precios de recogida");
-      
       if (recogida.calidad === "extra" && precioExtraInput) {
         precioExtraInput.classList.remove("hidden");
         precioExtraInput.value = recogida.precio || 0;
@@ -583,33 +501,31 @@ async function cargarRecogidaExistente(id) {
         if (precioExtraInput) precioExtraInput.classList.add("hidden");
         if (precioPorKiloInput) precioPorKiloInput.value = recogida.precio || 0;
       }
-      
-      console.log("✅ Precios configurados:", {
-        calidad: recogida.calidad,
-        precio: recogida.precio
-      });
-    } else {
-      console.log("🚫 Subusuario detectado - ocultando precios");
     }
 
-    // 🔥 NUEVA LÓGICA: Cargar pesas con información completa
+    // 🔥 CARGAR PESAS MANTENIENDO FRUTAS Y CALIDADES INDIVIDUALES
     if (recogida.pesas && recogida.pesas.length > 0) {
       const pesasCompletas = recogida.pesas.map(pesa => ({
         kilos: pesa.kilos,
         valor: pesa.valor,
-        fruta: pesa.fruta || recogida.fruta, // Usar fruta de la pesa o la principal
-        calidad: pesa.calidad || recogida.calidad, // Usar calidad de la pesa o la principal
-        precio: pesa.precio || recogida.precio // Usar precio de la pesa o el principal
+        fruta: pesa.fruta || recogida.fruta, // Priorizar fruta de la pesa
+        calidad: pesa.calidad || recogida.calidad, // Priorizar calidad de la pesa
+        precio: pesa.precio || recogida.precio // Priorizar precio de la pesa
       }));
       
       localStorage.setItem("pesas_recogida", JSON.stringify(pesasCompletas));
-      console.log("📦 Pesas múltiples cargadas:", pesasCompletas.length);
+      console.log("📦 Pesas individuales cargadas:", pesasCompletas.length);
       
-      // Mostrar resumen de frutas/calidades cargadas
+      // Mostrar resumen de lo que se cargó
       const frutasEncontradas = [...new Set(pesasCompletas.map(p => p.fruta))];
       const calidadesEncontradas = [...new Set(pesasCompletas.map(p => p.calidad))];
-      console.log("🍎 Frutas en la recogida:", frutasEncontradas);
-      console.log("⭐ Calidades en la recogida:", calidadesEncontradas);
+      console.log("🍎 Frutas cargadas individualmente:", frutasEncontradas);
+      console.log("⭐ Calidades cargadas individualmente:", calidadesEncontradas);
+      
+      // Verificación detallada
+      pesasCompletas.forEach((pesa, idx) => {
+        console.log(`   Pesa ${idx + 1}: ${pesa.kilos}kg de ${pesa.fruta} (${pesa.calidad})`);
+      });
     }
     
   } catch (err) {
@@ -618,30 +534,32 @@ async function cargarRecogidaExistente(id) {
   }
 }
 
-// 🔥 FUNCIÓN MODIFICADA: Generar recibo con múltiples frutas/calidades
+// 🔥 FUNCIÓN CORREGIDA: Generar recibo manteniendo frutas individuales
 function generarReciboSegunTipoUsuario() {
   const pesas = getPesas();
   const totalKilos = pesas.reduce((sum, n) => sum + parseInt(n.kilos), 0);
   const hoy = fechaInput ? fechaInput.value : new Date().toISOString().split("T")[0];
   
-  // Crear resumen de frutas y calidades
+  // 🔥 CREAR RESUMEN RESPETANDO FRUTAS INDIVIDUALES
   const frutaResumen = {};
   const calidadResumen = {};
   
   pesas.forEach(pesa => {
-    // Resumen por fruta
+    // Resumen por fruta (usando fruta específica de cada pesa)
     if (!frutaResumen[pesa.fruta]) {
-      frutaResumen[pesa.fruta] = { kilos: 0, valor: 0 };
+      frutaResumen[pesa.fruta] = { kilos: 0, valor: 0, pesas: 0 };
     }
     frutaResumen[pesa.fruta].kilos += parseInt(pesa.kilos);
-    frutaResumen[pesa.fruta].valor += parseInt(pesa.valor);
+    frutaResumen[pesa.fruta].valor += parseInt(pesa.valor || 0);
+    frutaResumen[pesa.fruta].pesas += 1;
     
-    // Resumen por calidad
+    // Resumen por calidad (usando calidad específica de cada pesa)
     if (!calidadResumen[pesa.calidad]) {
-      calidadResumen[pesa.calidad] = { kilos: 0, valor: 0 };
+      calidadResumen[pesa.calidad] = { kilos: 0, valor: 0, pesas: 0 };
     }
     calidadResumen[pesa.calidad].kilos += parseInt(pesa.kilos);
-    calidadResumen[pesa.calidad].valor += parseInt(pesa.valor);
+    calidadResumen[pesa.calidad].valor += parseInt(pesa.valor || 0);
+    calidadResumen[pesa.calidad].pesas += 1;
   });
   
   let contenidoRecibo = `
@@ -650,15 +568,16 @@ Fecha: ${hoy}
 Finca: ${fincaNombre || 'N/A'}
 Propietario: ${propietario || 'N/A'}
 Total Kilos: ${totalKilos}
+Total Pesas: ${pesas.length}
 
 === RESUMEN POR FRUTA ===
 `;
 
   Object.entries(frutaResumen).forEach(([fruta, datos]) => {
     if (isSubusuario) {
-      contenidoRecibo += `${fruta}: ${datos.kilos} kg\n`;
+      contenidoRecibo += `${fruta}: ${datos.kilos} kg (${datos.pesas} pesas)\n`;
     } else {
-      contenidoRecibo += `${fruta}: ${datos.kilos} kg - ${datos.valor}\n`;
+      contenidoRecibo += `${fruta}: ${datos.kilos} kg (${datos.pesas} pesas) - ${datos.valor.toLocaleString()}\n`;
     }
   });
 
@@ -666,47 +585,41 @@ Total Kilos: ${totalKilos}
   
   Object.entries(calidadResumen).forEach(([calidad, datos]) => {
     if (isSubusuario) {
-      contenidoRecibo += `${calidad}: ${datos.kilos} kg\n`;
+      contenidoRecibo += `${calidad}: ${datos.kilos} kg (${datos.pesas} pesas)\n`;
     } else {
-      contenidoRecibo += `${calidad}: ${datos.kilos} kg - ${datos.valor}\n`;
+      contenidoRecibo += `${calidad}: ${datos.kilos} kg (${datos.pesas} pesas) - ${datos.valor.toLocaleString()}\n`;
     }
   });
 
-  contenidoRecibo += '\n=== DETALLE DE PESAS ===\n';
+  contenidoRecibo += '\n=== DETALLE INDIVIDUAL DE PESAS ===\n';
 
   pesas.forEach((pesa, index) => {
     if (isSubusuario) {
-      contenidoRecibo += `${index + 1}. ${pesa.kilos} kg (${pesa.fruta} - ${pesa.calidad})\n`;
+      contenidoRecibo += `${index + 1}. ${pesa.kilos} kg → ${pesa.fruta} (${pesa.calidad})\n`;
     } else {
-      contenidoRecibo += `${index + 1}. ${pesa.kilos} kg (${pesa.fruta} - ${pesa.calidad}) - ${pesa.valor}\n`;
+      contenidoRecibo += `${index + 1}. ${pesa.kilos} kg → ${pesa.fruta} (${pesa.calidad}) - ${(pesa.valor || 0).toLocaleString()}\n`;
     }
   });
 
   if (!isSubusuario) {
-    const valorTotal = pesas.reduce((sum, n) => sum + parseInt(n.valor), 0);
-    contenidoRecibo += `\n=== TOTAL ===\nValor Total: ${valorTotal}`;
+    const valorTotal = pesas.reduce((sum, n) => sum + parseInt(n.valor || 0), 0);
+    contenidoRecibo += `\n=== TOTAL GENERAL ===\nValor Total: ${valorTotal.toLocaleString()}`;
   }
 
   return contenidoRecibo;
 }
 
-// 🔥 EVENT LISTENERS MODIFICADOS CON VERIFICACIÓN DE EXISTENCIA
+// 🔥 EVENT LISTENERS CON VERIFICACIÓN DE EXISTENCIA
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("🚀 DOM cargado para recogida múltiple, iniciando configuración...");
+  console.log("🚀 DOM cargado - Configurando para mantener frutas individuales...");
 
   // Configurar interfaz según tipo de usuario
   await configurarInterfazSegunTipoUsuario();
   
-  // Configurar botón de guardar - CON VERIFICACIÓN
-  const guardarBtn = document.getElementById("guardarRecogida");
-  if (guardarBtn) {
-    guardarBtn.addEventListener("click", guardarRecogida);
-    console.log("✅ Botón guardar configurado");
-  } else {
-    console.warn("⚠️ Botón 'guardarRecogida' no encontrado en el DOM");
-  }
+  // Configurar botón de guardar
+  configurarBotonGuardar();
   
-  // Configurar botón de volver - CON VERIFICACIÓN
+  // Configurar botón de volver
   const btnVolver = document.getElementById("btnVolverDashboard");
   if (btnVolver) {
     btnVolver.addEventListener("click", () => {
@@ -714,29 +627,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     console.log("✅ Botón volver configurado");
   } else {
-    console.warn("⚠️ Botón 'btnVolverDashboard' no encontrado en el DOM");
+    console.warn("⚠️ Botón 'btnVolverDashboard' no encontrado");
   }
   
-  // Configurar botón de enviar recibo - CON VERIFICACIÓN
+  // Configurar botón de enviar recibo
   const enviarReciboBtn = document.getElementById("enviarReciboBtn");
   if (enviarReciboBtn) {
     enviarReciboBtn.addEventListener("click", () => {
       const contenidoRecibo = generarReciboSegunTipoUsuario();
       
-      console.log("📄 Recibo múltiple generado:", contenidoRecibo);
+      console.log("📄 Recibo con frutas individuales generado:", contenidoRecibo);
       
       navigator.clipboard.writeText(contenidoRecibo).then(() => {
-        mostrarAnimacionExito("📋 Recibo múltiple copiado al portapapeles");
+        mostrarAnimacionExito("📋 Recibo copiado (frutas individuales)");
       }).catch(() => {
         alert("No se pudo copiar el recibo. Contenido:\n\n" + contenidoRecibo);
       });
     });
     console.log("✅ Botón enviar recibo configurado");
   } else {
-    console.warn("⚠️ Botón 'enviarReciboBtn' no encontrado en el DOM");
+    console.warn("⚠️ Botón 'enviarReciboBtn' no encontrado");
   }
   
-  console.log("✅ Event listeners configurados para múltiples frutas/calidades");
+  console.log("✅ Event listeners configurados para frutas individuales");
 
   // Cargar frutas y datos de edición
   try {
@@ -744,12 +657,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("🍎 Frutas cargadas exitosamente:", frutasCargadas.length);
 
     if (modo === "editar" && idRecogida) {
-      console.log("✏️ Modo edición detectado, cargando datos existentes...");
+      console.log("✏️ Modo edición - cargando datos manteniendo frutas individuales...");
       
       await verificarTipoUsuario();
       await cargarRecogidaExistente(idRecogida);
       
-      console.log("✅ Datos de edición múltiple cargados completamente");
+      console.log("✅ Datos de edición cargados respetando frutas individuales");
     }
   } catch (error) {
     console.error("❌ Error en la carga inicial:", error);
