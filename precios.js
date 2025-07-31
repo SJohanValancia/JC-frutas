@@ -90,9 +90,13 @@ guardarBtn.addEventListener("click", async () => {
 
     if (fincaYaTienePrecios) {
       // Agregar cada fruta individualmente, sin eliminar las anteriores
-      for (const fruta of frutas) {
-        await apiFetch(`/precios/agregar-fruta/${fincaId}`, "POST", { fruta });
-      }
+for (const fruta of frutas) {
+  await apiFetch(`/precios/agregar-fruta/${fincaId}`, "POST", { 
+    fruta,
+    usuario: usuario,      // ✅ Agregar usuario
+    adminAlias: usuario    // ✅ Agregar adminAlias
+  });
+}
     } else {
       // Finca vacía → guardamos normalmente y se copia a otras vacías
       await apiFetch("/precios/guardar", "POST", { fincaId, frutas });
@@ -141,6 +145,7 @@ function renderFrutasGuardadas(frutas) {
 }
 
 
+// ✅ Función toggleEdicion modificada para enviar fincaId
 async function toggleEdicion(div, fruta, btn) {
   const inputs = div.querySelectorAll("input");
   const editando = btn.textContent === "💾 Guardar";
@@ -159,10 +164,14 @@ async function toggleEdicion(div, fruta, btn) {
           primera: precioPrimera,
           segunda: precioSegunda,
           tercera: precioTercera
-        }
+        },
+        usuario: usuario,
+        adminAlias: usuario,
+        fincaId: fincaId  // ✅ Enviar fincaId para actualizar solo esta finca
       });
       btn.textContent = "✏️ Editar";
       inputs.forEach(input => input.disabled = true);
+      alert("Precio actualizado solo en esta finca");
     } catch (err) {
       alert("Error al actualizar: " + err.message);
     }
@@ -173,15 +182,23 @@ async function toggleEdicion(div, fruta, btn) {
   }
 }
 
+// ✅ Función eliminarFruta modificada para enviar fincaId
 async function eliminarFruta(fruta, div) {
-  if (!confirm("¿Estás seguro de eliminar esta fruta?")) return;
+  if (!confirm("¿Estás seguro de eliminar esta fruta solo de esta finca?")) return;
+  
   try {
-    await apiFetch(`/precios/eliminar/${fruta._id}`, "DELETE");
+    await apiFetch(`/precios/eliminar/${fruta._id}`, "DELETE", {
+      usuario: usuario,
+      adminAlias: usuario,
+      fincaId: fincaId  // ✅ Enviar fincaId para eliminar solo de esta finca
+    });
     div.remove();
+    alert("Fruta eliminada solo de esta finca");
   } catch (err) {
     alert("Error al eliminar: " + err.message);
   }
 }
+
 
 const btnVolver = document.getElementById("btnVolverDashboard");
 btnVolver.addEventListener("click", () => {

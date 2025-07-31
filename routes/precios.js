@@ -79,56 +79,57 @@ router.get("/todos-los-precios", async (req, res) => {
   }
 });
 
-// Actualizar precios de una fruta en todas las fincas
+// ✅ ACTUALIZAR FRUTA - SOLO EN LA FINCA ESPECÍFICA
 router.put("/actualizar/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
-  const { precios, usuario, adminAlias } = req.body;
+  const { nombre, precios, usuario, adminAlias, fincaId } = req.body;
 
   if (!precios || !usuario || !adminAlias) {
     return res.status(400).send("Datos incompletos");
   }
 
   try {
-    // Buscar todas las fincas que tienen esa fruta
-    const fincasConFruta = await PrecioFruta.find({ "frutas._id": frutaId });
+    let resultado;
+
+    if (fincaId) {
+      // ✅ Si se proporciona fincaId, actualizar SOLO esa finca
+      resultado = await PrecioFruta.findOneAndUpdate(
+        { 
+          fincaId: fincaId,
+          "frutas._id": frutaId 
+        },
+        { 
+          $set: { 
+            "frutas.$.nombre": nombre, 
+            "frutas.$.precios": precios,
+            usuario,
+            adminAlias,
+            fechaActualizacion: new Date()
+          } 
+        },
+        { new: true }
+      );
+    } else {
+      // Si no hay fincaId específica, buscar la primera finca que tenga esa fruta
+      resultado = await PrecioFruta.findOneAndUpdate(
+        { "frutas._id": frutaId },
+        { 
+          $set: { 
+            "frutas.$.nombre": nombre, 
+            "frutas.$.precios": precios,
+            usuario,
+            adminAlias,
+            fechaActualizacion: new Date()
+          } 
+        },
+        { new: true }
+      );
+    }
+
+    if (!resultado) return res.status(404).send("Fruta no encontrada en la finca especificada");
     
-    let fincasActualizadas = 0;
-
-    // Actualizar cada finca que tenga esa fruta
-    for (const finca of fincasConFruta) {
-      const frutaIndex = finca.frutas.findIndex(f => f._id.toString() === frutaId);
-      
-      if (frutaIndex !== -1) {
-        // Actualizar los precios de la fruta
-        finca.frutas[frutaIndex].precios = precios;
-        finca.usuario = usuario;
-        finca.adminAlias = adminAlias;
-        finca.fechaActualizacion = new Date();
-        
-        await finca.save();
-        fincasActualizadas++;
-      }
-    }
-
-    // También actualizar los precios base (fincaId: null) si existe
-    const preciosBase = await PrecioFruta.findOne({ fincaId: null });
-    if (preciosBase) {
-      const frutaBaseIndex = preciosBase.frutas.findIndex(f => f._id.toString() === frutaId);
-      if (frutaBaseIndex !== -1) {
-        preciosBase.frutas[frutaBaseIndex].precios = precios;
-        preciosBase.usuario = usuario;
-        preciosBase.adminAlias = adminAlias;
-        preciosBase.fechaActualizacion = new Date();
-        await preciosBase.save();
-        fincasActualizadas++;
-      }
-    }
-
-    console.log(`✅ Precios actualizados en ${fincasActualizadas} registros`);
-    res.status(200).json({ 
-      message: "Precios actualizados correctamente",
-      fincasActualizadas: fincasActualizadas
-    });
+    console.log(`✅ Precios actualizados solo en la finca: ${fincaId || 'primera encontrada'}`);
+    res.status(200).json(resultado);
     
   } catch (err) {
     console.error("Error al actualizar precios:", err);
@@ -136,11 +137,95 @@ router.put("/actualizar/:frutaId", async (req, res) => {
   }
 });
 
+// ✅ ELIMINAR FRUTA - SOLO DE LA FINCA ESPECÍFICA
+router.delete("/eliminar/:idFruta", async (req, res) => {
+  const idFruta = req.params.idFruta;
+  const { usuario, adminAlias, fincaId } = req.body;
+
+  try {
+    let resultado;
+
+    if (fincaId) {
+      // ✅ Si se proporciona fincaId, eliminar SOLO de esa finca
+      resultado = await PrecioFruta.findOneAndUpdate(
+        { 
+          fincaId: fincaId,
+          "frutas._id": idFruta 
+        },
+        { 
+          $pull: { frutas: { _id: idFruta } },
+          usuario,
+          adminAlias,
+          fechaActualizacion: new Date()
+        },
+        { new: true }
+      );
+    } else {
+      // Si no hay fincaId específica, eliminar de la primera finca que la tenga
+      resultado = await PrecioFruta.findOneAndUpdate(
+        { "frutas._id": idFruta },
+        { 
+          $pull: { frutas: { _id: idFruta } },
+          usuario,
+          adminAlias,
+          fechaActualizacion: new Date()
+        },
+        { new: true }
+      );
+    }
+
+    if (!resultado) return res.status(404).send("Fruta no encontrada en la finca especificada");
+    
+    console.log(`✅ Fruta eliminada solo de la finca: ${fincaId || 'primera encontrada'}`);
+    res.json(resultado);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error al eliminar la fruta");
+  }
+});
+
+// ✅ AGREGAR FRUTA - SOLO A LA FINCA ESPECÍFICA
+router.post("/agregar-fruta/:fincaId", async (req, res) => {
+  const fincaId = req.params.fincaId;
+  const { fruta, usuario, adminAlias } = req.body;
+
+  try {
+    let preciosFinca = await PrecioFruta.findOne({ fincaId });
+
+    if (!preciosFinca) {
+      // Si la finca no tiene precios, crear un nuevo documento
+      const preciosBase = await PrecioFruta.findOne({ fincaId: null }).lean();
+      const frutasIniciales = preciosBase ? preciosBase.frutas : [];
+      
+      preciosFinca = new PrecioFruta({
+        fincaId,
+        frutas: [...frutasIniciales, fruta],
+        usuario,
+        adminAlias
+      });
+      await preciosFinca.save();
+    } else {
+      // ✅ Agregar fruta SOLO a esta finca específica
+      preciosFinca.frutas.push(fruta);
+      preciosFinca.usuario = usuario;
+      preciosFinca.adminAlias = adminAlias;
+      preciosFinca.fechaActualizacion = new Date();
+      await preciosFinca.save();
+    }
+
+    console.log(`✅ Fruta agregada solo a la finca: ${fincaId}`);
+    res.json(preciosFinca);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error al agregar fruta");
+  }
+});
+
+// Las demás rutas permanecen igual...
 router.get("/fruta/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
   
   try {
-    // Buscar la fruta en cualquier documento de precios
     const documentoConFruta = await PrecioFruta.findOne({ "frutas._id": frutaId }).lean();
     
     if (!documentoConFruta) {
@@ -160,7 +245,6 @@ router.get("/fruta/:frutaId", async (req, res) => {
   }
 });
 
-
 // Actualizar precios de forma masiva
 router.post("/actualizar-masivo", async (req, res) => {
   const { fincaId, frutas, usuario, adminAlias, actualizarBase } = req.body;
@@ -173,7 +257,6 @@ router.post("/actualizar-masivo", async (req, res) => {
     let resultado;
 
     if (actualizarBase) {
-      // Actualizar precios base (fincaId: null)
       resultado = await PrecioFruta.findOneAndUpdate(
         { fincaId: null },
         { 
@@ -184,11 +267,10 @@ router.post("/actualizar-masivo", async (req, res) => {
         },
         { 
           new: true, 
-          upsert: true // Crear si no existe
+          upsert: true
         }
       );
     } else {
-      // Actualizar precios de una finca específica
       resultado = await PrecioFruta.findOneAndUpdate(
         { fincaId: fincaId },
         { 
@@ -199,7 +281,7 @@ router.post("/actualizar-masivo", async (req, res) => {
         },
         { 
           new: true, 
-          upsert: true // Crear si no existe
+          upsert: true
         }
       );
     }
@@ -211,95 +293,6 @@ router.post("/actualizar-masivo", async (req, res) => {
   }
 });
 
-module.exports = router;
-
-// Actualizar fruta
-router.put("/actualizar/:idFruta", async (req, res) => {
-  const idFruta = req.params.idFruta;
-  const { nombre, precios, usuario, adminAlias } = req.body;
-
-  try {
-    const resultado = await PrecioFruta.findOneAndUpdate(
-      { "frutas._id": idFruta },
-      { 
-        $set: { 
-          "frutas.$.nombre": nombre, 
-          "frutas.$.precios": precios,
-          usuario,  // Subusuario que realiza la acción
-          adminAlias // Alias del administrador
-        } 
-      },
-      { new: true }
-    );
-
-    if (!resultado) return res.status(404).send("Fruta no encontrada");
-    res.json(resultado);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error al actualizar la fruta");
-  }
-});
-
-// Eliminar fruta
-router.delete("/eliminar/:idFruta", async (req, res) => {
-  const idFruta = req.params.idFruta;
-  const { usuario, adminAlias } = req.body; // Registrar qué subusuario hizo la eliminación
-
-  try {
-    const resultado = await PrecioFruta.findOneAndUpdate(
-      { "frutas._id": idFruta },
-      { 
-        $pull: { frutas: { _id: idFruta } },
-        usuario,  // Subusuario que realiza la acción
-        adminAlias // Alias del administrador
-      },
-      { new: true }
-    );
-
-    if (!resultado) return res.status(404).send("Fruta no encontrada");
-    res.json(resultado);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error al eliminar la fruta");
-  }
-});
-
-// Agregar fruta a una finca
-router.post("/agregar-fruta/:fincaId", async (req, res) => {
-  const fincaId = req.params.fincaId;
-  const { fruta, usuario, adminAlias } = req.body;
-
-  try {
-    const preciosFinca = await PrecioFruta.findOne({ fincaId });
-
-    if (!preciosFinca) {
-      const preciosBase = await PrecioFruta.findOne({ fincaId: null }).lean();
-      if (preciosBase) {
-        const nuevo = new PrecioFruta({
-          fincaId,
-          frutas: [...preciosBase.frutas, fruta],
-          usuario,  // Subusuario que realiza la acción
-          adminAlias // Alias del administrador
-        });
-        await nuevo.save();
-        return res.json(nuevo);
-      } else {
-        return res.status(404).send("No hay precios base disponibles");
-      }
-    } else {
-      // Agregar fruta a la finca
-      preciosFinca.frutas.push(fruta);
-      await preciosFinca.save();
-    }
-
-    res.json(preciosFinca);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error al agregar fruta");
-  }
-});
-
-// Guardar precios base (opcional)
 router.post("/guardar-base", async (req, res) => {
   const { frutas, usuario, adminAlias } = req.body;
 
