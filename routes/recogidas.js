@@ -69,7 +69,7 @@ router.post("/nueva", async (req, res) => {
       fincaId,
       finca,
       propietario,
-      fecha: new Date(fecha).toISOString(),,
+      fecha: new Date(fecha).toISOString(),
       usuario,  // Username del usuario
       alias: aliasParaGuardar,
       fruta,
