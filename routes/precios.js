@@ -82,24 +82,81 @@ router.get("/todos-los-precios", async (req, res) => {
 // Actualizar precios de una fruta en todas las fincas
 router.put("/actualizar/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
-  const { precios } = req.body;
+  const { precios, usuario, adminAlias } = req.body;
+
+  if (!precios || !usuario || !adminAlias) {
+    return res.status(400).send("Datos incompletos");
+  }
 
   try {
-    // Buscar todas las fincas con esa fruta y actualizar sus precios
-    const fincas = await PrecioFruta.find({ "frutas._id": frutaId });
+    // Buscar todas las fincas que tienen esa fruta
+    const fincasConFruta = await PrecioFruta.find({ "frutas._id": frutaId });
+    
+    let fincasActualizadas = 0;
 
-    fincas.forEach(async (finca) => {
-      const fruta = finca.frutas.find(f => f._id.toString() === frutaId);
-      if (fruta) {
-        fruta.precios = precios;  // Actualizar los precios de la fruta
+    // Actualizar cada finca que tenga esa fruta
+    for (const finca of fincasConFruta) {
+      const frutaIndex = finca.frutas.findIndex(f => f._id.toString() === frutaId);
+      
+      if (frutaIndex !== -1) {
+        // Actualizar los precios de la fruta
+        finca.frutas[frutaIndex].precios = precios;
+        finca.usuario = usuario;
+        finca.adminAlias = adminAlias;
+        finca.fechaActualizacion = new Date();
+        
+        await finca.save();
+        fincasActualizadas++;
       }
-      await finca.save();  // Guardar cambios
-    });
+    }
 
-    res.status(200).send("Precios actualizados");
+    // También actualizar los precios base (fincaId: null) si existe
+    const preciosBase = await PrecioFruta.findOne({ fincaId: null });
+    if (preciosBase) {
+      const frutaBaseIndex = preciosBase.frutas.findIndex(f => f._id.toString() === frutaId);
+      if (frutaBaseIndex !== -1) {
+        preciosBase.frutas[frutaBaseIndex].precios = precios;
+        preciosBase.usuario = usuario;
+        preciosBase.adminAlias = adminAlias;
+        preciosBase.fechaActualizacion = new Date();
+        await preciosBase.save();
+        fincasActualizadas++;
+      }
+    }
+
+    console.log(`✅ Precios actualizados en ${fincasActualizadas} registros`);
+    res.status(200).json({ 
+      message: "Precios actualizados correctamente",
+      fincasActualizadas: fincasActualizadas
+    });
+    
   } catch (err) {
     console.error("Error al actualizar precios:", err);
     res.status(500).send("Error al actualizar precios");
+  }
+});
+
+outer.get("/fruta/:frutaId", async (req, res) => {
+  const frutaId = req.params.frutaId;
+  
+  try {
+    // Buscar la fruta en cualquier documento de precios
+    const documentoConFruta = await PrecioFruta.findOne({ "frutas._id": frutaId }).lean();
+    
+    if (!documentoConFruta) {
+      return res.status(404).send("Fruta no encontrada");
+    }
+    
+    const fruta = documentoConFruta.frutas.find(f => f._id.toString() === frutaId);
+    
+    if (!fruta) {
+      return res.status(404).send("Fruta no encontrada");
+    }
+    
+    res.status(200).json(fruta);
+  } catch (err) {
+    console.error("Error al buscar fruta:", err);
+    res.status(500).send("Error al buscar fruta");
   }
 });
 
