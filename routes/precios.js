@@ -136,7 +136,7 @@ router.put("/actualizar/:frutaId", async (req, res) => {
   }
 });
 
-outer.get("/fruta/:frutaId", async (req, res) => {
+router.get("/fruta/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
   
   try {
