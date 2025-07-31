@@ -40,6 +40,21 @@
       opacity: 0.9;
     }
 
+    .info-banner {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 20px;
+      color: white;
+      text-align: center;
+    }
+
+    .info-banner strong {
+      color: #ffd700;
+    }
+
     .search-container {
       margin-bottom: 30px;
       text-align: center;
@@ -116,10 +131,26 @@
     }
 
     .precio-info {
-      color: rgba(255, 255, 255, 0.8);
+      color: rgba(255, 255, 255, 0.9);
       font-size: 0.9rem;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
+      background: rgba(0, 0, 0, 0.1);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .precio-linea {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 0.85rem;
+    }
+
+    .estadisticas {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.8rem;
       font-style: italic;
+      margin-bottom: 15px;
     }
 
     .editar-btn {
@@ -203,6 +234,17 @@
       font-size: 1.1rem;
       color: #667eea;
       font-weight: 600;
+    }
+
+    .advertencia-global {
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 600;
+      box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
     }
 
     .precio-group {
@@ -364,8 +406,12 @@
 
   <div class="container">
     <div class="header">
-      <h1>🍎 Gestión de Precios</h1>
+      <h1>🍎 Gestión Global de Precios</h1>
       <p>Administra los precios de todas las frutas del sistema</p>
+    </div>
+
+    <div class="info-banner">
+      <strong>⚠️ IMPORTANTE:</strong> Los cambios realizados aquí se aplicarán a <strong>TODAS las fincas</strong> que tengan estas frutas.
     </div>
 
     <div class="search-container">
@@ -388,8 +434,12 @@
   <div id="editModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>✏️ Editar Precios</h3>
+        <h3>🌍 Editar Precios Globalmente</h3>
         <div class="fruta-nombre-modal" id="modalFrutaNombre"></div>
+      </div>
+
+      <div class="advertencia-global">
+        ⚠️ Estos cambios se aplicarán en TODAS las fincas que tengan esta fruta
       </div>
 
       <div class="precio-group">
@@ -408,7 +458,7 @@
       </div>
 
       <div class="modal-buttons">
-        <button class="btn-primary" id="guardarCambios">💾 Guardar Cambios</button>
+        <button class="btn-primary" id="guardarCambios">🌍 Actualizar en Todas las Fincas</button>
         <button class="btn-secondary" id="cancelarEdicion">❌ Cancelar</button>
       </div>
     </div>
@@ -438,27 +488,12 @@
       return response.json();
     }
 
-    // Cargar todas las frutas del sistema
+    // ✅ Cargar todas las frutas con precios más frecuentes
     async function cargarTodasLasFrutas() {
       try {
-        const frutasData = await apiFetch('/precios/todos-los-precios');
+        const frutasData = await apiFetch('/precios/todos-los-precios-con-frecuencia');
         
-        // Filtrar frutas únicas por nombre (sin mostrar precios)
-        const frutasUnicas = [];
-        const nombresVistos = new Set();
-        
-        frutasData.forEach(fruta => {
-          if (!nombresVistos.has(fruta.nombre.toLowerCase())) {
-            nombresVistos.add(fruta.nombre.toLowerCase());
-            frutasUnicas.push({
-              _id: fruta._id,
-              nombre: fruta.nombre,
-              // No incluimos precios en la vista inicial
-            });
-          }
-        });
-
-        todasLasFrutas = frutasUnicas;
+        todasLasFrutas = frutasData;
         mostrarFrutas(todasLasFrutas);
         
       } catch (error) {
@@ -470,7 +505,7 @@
       }
     }
 
-    // Mostrar frutas en la grid
+    // ✅ Mostrar frutas con precios más frecuentes
     function mostrarFrutas(frutas) {
       const loadingContainer = document.getElementById('loadingContainer');
       const frutasGrid = document.getElementById('frutasGrid');
@@ -496,16 +531,32 @@
         const iconos = ['🍎', '🍊', '🍌', '🍇', '🥭', '🍑', '🍓', '🥝', '🍒', '🥥'];
         const iconoAleatorio = iconos[Math.floor(Math.random() * iconos.length)];
         
+        const precios = fruta.precios || { primera: 0, segunda: 0, tercera: 0 };
+        
         frutaCard.innerHTML = `
           <div class="fruta-nombre">
             <span class="fruta-icon">${iconoAleatorio}</span>
             ${fruta.nombre}
           </div>
           <div class="precio-info">
-            Haz clic en "Editar" para establecer los precios
+            <div class="precio-linea">
+              <span>💎 Primera:</span>
+              <span><strong>$${precios.primera.toLocaleString()}</strong></span>
+            </div>
+            <div class="precio-linea">
+              <span>✨ Segunda:</span>
+              <span><strong>$${precios.segunda.toLocaleString()}</strong></span>
+            </div>
+            <div class="precio-linea">
+              <span>⭐ Tercera:</span>
+              <span><strong>$${precios.tercera.toLocaleString()}</strong></span>
+            </div>
+          </div>
+          <div class="estadisticas">
+            📊 Precio más común de ${fruta.estadisticas?.totalVariaciones || 1} finca(s)
           </div>
           <button class="editar-btn" onclick="abrirModalEdicion('${fruta._id}', '${fruta.nombre}')">
-            ✏️ Editar Precios
+            🌍 Actualizar Globalmente
           </button>
         `;
         
@@ -513,30 +564,31 @@
       });
     }
 
-    // Abrir modal de edición
+    // ✅ Abrir modal de edición con precios más frecuentes
     async function abrirModalEdicion(frutaId, nombreFruta) {
       frutaActualEdicion = { _id: frutaId, nombre: nombreFruta };
       
       // Establecer nombre en el modal
       document.getElementById('modalFrutaNombre').textContent = nombreFruta;
       
-      // Limpiar campos
-      document.getElementById('precioPrimera').value = '';
-      document.getElementById('precioSegunda').value = '';
-      document.getElementById('precioTercera').value = '';
-      
-      // Intentar cargar precios actuales si existen
       try {
-        const frutaConPrecios = await apiFetch(`/precios/fruta/${frutaId}`);
+        // ✅ Cargar precios con frecuencia
+        const frutaConPrecios = await apiFetch(`/precios/fruta-con-frecuencia/${frutaId}`);
         
         if (frutaConPrecios && frutaConPrecios.precios) {
-          document.getElementById('precioPrimera').value = frutaConPrecios.precios.primera || '';
-          document.getElementById('precioSegunda').value = frutaConPrecios.precios.segunda || '';
-          document.getElementById('precioTercera').value = frutaConPrecios.precios.tercera || '';
+          document.getElementById('precioPrimera').value = frutaConPrecios.precios.primera;
+          document.getElementById('precioSegunda').value = frutaConPrecios.precios.segunda;
+          document.getElementById('precioTercera').value = frutaConPrecios.precios.tercera;
         }
       } catch (error) {
         console.error('Error al cargar precios actuales:', error);
-        // Si no se pueden cargar los precios actuales, continuar con campos vacíos
+        // Si no se pueden cargar los precios actuales, usar los de la vista
+        const fruta = todasLasFrutas.find(f => f._id === frutaId);
+        if (fruta && fruta.precios) {
+          document.getElementById('precioPrimera').value = fruta.precios.primera;
+          document.getElementById('precioSegunda').value = fruta.precios.segunda;
+          document.getElementById('precioTercera').value = fruta.precios.tercera;
+        }
       }
       
       // Mostrar modal
@@ -549,7 +601,7 @@
       frutaActualEdicion = null;
     }
 
-    // Guardar cambios de precios
+    // ✅ Guardar cambios de precios GLOBALMENTE
     async function guardarCambiosPrecios() {
       if (!frutaActualEdicion) return;
 
@@ -568,9 +620,21 @@
         return;
       }
 
+      // Confirmación antes de actualizar globalmente
+      const confirmacion = confirm(
+        `⚠️ CONFIRMACIÓN GLOBAL\n\n` +
+        `Estás a punto de actualizar los precios de "${frutaActualEdicion.nombre}" en TODAS las fincas:\n\n` +
+        `💎 Primera: ${precioPrimera.toLocaleString()}\n` +
+        `✨ Segunda: ${precioSegunda.toLocaleString()}\n` +
+        `⭐ Tercera: ${precioTercera.toLocaleString()}\n\n` +
+        `¿Estás seguro de continuar?`
+      );
+
+      if (!confirmacion) return;
+
       const btnGuardar = document.getElementById('guardarCambios');
       const textoOriginal = btnGuardar.textContent;
-      btnGuardar.textContent = '⏳ Guardando...';
+      btnGuardar.textContent = '⏳ Actualizando en todas las fincas...';
       btnGuardar.disabled = true;
 
       try {
@@ -580,19 +644,27 @@
           tercera: precioTercera
         };
 
-        // Actualizar precios en todas las fincas que tengan esta fruta
-        await apiFetch(`/precios/actualizar/${frutaActualEdicion._id}`, 'PUT', {
+        // ✅ Usar la nueva ruta para actualización global
+        const resultado = await apiFetch(`/precios/actualizar-global/${frutaActualEdicion._id}`, 'PUT', {
           precios: nuevosPrecios,
           usuario: usuario,
-          adminAlias: alias
+          adminAlias: alias || usuario
         });
 
-        alert(`✅ Precios de "${frutaActualEdicion.nombre}" actualizados correctamente en todas las fincas`);
+        alert(
+          `✅ ¡Actualización completada!\n\n` +
+          `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} registro(s).\n\n` +
+          `Todos los cambios se aplicaron correctamente.`
+        );
+        
         cerrarModal();
+        
+        // Recargar frutas para mostrar los nuevos precios
+        cargarTodasLasFrutas();
         
       } catch (error) {
         console.error('Error al guardar precios:', error);
-        alert('❌ Error al guardar los precios. Por favor, inténtalo de nuevo.');
+        alert('❌ Error al actualizar los precios globalmente. Por favor, inténtalo de nuevo.');
       } finally {
         btnGuardar.textContent = textoOriginal;
         btnGuardar.disabled = false;
