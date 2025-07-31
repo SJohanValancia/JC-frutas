@@ -79,6 +79,31 @@ router.get("/todos-los-precios", async (req, res) => {
   }
 });
 
+// Actualizar precios de una fruta en todas las fincas
+router.put("/actualizar/:frutaId", async (req, res) => {
+  const frutaId = req.params.frutaId;
+  const { precios } = req.body;
+
+  try {
+    // Buscar todas las fincas con esa fruta y actualizar sus precios
+    const fincas = await PrecioFruta.find({ "frutas._id": frutaId });
+
+    fincas.forEach(async (finca) => {
+      const fruta = finca.frutas.find(f => f._id.toString() === frutaId);
+      if (fruta) {
+        fruta.precios = precios;  // Actualizar los precios de la fruta
+      }
+      await finca.save();  // Guardar cambios
+    });
+
+    res.status(200).send("Precios actualizados");
+  } catch (err) {
+    console.error("Error al actualizar precios:", err);
+    res.status(500).send("Error al actualizar precios");
+  }
+});
+
+
 // Actualizar precios de forma masiva
 router.post("/actualizar-masivo", async (req, res) => {
   const { fincaId, frutas, usuario, adminAlias, actualizarBase } = req.body;

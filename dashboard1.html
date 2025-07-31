@@ -248,6 +248,8 @@ async function cargarPreciosGuardados() {
     console.error("Error al cargar precios guardados:", err);
   }
 }
+
+
 function renderFrutasGuardadas(frutas) {
   const frutasContainer = document.getElementById("frutasContainer");
   frutasContainer.innerHTML = "";
@@ -258,15 +260,74 @@ function renderFrutasGuardadas(frutas) {
     div.innerHTML = `
       <div class="fruta-card-content">
         <h4>${fruta.nombre}</h4>
-        <p>Precio Primera: ${fruta.precios.primera}</p>
-        <p>Precio Segunda: ${fruta.precios.segunda}</p>
-        <p>Precio Tercera: ${fruta.precios.tercera}</p>
+        <p>Precio Primera: ${fruta.precios ? fruta.precios.primera || 'No disponible' : 'No disponible'}</p>
+        <p>Precio Segunda: ${fruta.precios ? fruta.precios.segunda || 'No disponible' : 'No disponible'}</p>
+        <p>Precio Tercera: ${fruta.precios ? fruta.precios.tercera || 'No disponible' : 'No disponible'}</p>
+        <button class="editar-btn" data-id="${fruta._id}">Editar Precios</button>
       </div>
     `;
     frutasContainer.appendChild(div);
+
+    // Agregar funcionalidad al botón de editar
+    div.querySelector(".editar-btn").addEventListener("click", () => {
+      abrirModalEdicion(fruta);  // Abre el modal de edición para esa fruta
+    });
   });
 }
 
+function abrirModalEdicion(fruta) {
+  const modal = document.getElementById("modalPrecios");
+  const nombreFruta = modal.querySelector("#nombreFruta");
+  const precioPrimera = modal.querySelector("#precioPrimera");
+  const precioSegunda = modal.querySelector("#precioSegunda");
+  const precioTercera = modal.querySelector("#precioTercera");
+
+  nombreFruta.value = fruta.nombre;
+  precioPrimera.value = fruta.precios ? fruta.precios.primera : "";
+  precioSegunda.value = fruta.precios ? fruta.precios.segunda : "";
+  precioTercera.value = fruta.precios ? fruta.precios.tercera : "";
+
+  modal.classList.remove("hidden");
+
+  const btnGuardar = modal.querySelector("#guardarPrecios");
+  btnGuardar.onclick = async () => {
+    // Actualiza los precios para esa fruta
+    const nuevosPrecios = {
+      primera: precioPrimera.value,
+      segunda: precioSegunda.value,
+      tercera: precioTercera.value
+    };
+
+    try {
+      await apiFetch(`/precios/actualizar/${fruta._id}`, "PUT", { precios: nuevosPrecios, usuario, adminAlias });
+      // Actualiza todos los precios en las fincas que tienen esta fruta
+      await actualizarPreciosEnFincas(fruta._id, nuevosPrecios);
+      modal.classList.add("hidden");
+    } catch (err) {
+      console.error("Error al guardar cambios:", err);
+      alert("Error al guardar cambios");
+    }
+  };
+
+  const btnCancelar = modal.querySelector("#cancelarPrecios");
+  btnCancelar.onclick = () => {
+    modal.classList.add("hidden");
+  };
+}
+
+async function actualizarPreciosEnFincas(frutaId, nuevosPrecios) {
+  try {
+    const fincasConFruta = await apiFetch(`/fincas/con-fruta/${frutaId}`, "GET"); // Obtén todas las fincas con esta fruta
+    for (const finca of fincasConFruta) {
+      await apiFetch(`/precios/actualizar/${finca._id}`, "POST", {
+        frutaId: frutaId,
+        precios: nuevosPrecios
+      });
+    }
+  } catch (err) {
+    console.error("Error al actualizar precios en las fincas:", err);
+  }
+}
 
 
     // Si no se encuentra alias en la URL, hacer una llamada al servidor para obtenerlo
