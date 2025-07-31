@@ -16,21 +16,36 @@ cargarPreciosGuardados();
 
 async function cargarPreciosGuardados() {
   try {
+    // Primero, cargar los precios globales
+    const preciosGlobales = await apiFetch('/precios/todos-los-precios', "GET");
+    
+    // Obtener precios de la finca específica
     const preciosGuardados = await apiFetch(`/precios/por-finca/${fincaId}`, "GET");
 
-    // ✅ Encontrar el documento con más frutas (el más actualizado)
     let frutasFinales = [];
-    for (const doc of preciosGuardados) {
-      if (doc.frutas?.length > frutasFinales.length) {
-        frutasFinales = doc.frutas;
+
+    // Si existen precios específicos para la finca, usarlos
+    if (preciosGuardados.length > 0) {
+      // Tomamos el último documento de precios guardados para esta finca
+      for (const doc of preciosGuardados) {
+        if (doc.frutas?.length > frutasFinales.length) {
+          frutasFinales = doc.frutas;
+        }
       }
+    } else {
+      // Si no existen precios específicos, usamos los precios globales
+      frutasFinales = preciosGlobales;
     }
 
+    // Renderizar los precios para esta finca
     renderFrutasGuardadas(frutasFinales);
+
   } catch (err) {
     console.error("Error al cargar precios guardados:", err);
   }
 }
+
+
 
 
 
@@ -85,25 +100,26 @@ guardarBtn.addEventListener("click", async () => {
   }
 
   try {
+    // Verificar si existen precios específicos para esta finca
     const existentes = await apiFetch(`/precios/por-finca/${fincaId}`, "GET");
     const fincaYaTienePrecios = existentes.length > 0 && existentes[existentes.length - 1]?.frutas?.length > 0;
 
     if (fincaYaTienePrecios) {
-      // Agregar cada fruta individualmente, sin eliminar las anteriores
-for (const fruta of frutas) {
-  await apiFetch(`/precios/agregar-fruta/${fincaId}`, "POST", { 
-    fruta,
-    usuario: usuario,      // ✅ Agregar usuario
-    adminAlias: usuario    // ✅ Agregar adminAlias
-  });
-}
+      // Si ya existen precios específicos, actualizamos los precios solo para esta finca
+      for (const fruta of frutas) {
+        await apiFetch(`/precios/actualizar/${fincaId}`, "PUT", { 
+          fruta,
+          usuario: usuario,
+          adminAlias: usuario
+        });
+      }
     } else {
-      // Finca vacía → guardamos normalmente y se copia a otras vacías
+      // Si no existen precios para la finca, guardamos los precios globales
       await apiFetch("/precios/guardar", "POST", { fincaId, frutas });
     }
 
     // Recargar frutas después de agregar nuevas
-    cargarPreciosGuardados();  // Asegura que se recargue la lista de frutas
+    cargarPreciosGuardados();  // Recargar para actualizar los precios
 
     alert("Frutas guardadas correctamente");
     window.location.href = `dashboard1.html?usuario=${encodeURIComponent(usuario)}`;
@@ -111,6 +127,8 @@ for (const fruta of frutas) {
     alert("Error al guardar frutas: " + err.message);
   }
 });
+
+
 
 
 
@@ -158,20 +176,39 @@ async function toggleEdicion(div, fruta, btn) {
     const precioTercera = parseFloat(inputs[3].value);
 
     try {
-      await apiFetch(`/precios/actualizar/${fruta._id}`, "PUT", {
-        nombre,
-        precios: {
-          primera: precioPrimera,
-          segunda: precioSegunda,
-          tercera: precioTercera
-        },
-        usuario: usuario,
-        adminAlias: usuario,
-        fincaId: fincaId  // ✅ Enviar fincaId para actualizar solo esta finca
-      });
+      const esEdicionGlobal = btn.dataset.global === 'true';
+
+      if (esEdicionGlobal) {
+        // Si se está editando globalmente, actualizamos los precios en todas las fincas
+        await apiFetch(`/precios/actualizar-global/${fruta._id}`, "PUT", {
+          nombre,
+          precios: {
+            primera: precioPrimera,
+            segunda: precioSegunda,
+            tercera: precioTercera
+          },
+          usuario: usuario,
+          adminAlias: usuario
+        });
+        alert("Precio actualizado globalmente en todas las fincas");
+      } else {
+        // Si es solo para esta finca, actualizamos solo para esa finca
+        await apiFetch(`/precios/actualizar/${fruta._id}`, "PUT", {
+          nombre,
+          precios: {
+            primera: precioPrimera,
+            segunda: precioSegunda,
+            tercera: precioTercera
+          },
+          usuario: usuario,
+          adminAlias: usuario,
+          fincaId: fincaId
+        });
+        alert("Precio actualizado solo para esta finca");
+      }
+
       btn.textContent = "✏️ Editar";
       inputs.forEach(input => input.disabled = true);
-      alert("Precio actualizado solo en esta finca");
     } catch (err) {
       alert("Error al actualizar: " + err.message);
     }
@@ -181,6 +218,8 @@ async function toggleEdicion(div, fruta, btn) {
     inputs.forEach(input => input.disabled = false);
   }
 }
+
+
 
 // ✅ Función eliminarFruta modificada para enviar fincaId
 async function eliminarFruta(fruta, div) {
