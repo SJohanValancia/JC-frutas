@@ -774,6 +774,31 @@
                 -moz-osx-font-smoothing: grayscale;
             }
         }
+
+        /* 🔥 ESTILOS PARA ETIQUETA DE LIQUIDACIÓN */
+.liquidada-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  z-index: 1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
     </style>
 </head>
 <body>
@@ -1078,6 +1103,9 @@ function mostrarRecogidas() {
     
     // 🔥 DETERMINAR SI ES RECOGIDA MÚLTIPLE
     const esMultiple = frutasUnicas.length > 1 || calidadesUnicas.length > 1;
+    
+    // 🔥 VERIFICAR SI ESTÁ LIQUIDADA
+    const estaLiquidada = recogida.estadoLiquidacion === 'liquidada';
 
     // 🔥 GENERAR HTML PARA FRUTAS MÚLTIPLES
     const frutasHTML = frutasUnicas.length === 1 ? 
@@ -1110,9 +1138,17 @@ function mostrarRecogidas() {
       </div>
     ` : '';
 
+    // 🔥 INFORMACIÓN ADICIONAL SI ESTÁ LIQUIDADA
+    const infoLiquidacion = estaLiquidada ? `
+      <div style="margin-top: 10px; font-size: 0.8em; color: var(--success-color); text-align: center;">
+        Liquidada el ${formatearFecha(recogida.fechaLiquidacion)} por ${recogida.usuarioLiquida || 'usuario'}
+      </div>
+    ` : '';
+
     return `
       <div class="recogida-card">
         ${esMultiple ? '<div class="multiple-badge">MÚLTIPLE</div>' : ''}
+        ${estaLiquidada ? '<div class="liquidada-badge">✅ LIQUIDADA</div>' : ''}
         
         <div class="card-header">
           <div class="finca-info">
@@ -1165,6 +1201,7 @@ function mostrarRecogidas() {
         </div>
 
         ${pesasHTML}
+        ${infoLiquidacion}
 
         <div class="card-footer">
           <div class="usuario-info">
@@ -1208,7 +1245,6 @@ function mostrarRecogidas() {
     });
   });
 }
-
 // 🔥 APLICAR FILTROS CORREGIDO - SIN MÁRGENES DE ERROR EN FECHAS
 function aplicarFiltros() {
   const textoBusqueda = document.getElementById('searchText').value.toLowerCase();

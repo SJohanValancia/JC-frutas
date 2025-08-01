@@ -388,8 +388,11 @@ function insertarArribaFueraContainer(button) {
   topContainer.style.cssText = `
     position: absolute;
     top: -1px;
-    left: -20px;
+    left: -2
+    
+    0px;
     right: 0;
+
   `;
 
   // Ajustar estilos del botón para la posición superior
@@ -564,33 +567,160 @@ function adjustBodyForFixedButton() {
       };
     }
 
-    // 🚀 OPTIMIZACIÓN: Renderizar finca sin llamadas asíncronas
-    function renderFincaRapido(finca) {
-      const div = document.createElement("div");
-      div.className = "card-glass";
-      
-      // HTML inicial de la tarjeta
-      div.innerHTML = `
-        <div class="finca-header">
-          <div class="finca-title">${finca.nombre}</div>
-          <div class="propietario">Propietario: ${finca.propietario}</div>
-        </div>
-        
-        <div class="recogida-info" data-finca-id="${finca._id}">
-          <div class="loading-info">⏳ Cargando información de recogidas...</div>
-        </div>
-        
-        <div class="botones-container">
-          <button onclick="location.href='precios.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}'">💰 Precios</button>
-          <button onclick="location.href='recogida.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">📊 Recogida</button>
-          <button onclick="location.href='historial.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}'">📋 Historial</button>
-          <button onclick="location.href='liquidacion.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">💰 Liquidación</button>
-        </div>
-      `;
-      
-      return div;
-    }
 
+    // 🚀 OPTIMIZACIÓN: Renderizar finca sin llamadas asíncronas
+function renderFincaRapido(finca) {
+  const div = document.createElement("div");
+  div.className = "card-glass";
+  
+  // HTML inicial de la tarjeta
+  div.innerHTML = `
+    <div class="finca-header">
+      <div class="finca-title">${finca.nombre}</div>
+      <div class="propietario">Propietario: ${finca.propietario}</div>
+    </div>
+    
+    <div class="recogida-info" data-finca-id="${finca._id}">
+      <div class="loading-info">⏳ Cargando información de recogidas...</div>
+    </div>
+    
+    <div class="botones-container">
+      <button onclick="location.href='precios.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}'">💰 Precios</button>
+      <button onclick="location.href='recogida.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">📊 Recogida</button>
+      <button onclick="location.href='historial.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}'">📋 Historial</button>
+      <button onclick="location.href='liquidacion.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">💰 Liquidación</button>
+      <button onclick="verLiquidacionesFinca('${finca._id}', '${encodeURIComponent(finca.nombre)}', '${encodeURIComponent(finca.propietario)}')">✅ Recibos Liquidados</button>
+    </div>
+  `;
+  
+  return div;
+}
+
+// 🔥 SOLUCIÓN: Hacer la función verLiquidacionesFinca accesible globalmente
+window.verLiquidacionesFinca = function(fincaId, fincaNombre, fincaPropietario) {
+  console.log('🔍 Navegando a liquidaciones de finca:', { fincaId, fincaNombre, fincaPropietario });
+  
+  // Obtener datos del usuario actual desde los parámetros URL o sessionStorage
+  const params = new URLSearchParams(window.location.search);
+  let usuarioActual = params.get("usuario") || usuario;
+  let adminAliasActual = params.get("alias") || alias;
+  
+  // Si no están en URL, intentar obtener desde sessionStorage
+  if (!usuarioActual || !adminAliasActual) {
+    const storedData = sessionStorage.getItem('userData');
+    if (storedData) {
+      const sessionData = JSON.parse(storedData);
+      usuarioActual = usuarioActual || sessionData.username;
+      adminAliasActual = adminAliasActual || sessionData.adminAlias || sessionData.alias;
+    }
+  }
+  
+  // Decodificar los nombres si vienen codificados
+  const fincaDecodificada = decodeURIComponent(fincaNombre);
+  const propietarioDecodificado = decodeURIComponent(fincaPropietario);
+  
+  // Construir URL para la página de liquidaciones de finca específica
+  const baseUrl = 'liquidacion-finca.html';
+  const urlParams = new URLSearchParams({
+    fincaId: fincaId,
+    finca: fincaDecodificada,
+    propietario: propietarioDecodificado,
+    usuario: usuarioActual,
+    adminAlias: adminAliasActual
+  });
+  
+  const url = `${baseUrl}?${urlParams.toString()}`;
+  
+  console.log('🚀 URL construida para liquidaciones de finca:', url);
+  
+  // Navegar a la página
+  window.location.href = url;
+};
+
+// 🔥 ALTERNATIVA: Si prefieres modificar el renderizado para evitar funciones globales
+function renderFincaConEventListeners(finca) {
+  const div = document.createElement("div");
+  div.className = "card-glass";
+  
+  // HTML inicial de la tarjeta SIN onclick en el botón problemático
+  div.innerHTML = `
+    <div class="finca-header">
+      <div class="finca-title">${finca.nombre}</div>
+      <div class="propietario">Propietario: ${finca.propietario}</div>
+    </div>
+    
+    <div class="recogida-info" data-finca-id="${finca._id}">
+      <div class="loading-info">⏳ Cargando información de recogidas...</div>
+    </div>
+    
+    <div class="botones-container">
+      <button onclick="location.href='precios.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}'">💰 Precios</button>
+      <button onclick="location.href='recogida.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">📊 Recogida</button>
+      <button onclick="location.href='historial.html?id=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}'">📋 Historial</button>
+      <button onclick="location.href='liquidacion.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">💰 Liquidación</button>
+      <button class="btn-liquidaciones-finca" data-finca-id="${finca._id}" data-finca-nombre="${encodeURIComponent(finca.nombre)}" data-propietario="${encodeURIComponent(finca.propietario)}">✅ Recibos Liquidados</button>
+    </div>
+  `;
+  
+  // Agregar event listener al botón de liquidaciones después de crear el elemento
+  const btnLiquidaciones = div.querySelector('.btn-liquidaciones-finca');
+  btnLiquidaciones.addEventListener('click', function() {
+    const fincaId = this.dataset.fincaId;
+    const fincaNombre = this.dataset.fincaNombre;
+    const propietario = this.dataset.propietario;
+    
+    // Llamar a la función directamente (no global)
+    navegarALiquidacionesFinca(fincaId, fincaNombre, propietario);
+  });
+  
+  return div;
+}
+
+// Función local para navegación a liquidaciones
+function navegarALiquidacionesFinca(fincaId, fincaNombre, fincaPropietario) {
+  console.log('🔍 Navegando a liquidaciones de finca:', { fincaId, fincaNombre, fincaPropietario });
+  
+  // Obtener datos del usuario actual
+  const params = new URLSearchParams(window.location.search);
+  let usuarioActual = params.get("usuario") || usuario;
+  let adminAliasActual = params.get("alias") || alias;
+  
+  // Si no están en URL, intentar obtener desde sessionStorage
+  if (!usuarioActual || !adminAliasActual) {
+    const storedData = sessionStorage.getItem('userData');
+    if (storedData) {
+      const sessionData = JSON.parse(storedData);
+      usuarioActual = usuarioActual || sessionData.username;
+      adminAliasActual = adminAliasActual || sessionData.adminAlias || sessionData.alias;
+    }
+  }
+  
+  // Construir URL para la página de liquidaciones de finca
+  const url = `liquidacion-finca.html?fincaId=${fincaId}&finca=${fincaNombre}&propietario=${fincaPropietario}&usuario=${encodeURIComponent(usuarioActual)}&adminAlias=${encodeURIComponent(adminAliasActual)}`;
+  
+  console.log('🚀 Navegando a:', url);
+  window.location.href = url;
+}
+
+// Función para ver liquidaciones de la finca específica
+function verLiquidacionesFinca(fincaId, fincaNombre, fincaPropietario) {
+  // Obtener datos del usuario actual
+  const storedData = sessionStorage.getItem('userData');
+  let usuarioActual = usuario;
+  let adminAliasActual = '';
+  
+  if (storedData) {
+    const sessionData = JSON.parse(storedData);
+    usuarioActual = sessionData.username;
+    adminAliasActual = sessionData.adminAlias || sessionData.alias;
+  }
+  
+  // Construir URL para la página de liquidaciones de finca
+  const url = `liquidacion-finca.html?fincaId=${fincaId}&finca=${fincaNombre}&propietario=${fincaPropietario}&usuario=${encodeURIComponent(usuarioActual)}&adminAlias=${encodeURIComponent(adminAliasActual)}`;
+  
+  // Navegar a la página
+  location.href = url;
+}
     // 🚀 OPTIMIZACIÓN: Actualizar información de recogidas después del renderizado
     function actualizarInfoRecogidas(div, finca) {
       const recogidaInfoDiv = div.querySelector('.recogida-info');
