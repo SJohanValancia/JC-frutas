@@ -16,6 +16,51 @@ router.get("/todos-los-precios", async (req, res) => {
   }
 });
 
+// 🔥 NUEVA RUTA: GET /precios/primera-finca-usuario - Obtener precios de la primera finca del usuario
+router.get("/primera-finca-usuario", async (req, res) => {
+  const { usuario } = req.query;
+  
+  console.log(`🔍 Buscando primera finca con precios para usuario: ${usuario}`);
+  
+  if (!usuario) {
+    return res.status(400).json({ error: "Usuario requerido" });
+  }
+  
+  try {
+    // Buscar la primera finca que tenga frutas y pertenezca al usuario
+    const primeraFincaConPrecios = await PrecioFruta.findOne({
+      fincaId: { $ne: null }, // Solo fincas específicas (no precios base)
+      $or: [
+        { usuario: usuario },
+        { adminAlias: usuario }
+      ],
+      frutas: { $exists: true, $not: { $size: 0 } } // Que tenga frutas
+    }).sort({ fecha: 1 }); // Ordenar por fecha más antigua (primera creada)
+    
+    if (!primeraFincaConPrecios) {
+      console.log(`ℹ️ Usuario ${usuario} no tiene fincas con precios aún`);
+      return res.status(404).json({ 
+        message: "Usuario no tiene fincas con precios configurados",
+        frutas: []
+      });
+    }
+    
+    console.log(`✅ Encontrada primera finca con precios: ${primeraFincaConPrecios.fincaId}`);
+    console.log(`📊 Total de frutas en la primera finca: ${primeraFincaConPrecios.frutas.length}`);
+    
+    res.status(200).json({
+      fincaId: primeraFincaConPrecios.fincaId,
+      fecha: primeraFincaConPrecios.fecha,
+      frutas: primeraFincaConPrecios.frutas,
+      mensaje: `Precios cargados desde la primera finca del usuario (${primeraFincaConPrecios.frutas.length} frutas)`
+    });
+    
+  } catch (err) {
+    console.error("❌ Error al buscar primera finca del usuario:", err);
+    res.status(500).json({ error: "Error al buscar primera finca: " + err.message });
+  }
+});
+
 // GET /precios/por-finca/:fincaId - Obtener precios específicos de una finca
 router.get("/por-finca/:fincaId", async (req, res) => {
   try {

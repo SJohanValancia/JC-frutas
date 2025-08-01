@@ -26,7 +26,7 @@ async function guardarCambiosPrecios(frutaId, nuevosPrecios) {
     `¿Estás seguro de continuar?`
   );
 
-  if (!confirmacion) return;
+  if (!confirmación) return;
 
   try {
     console.log("📡 Enviando solicitud de actualización global...");
@@ -62,27 +62,40 @@ async function guardarCambiosPrecios(frutaId, nuevosPrecios) {
   }
 }
 
-// Cargar precios guardados (precios específicos de la finca o globales)
+// 🔥 FUNCIÓN MODIFICADA: Cargar precios específicos del usuario
 async function cargarPreciosGuardados() {
   try {
     console.log("📥 Cargando precios guardados para finca:", fincaId);
+    console.log("👤 Usuario actual:", usuario);
     
-    // Cargar precios globales con frecuencia
-    const preciosGlobales = await apiFetch('/precios/todos-los-precios-con-frecuencia', "GET");
-    
-    // Cargar precios específicos para la finca
+    // 1️⃣ Primero intentar cargar precios específicos para esta finca
     const preciosGuardados = await apiFetch(`/precios/por-finca/${fincaId}`, "GET");
 
     let frutasFinales = [];
 
     if (preciosGuardados.length > 0) {
-      // Usamos los precios específicos para esta finca si existen
+      // ✅ Esta finca ya tiene precios específicos
       console.log("✅ Usando precios específicos de la finca");
       frutasFinales = preciosGuardados[0].frutas;
     } else {
-      // Si no existen precios específicos, usamos los precios globales
-      console.log("✅ Usando precios globales como base");
-      frutasFinales = preciosGlobales;
+      // 2️⃣ Si no tiene precios, cargar precios de la primera finca del USUARIO ACTUAL
+      console.log("🔍 Buscando precios de la primera finca del usuario...");
+      
+      try {
+        const preciosDelUsuario = await apiFetch(`/precios/primera-finca-usuario?usuario=${encodeURIComponent(usuario)}`, "GET");
+        
+        if (preciosDelUsuario && preciosDelUsuario.frutas && preciosDelUsuario.frutas.length > 0) {
+          console.log("✅ Usando precios de la primera finca del usuario");
+          console.log(`📊 Cargando ${preciosDelUsuario.frutas.length} frutas como base`);
+          frutasFinales = preciosDelUsuario.frutas;
+        } else {
+          console.log("ℹ️ El usuario no tiene fincas con precios aún");
+          frutasFinales = [];
+        }
+      } catch (errorUsuario) {
+        console.log("ℹ️ No se encontraron precios del usuario, iniciando sin frutas");
+        frutasFinales = [];
+      }
     }
 
     console.log(`📊 Mostrando ${frutasFinales.length} frutas`);
