@@ -506,7 +506,6 @@ async function cargarTodasLasFrutas() {
     `;
   }
 }
-
     // ✅ Mostrar frutas con precios más frecuentes
     function mostrarFrutas(frutas) {
       const loadingContainer = document.getElementById('loadingContainer');
@@ -673,49 +672,30 @@ async function guardarCambiosPrecios() {
     btnGuardar.disabled = false;
   }
 }
-    // Búsqueda de frutas
-// ✅ Función para normalizar nombres (igual que en backend)
-function normalizarNombre(nombre) {
-  return nombre
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Eliminar tildes
-    .replace(/[^\w\s]/g, '') // Eliminar caracteres especiales excepto espacios
-    .replace(/\s+/g, ' ') // Reemplazar múltiples espacios por uno solo
-    .trim(); // Eliminar espacios al inicio y final
-}
 
-// ✅ Búsqueda normalizada de frutas
-function configurarBusqueda() {
-  const searchInput = document.getElementById('searchInput');
-  let timeoutBusqueda;
+// Búsqueda de frutas
+    function configurarBusqueda() {
+      const searchInput = document.getElementById('searchInput');
+      let timeoutBusqueda;
 
-  searchInput.addEventListener('input', () => {
-    clearTimeout(timeoutBusqueda);
-    
-    timeoutBusqueda = setTimeout(() => {
-      const terminoBusqueda = searchInput.value.trim();
-      
-      if (terminoBusqueda === '') {
-        mostrarFrutas(todasLasFrutas);
-      } else {
-        // ✅ Normalizar término de búsqueda
-        const terminoNormalizado = normalizarNombre(terminoBusqueda);
+      searchInput.addEventListener('input', () => {
+        clearTimeout(timeoutBusqueda);
         
-        const frutasFiltradas = todasLasFrutas.filter(fruta => {
-          // ✅ Buscar tanto en nombre original como en nombre normalizado
-          const nombreOriginalNormalizado = normalizarNombre(fruta.nombre);
-          const nombreNormalizado = fruta.nombreNormalizado || nombreOriginalNormalizado;
+        timeoutBusqueda = setTimeout(() => {
+          const terminoBusqueda = searchInput.value.toLowerCase().trim();
           
-          return nombreNormalizado.includes(terminoNormalizado) || 
-                 nombreOriginalNormalizado.includes(terminoNormalizado);
-        });
-        
-        mostrarFrutas(frutasFiltradas);
-      }
-    }, 300);
-  });
-}
+          if (terminoBusqueda === '') {
+            mostrarFrutas(todasLasFrutas);
+          } else {
+            const frutasFiltradas = todasLasFrutas.filter(fruta =>
+              fruta.nombre.toLowerCase().includes(terminoBusqueda)
+            );
+            mostrarFrutas(frutasFiltradas);
+          }
+        }, 300);
+      });
+    }
+
     // Volver al dashboard
     function volverAlDashboard() {
       let dashboardUrl = `dashboard1.html?usuario=${encodeURIComponent(usuario)}`;
