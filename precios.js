@@ -257,57 +257,54 @@ function renderFrutasGuardadas(frutas) {
       </div>
       <button class="editarBtn">✏️ Editar</button>
       <button class="eliminarBtn">🗑️ Eliminar</button>
+      <button class="editarGlobalBtn" style="background: #ff6b6b; color: white; margin-top: 5px;">🌍 Editar Globalmente</button>
     `;
     frutasContainer.appendChild(div);
 
     // Eventos:
     const editarBtn = div.querySelector(".editarBtn");
     const eliminarBtn = div.querySelector(".eliminarBtn");
+    const editarGlobalBtn = div.querySelector(".editarGlobalBtn");
 
-    editarBtn.addEventListener("click", () => toggleEdicion(div, fruta, editarBtn));
+    editarBtn.addEventListener("click", () => toggleEdicion(div, fruta, editarBtn, false));
+    editarGlobalBtn.addEventListener("click", () => toggleEdicion(div, fruta, editarBtn, true));
     eliminarBtn.addEventListener("click", () => eliminarFruta(fruta, div));
   });
 }
+
 // ✅ Función toggleEdicion modificada para manejar edición local vs global
-async function toggleEdicion(div, fruta, btn) {
+async function toggleEdicion(div, fruta, btn, esGlobal = false) {
   const inputs = div.querySelectorAll("input");
-  const editando = btn.textContent === "💾 Guardar";
+  const editando = btn.textContent.includes("Guardar");
 
   if (editando) {
     // Guardar cambios
-    const nombreOriginal = inputs[0].value.trim();
+    const nombre = inputs[0].value.trim();
     const precioPrimera = parseFloat(inputs[1].value);
     const precioSegunda = parseFloat(inputs[2].value);
     const precioTercera = parseFloat(inputs[3].value);
 
-    // ✅ Formatear nombre antes de enviar
-    const nombreFormateado = formatearNombreParaMostrar(nombreOriginal);
+    // Validar datos
+    if (!nombre || isNaN(precioPrimera) || isNaN(precioSegunda) || isNaN(precioTercera)) {
+      alert("Por favor completa todos los campos correctamente");
+      return;
+    }
+
+    const nuevosPrecios = {
+      primera: precioPrimera,
+      segunda: precioSegunda,
+      tercera: precioTercera
+    };
 
     try {
-      const esEdicionGlobal = btn.dataset.global === 'true';
-
-      if (esEdicionGlobal) {
-        // Si se está editando globalmente, actualizamos los precios en todas las fincas
-        await apiFetch(`/precios/actualizar-global/${fruta._id}`, "PUT", {
-          nombre: nombreFormateado,
-          precios: {
-            primera: precioPrimera,
-            segunda: precioSegunda,
-            tercera: precioTercera
-          },
-          usuario: usuario,
-          adminAlias: usuario
-        });
-        alert("Precio actualizado globalmente en todas las fincas");
+      if (esGlobal) {
+        // Actualización global
+        await guardarCambiosPrecios(fruta._id, nuevosPrecios);
       } else {
-        // Si es solo para esta finca, actualizamos solo para esa finca
+        // Actualización solo para esta finca
         await apiFetch(`/precios/actualizar/${fruta._id}`, "PUT", {
-          nombre: nombreFormateado,
-          precios: {
-            primera: precioPrimera,
-            segunda: precioSegunda,
-            tercera: precioTercera
-          },
+          nombre,
+          precios: nuevosPrecios,
           usuario: usuario,
           adminAlias: usuario,
           fincaId: fincaId
@@ -318,10 +315,8 @@ async function toggleEdicion(div, fruta, btn) {
       btn.textContent = "✏️ Editar";
       inputs.forEach(input => input.disabled = true);
       
-      // ✅ Actualizar el nombre mostrado en el input
-      inputs[0].value = nombreFormateado;
-      
     } catch (err) {
+      console.error("Error al actualizar:", err);
       alert("Error al actualizar: " + err.message);
     }
   } else {
@@ -331,6 +326,7 @@ async function toggleEdicion(div, fruta, btn) {
   }
 }
 
+// ✅ Función eliminarFruta corregida
 async function eliminarFruta(fruta, div) {
   if (!confirm("¿Estás seguro de eliminar esta fruta solo de esta finca?")) return;
   
@@ -343,12 +339,14 @@ async function eliminarFruta(fruta, div) {
     div.remove();
     alert("Fruta eliminada solo de esta finca");
   } catch (err) {
+    console.error("Error al eliminar:", err);
     alert("Error al eliminar: " + err.message);
   }
 }
 
 const btnVolver = document.getElementById("btnVolverDashboard");
-btnVolver.addEventListener("click", () => {
-  // Regresar al dashboard con el usuario en la URL
-  window.location.href = `dashboard1.html?usuario=${encodeURIComponent(usuario)}`;
-});
+if (btnVolver) {
+  btnVolver.addEventListener("click", () => {
+    window.location.href = `dashboard1.html?usuario=${encodeURIComponent(usuario)}`;
+  });
+}
