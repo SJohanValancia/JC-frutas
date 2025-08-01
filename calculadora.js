@@ -25,6 +25,475 @@ const modoEdicion = urlParams.get("modo") === "editar";
 const idRecogida = urlParams.get("idRecogida");
 const usuario = urlParams.get("usuario");
 
+
+let filtroActivo = "todos";
+let valorFiltroActivo = "";
+
+// 2. AGREGAR ESTA FUNCIÓN DESPUÉS DE mostrarNotificacion()
+function crearSistemaFiltros() {
+  const listaPesas = document.getElementById("listaPesas");
+  if (!listaPesas) return;
+
+  let contenedorFiltros = document.getElementById("contenedorFiltros");
+  
+  if (!contenedorFiltros) {
+    contenedorFiltros = document.createElement("div");
+    contenedorFiltros.id = "contenedorFiltros";
+    contenedorFiltros.style.cssText = `
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 0;
+      position: relative;
+      opacity: 0;
+      transform: translateY(-20px);
+      animation: fadeInDown 0.6s ease forwards;
+    `;
+
+    // Crear wrapper para el select con icono
+    const selectWrapper = document.createElement("div");
+    selectWrapper.style.cssText = `
+      position: relative;
+      display: inline-block;
+    `;
+
+    // Icono de filtro
+    const iconoFiltro = document.createElement("div");
+    iconoFiltro.innerHTML = "🔍";
+    iconoFiltro.style.cssText = `
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0.7;
+    `;
+
+    const selectFiltro = document.createElement("select");
+    selectFiltro.id = "filtroSelect";
+    selectFiltro.style.cssText = `
+      font-size: 12px;
+      padding: 8px 12px 8px 28px;
+      border: none;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      min-width: 120px;
+      cursor: pointer;
+      outline: none;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      appearance: none;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    `;
+
+    // Flecha personalizada
+    const flechaSelect = document.createElement("div");
+    flechaSelect.innerHTML = "▼";
+    flechaSelect.style.cssText = `
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.7);
+      pointer-events: none;
+      transition: transform 0.3s ease;
+    `;
+
+    // Efectos hover y focus
+    selectFiltro.addEventListener("mouseenter", () => {
+      selectFiltro.style.background = "rgba(0, 0, 0, 0.85)";
+      selectFiltro.style.transform = "translateY(-2px)";
+      selectFiltro.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.3)";
+      flechaSelect.style.transform = "translateY(-50%) scale(1.2)";
+    });
+
+    selectFiltro.addEventListener("mouseleave", () => {
+      selectFiltro.style.background = "rgba(0, 0, 0, 0.7)";
+      selectFiltro.style.transform = "translateY(0)";
+      selectFiltro.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
+      flechaSelect.style.transform = "translateY(-50%) scale(1)";
+    });
+
+    selectFiltro.addEventListener("focus", () => {
+      selectFiltro.style.background = "rgba(0, 0, 0, 0.9)";
+      selectFiltro.style.boxShadow = "0 0 0 3px rgba(255, 255, 255, 0.2)";
+      flechaSelect.style.transform = "translateY(-50%) rotate(180deg)";
+    });
+
+    selectFiltro.addEventListener("blur", () => {
+      selectFiltro.style.background = "rgba(0, 0, 0, 0.7)";
+      selectFiltro.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
+      flechaSelect.style.transform = "translateY(-50%) rotate(0deg)";
+    });
+
+    selectFiltro.addEventListener("change", aplicarFiltroConAnimacion);
+
+    selectWrapper.appendChild(iconoFiltro);
+    selectWrapper.appendChild(selectFiltro);
+    selectWrapper.appendChild(flechaSelect);
+    contenedorFiltros.appendChild(selectWrapper);
+    
+    listaPesas.parentNode.insertBefore(contenedorFiltros, listaPesas);
+  }
+
+  actualizarOpcionesFiltro();
+}
+
+function aplicarFiltroConAnimacion() {
+  const selectFiltro = document.getElementById("filtroSelect");
+  if (!selectFiltro) return;
+
+  // Animación de "procesando"
+  selectFiltro.style.background = "rgba(0, 150, 255, 0.8)";
+  
+  setTimeout(() => {
+    aplicarFiltro();
+    selectFiltro.style.background = "rgba(0, 0, 0, 0.7)";
+  }, 200);
+}
+
+function actualizarOpcionesFiltro() {
+  const selectFiltro = document.getElementById("filtroSelect");
+  if (!selectFiltro) return;
+
+  const pesas = getPesas();
+  const frutasUnicas = [...new Set(pesas.map(pesa => pesa.fruta).filter(Boolean))].sort();
+  const calidadesUnicas = [...new Set(pesas.map(pesa => pesa.calidad).filter(Boolean))].sort();
+
+  selectFiltro.innerHTML = "";
+
+  // Opción para mostrar todas las pesas
+  const optionTodos = document.createElement("option");
+  optionTodos.value = "todos";
+  optionTodos.textContent = "📋 Todas";
+  optionTodos.style.cssText = "background: rgba(0, 0, 0, 0.9); color: white; font-weight: 600;";
+  selectFiltro.appendChild(optionTodos);
+
+  // Opciones por fruta
+  if (frutasUnicas.length > 0) {
+    const optionSeparadorFrutas = document.createElement("option");
+    optionSeparadorFrutas.disabled = true;
+    optionSeparadorFrutas.textContent = "── Frutas ──";
+    optionSeparadorFrutas.style.cssText = "background: rgba(50, 50, 50, 0.9); color: #ccc; font-weight: bold; font-style: italic;";
+    selectFiltro.appendChild(optionSeparadorFrutas);
+
+    frutasUnicas.forEach(fruta => {
+      const option = document.createElement("option");
+      option.value = `fruta:${fruta}`;
+      option.textContent = `🍎 ${fruta}`;
+      option.style.cssText = "background: rgba(0, 0, 0, 0.9); color: #4fc3f7; padding: 5px;";
+      selectFiltro.appendChild(option);
+    });
+  }
+
+  // Opciones por calidad
+  if (calidadesUnicas.length > 0) {
+    const optionSeparadorCalidades = document.createElement("option");
+    optionSeparadorCalidades.disabled = true;
+    optionSeparadorCalidades.textContent = "── Calidades ──";
+    optionSeparadorCalidades.style.cssText = "background: rgba(50, 50, 50, 0.9); color: #ccc; font-weight: bold; font-style: italic;";
+    selectFiltro.appendChild(optionSeparadorCalidades);
+
+    calidadesUnicas.forEach(calidad => {
+      const option = document.createElement("option");
+      option.value = `calidad:${calidad}`;
+      option.textContent = `⭐ ${calidad.charAt(0).toUpperCase() + calidad.slice(1)}`;
+      option.style.cssText = "background: rgba(0, 0, 0, 0.9); color: #81c784; padding: 5px;";
+      selectFiltro.appendChild(option);
+    });
+  }
+
+  // Restaurar filtro activo si existe
+  if (filtroActivo !== "todos") {
+    const valorRestaurar = `${filtroActivo}:${valorFiltroActivo}`;
+    if ([...selectFiltro.options].some(opt => opt.value === valorRestaurar)) {
+      selectFiltro.value = valorRestaurar;
+    } else {
+      filtroActivo = "todos";
+      valorFiltroActivo = "";
+      selectFiltro.value = "todos";
+    }
+  }
+}
+
+// 🎨 CSS PARA ANIMACIONES ELEGANTES
+const styleElegante = document.createElement('style');
+styleElegante.textContent = `
+  @keyframes fadeInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  #listaPesas {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Estilos para las opciones del select */
+  #filtroSelect option {
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 2px 0;
+  }
+
+  #filtroSelect option:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* Efecto de glassmorphism */
+  .glass-effect {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+`;
+document.head.appendChild(styleElegante);
+
+console.log("✨ Sistema de filtros elegante con animaciones cargado");
+
+function aplicarFiltro() {
+  const selectFiltro = document.getElementById("filtroSelect");
+  if (!selectFiltro) return;
+
+  const valorSeleccionado = selectFiltro.value;
+  console.log("🎯 Valor seleccionado en filtro:", valorSeleccionado);
+  
+  // Animación de salida de las pesas actuales
+  const listaPesas = document.getElementById("listaPesas");
+  if (listaPesas) {
+    listaPesas.style.opacity = "0.5";
+    listaPesas.style.transform = "scale(0.98)";
+  }
+  
+  setTimeout(() => {
+    if (valorSeleccionado === "todos") {
+      filtroActivo = "todos";
+      valorFiltroActivo = "";
+    } else {
+      const [tipo, valor] = valorSeleccionado.split(":");
+      filtroActivo = tipo;
+      valorFiltroActivo = valor;
+    }
+
+    console.log(`🔍 Aplicando filtro: ${filtroActivo} = ${valorFiltroActivo}`);
+    
+    renderPesas();
+    
+    // Animación de entrada de las nuevas pesas
+    if (listaPesas) {
+      listaPesas.style.opacity = "1";
+      listaPesas.style.transform = "scale(1)";
+    }
+    
+    // Mostrar notificación con información del filtro
+    if (filtroActivo === "todos") {
+      mostrarNotificacionElegante("👁️ Mostrando todas las pesas", "info");
+    } else {
+      const pesasFiltradas = getPesasFiltradas();
+      const tipoTexto = filtroActivo === "fruta" ? "🍎 fruta" : "⭐ calidad";
+      mostrarNotificacionElegante(`🔍 ${pesasFiltradas.length} pesas de ${tipoTexto} "${valorFiltroActivo}"`, "success");
+    }
+  }, 150);
+}
+
+function mostrarNotificacionElegante(mensaje, tipo = "info") {
+  const notificacion = document.createElement("div");
+  
+  const colores = {
+    info: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    success: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+    warning: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    error: "linear-gradient(135deg, #fc466b 0%, #3f5efb 100%)"
+  };
+  
+  notificacion.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 25px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    background: ${colores[tipo]};
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    transform: translateX(100%) scale(0.8);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    font-size: 13px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  `;
+  
+  notificacion.textContent = mensaje;
+  document.body.appendChild(notificacion);
+  
+  // Animación de entrada
+  setTimeout(() => {
+    notificacion.style.transform = "translateX(0) scale(1)";
+  }, 50);
+  
+  // Remover después de 2.5 segundos
+  setTimeout(() => {
+    notificacion.style.transform = "translateX(100%) scale(0.8)";
+    notificacion.style.opacity = "0";
+    setTimeout(() => {
+      if (notificacion.parentNode) {
+        notificacion.parentNode.removeChild(notificacion);
+      }
+    }, 400);
+  }, 2500);
+}
+
+
+function getPesasFiltradas() {
+  const pesas = getPesas();
+  
+  if (filtroActivo === "todos") {
+    return pesas;
+  }
+  
+  return pesas.filter(pesa => {
+    if (filtroActivo === "fruta") {
+      return pesa.fruta === valorFiltroActivo;
+    } else if (filtroActivo === "calidad") {
+      return pesa.calidad === valorFiltroActivo;
+    }
+    return true;
+  });
+}
+
+function limpiarFiltros() {
+  const selectFiltro = document.getElementById("filtroSelect");
+  if (selectFiltro) {
+    selectFiltro.value = "todos";
+    filtroActivo = "todos";
+    valorFiltroActivo = "";
+    renderPesas();
+    mostrarNotificacion("🧹 Filtros limpiados", "info");
+  }
+}
+
+function mostrarInfoFiltro(pesasFiltradas, totalPesas) {
+  let infoFiltro = document.getElementById("infoFiltro");
+  
+  if (filtroActivo === "todos") {
+    if (infoFiltro) {
+      infoFiltro.style.opacity = "0";
+      infoFiltro.style.transform = "translateY(-20px)";
+      setTimeout(() => {
+        if (infoFiltro && infoFiltro.parentNode) {
+          infoFiltro.parentNode.removeChild(infoFiltro);
+        }
+      }, 300);
+    }
+    return;
+  }
+  
+  if (!infoFiltro) {
+    infoFiltro = document.createElement("div");
+    infoFiltro.id = "infoFiltro";
+    
+    const listaPesas = document.getElementById("listaPesas");
+    if (listaPesas && listaPesas.parentNode) {
+      listaPesas.parentNode.insertBefore(infoFiltro, listaPesas);
+    }
+  }
+  
+  infoFiltro.style.cssText = `
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
+    border: none;
+    border-radius: 15px;
+    padding: 15px 20px;
+    margin: 15px 0;
+    font-size: 13px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  `;
+  
+  const tipoFiltro = filtroActivo === "fruta" ? "🍎" : "⭐";
+  const tipoTexto = filtroActivo === "fruta" ? "fruta" : "calidad";
+  
+  infoFiltro.innerHTML = `
+    <span style="font-weight: 500; letter-spacing: 0.5px;">
+      ${tipoFiltro} Filtrando por <strong style="color: #fff;">${tipoTexto}</strong>: 
+      "<span style="color: #4fc3f7; font-weight: 600;">${valorFiltroActivo}</span>" 
+      • <strong>${pesasFiltradas}</strong> de <strong>${totalPesas}</strong> pesas
+    </span>
+    <button onclick="limpiarFiltrosConAnimacion()" style="
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    " onmouseover="this.style.background='linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.2) 100%)'; this.style.transform='scale(1.05)'" 
+       onmouseout="this.style.background='linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%)'; this.style.transform='scale(1)'">
+      ✖ Limpiar
+    </button>
+  `;
+  
+  // Animación de entrada
+  setTimeout(() => {
+    infoFiltro.style.opacity = "1";
+    infoFiltro.style.transform = "translateY(0)";
+  }, 100);
+}
+
+function limpiarFiltrosConAnimacion() {
+  const selectFiltro = document.getElementById("filtroSelect");
+  const infoFiltro = document.getElementById("infoFiltro");
+  
+  // Animación del botón limpiar
+  if (infoFiltro) {
+    infoFiltro.style.opacity = "0";
+    infoFiltro.style.transform = "translateY(-20px) scale(0.95)";
+  }
+  
+  if (selectFiltro) {
+    selectFiltro.style.background = "rgba(255, 100, 100, 0.8)";
+    
+    setTimeout(() => {
+      selectFiltro.value = "todos";
+      filtroActivo = "todos";
+      valorFiltroActivo = "";
+      
+      renderPesas();
+      selectFiltro.style.background = "rgba(0, 0, 0, 0.7)";
+      mostrarNotificacionElegante("🧹 Filtros limpiados", "info");
+    }, 200);
+  }
+}
+
 // 🔥 SISTEMA MEJORADO DE PERSISTENCIA
 function getPesas() {
   try {
@@ -278,6 +747,9 @@ function sumarPesa() {
   savePesas(pesas);
   inputPeso.value = "";
   renderPesas();
+  
+  // 🔥 AGREGAR ESTA LÍNEA AL FINAL DE LA FUNCIÓN:
+  actualizarOpcionesFiltro(); // Actualizar opciones de filtro cuando se agregan pesas
 }
 
 // 🔥 FUNCIÓN MEJORADA PARA ELIMINAR PESAS
@@ -288,9 +760,11 @@ function eliminarPesa(index) {
     savePesas(pesas);
     renderPesas();
     mostrarNotificacion(`🗑️ Pesa de ${pesaEliminada.kilos}kg eliminada`, "success");
+    
+    // 🔥 AGREGAR ESTA LÍNEA AL FINAL DE LA FUNCIÓN:
+    actualizarOpcionesFiltro(); // Actualizar opciones de filtro cuando se eliminan pesas
   }
 }
-
 // 🔥 AUTO-GUARDADO PERIÓDICO
 function iniciarAutoGuardado() {
   setInterval(() => {
@@ -528,7 +1002,14 @@ function actualizarPrecioKiloVisible() {
 }
 
 function renderPesas() {
-  const pesas = getPesas();
+  console.log("🎨 Renderizando pesas con filtro activo:", filtroActivo, valorFiltroActivo);
+  
+  // Obtener todas las pesas y aplicar filtro
+  const todasLasPesas = getPesas();
+  const pesasFiltradas = getPesasFiltradas(); // Esta función ya filtra correctamente
+  
+  console.log(`📊 Total pesas: ${todasLasPesas.length}, Filtradas: ${pesasFiltradas.length}`);
+  
   listaPesas.innerHTML = "";
   let totalKilos = 0;
   let totalValor = 0;
@@ -538,8 +1019,17 @@ function renderPesas() {
     console.warn("⚠️ Datos con problemas detectados durante renderizado");
   }
 
-  pesas.forEach((pesa, index) => {
+  // 🔥 USAR PESAS FILTRADAS EN LUGAR DE TODAS LAS PESAS
+  pesasFiltradas.forEach((pesa, index) => {
     const li = document.createElement("li");
+    
+    // Encontrar el índice real en el array completo para las funciones de editar/eliminar
+    const indiceReal = todasLasPesas.findIndex(p => 
+      p.kilos === pesa.kilos && 
+      p.fruta === pesa.fruta && 
+      p.calidad === pesa.calidad && 
+      p.valor === pesa.valor
+    );
     
     const infoFrutaCalidad = pesa.fruta && pesa.calidad ? 
       ` (${pesa.fruta} - ${pesa.calidad})` : '';
@@ -549,8 +1039,8 @@ function renderPesas() {
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span>Pesa ${index + 1}: <strong>${pesa.kilos} kg</strong>${infoFrutaCalidad}</span>
           <div style="display: flex; gap: 6px;">
-            <button onclick="editarPesa(${index})" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #2196f3;">✏️</button>
-            <button onclick="eliminarPesa(${index})" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #ff4d4d;">🗑️</button>
+            <button onclick="editarPesa(${indiceReal})" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #2196f3;">✏️</button>
+            <button onclick="eliminarPesa(${indiceReal})" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #ff4d4d;">🗑️</button>
           </div>
         </div>
       `;
@@ -559,8 +1049,8 @@ function renderPesas() {
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span>Pesa ${index + 1}: <strong>${pesa.kilos} kg</strong>${infoFrutaCalidad} — $<strong>${pesa.valor.toLocaleString()}</strong></span>
           <div style="display: flex; gap: 6px;">
-            <button onclick="editarPesa(${index})" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #2196f3;">✏️</button>
-            <button onclick="eliminarPesa(${index})" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #ff4d4d;">🗑️</button>
+            <button onclick="editarPesa(${indiceReal})" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #2196f3;">✏️</button>
+            <button onclick="eliminarPesa(${indiceReal})" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #ff4d4d;">🗑️</button>
           </div>
         </div>
       `;
@@ -571,13 +1061,18 @@ function renderPesas() {
     totalValor += pesa.valor;
   });
 
+  // 🔥 ACTUALIZAR TOTALES BASADOS EN PESAS FILTRADAS
   totalKilosSpan.textContent = totalKilos;
-  ultimaPesaSpan.textContent = pesas.at(-1)?.kilos || 0;
+  ultimaPesaSpan.textContent = pesasFiltradas.at(-1)?.kilos || 0;
   
   if (!isSubusuario && valorTotal) {
     valorTotal.textContent = `$${totalValor.toLocaleString()}`;
   }
+
+  // 🔥 MOSTRAR INFORMACIÓN DEL FILTRO ACTIVO
+  mostrarInfoFiltro(pesasFiltradas.length, todasLasPesas.length);
 }
+
 
 function escribirNumero(n) {
   inputPeso.value += n;
@@ -592,6 +1087,11 @@ function limpiarTodo() {
     inputPeso.value = "";
     localStorage.removeItem(STORAGE_KEY_PESAS);
     editandoIndex = null;
+    
+    // 🔥 AGREGAR ESTAS LÍNEAS:
+    filtroActivo = "todos";  // Limpiar filtro activo
+    valorFiltroActivo = "";  // Limpiar valor de filtro
+    
     renderPesas();
     mostrarNotificacion("🧹 Todas las pesas han sido eliminadas", "success");
   }
@@ -1022,9 +1522,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     mostrarNotificacion(`📦 ${pesas.length} pesas recuperadas correctamente`, "success");
   }
   
+  // 🔥 AGREGAR ESTAS LÍNEAS PARA INICIALIZAR FILTROS:
+  setTimeout(() => {
+    crearSistemaFiltros();
+    console.log("✅ Sistema de filtros inicializado");
+  }, 500);
+  
   console.log("✅ Calculadora configurada completamente con persistencia mejorada");
   console.log("🎯 Auto-guardado activado cada 30 segundos");
+  console.log("🔍 Sistema de filtros habilitado"); // Nueva línea de log
 });
+
+window.resetearFiltros = function() {
+  limpiarFiltros();
+  console.log("🔄 Filtros reseteados desde consola");
+};
+
+window.aplicarFiltroConsola = function(tipo, valor) {
+  const selectFiltro = document.getElementById("filtroSelect");
+  if (selectFiltro) {
+    selectFiltro.value = `${tipo}:${valor}`;
+    aplicarFiltro();
+    console.log(`🔍 Filtro aplicado desde consola: ${tipo} = ${valor}`);
+  }
+};
+
+console.log("🔍 Sistema de filtros para pesas integrado en calculadora.js");
+console.log("💡 Funciones disponibles: resetearFiltros(), aplicarFiltroConsola(tipo, valor)");
 
 // 🔥 FUNCIÓN DE UTILIDAD PARA EXPORTAR/IMPORTAR DATOS
 function exportarDatos() {

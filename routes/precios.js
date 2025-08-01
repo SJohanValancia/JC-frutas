@@ -207,6 +207,8 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
     res.status(500).send("Error al buscar precios");
   }
 });
+
+
 // ✅ NUEVA RUTA: Actualizar precios GLOBALMENTE (solo desde gestion-precios.html)
 router.put("/actualizar-global/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
@@ -219,7 +221,7 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
   try {
     // ✅ Buscar TODAS las fincas que tengan esa fruta
     const fincasConFruta = await PrecioFruta.find({ "frutas._id": frutaId });
-    
+
     let fincasActualizadas = 0;
 
     // ✅ Actualizar cada finca que tenga esa fruta
@@ -265,6 +267,7 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
     res.status(500).send("Error al actualizar precios globalmente");
   }
 });
+
 
 // ✅ NUEVA RUTA: Obtener precios con frecuencias (precio más común)
 router.get("/fruta-con-frecuencia/:frutaId", async (req, res) => {

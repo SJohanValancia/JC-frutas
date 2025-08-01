@@ -505,7 +505,7 @@
       }
     }
 
-    
+
 
     // ✅ Mostrar frutas con precios más frecuentes
     function mostrarFrutas(frutas) {
@@ -604,74 +604,75 @@
     }
 
     // ✅ Guardar cambios de precios GLOBALMENTE
-    async function guardarCambiosPrecios() {
-      if (!frutaActualEdicion) return;
+// ✅ Guardar cambios de precios GLOBALMENTE
+async function guardarCambiosPrecios() {
+  if (!frutaActualEdicion) return;
 
-      const precioPrimera = parseFloat(document.getElementById('precioPrimera').value);
-      const precioSegunda = parseFloat(document.getElementById('precioSegunda').value);
-      const precioTercera = parseFloat(document.getElementById('precioTercera').value);
+  const precioPrimera = parseFloat(document.getElementById('precioPrimera').value);
+  const precioSegunda = parseFloat(document.getElementById('precioSegunda').value);
+  const precioTercera = parseFloat(document.getElementById('precioTercera').value);
 
-      // Validar que los precios sean válidos
-      if (isNaN(precioPrimera) || isNaN(precioSegunda) || isNaN(precioTercera)) {
-        alert('❌ Por favor, ingresa precios válidos para todas las calidades');
-        return;
-      }
+  // Validar que los precios sean válidos
+  if (isNaN(precioPrimera) || isNaN(precioSegunda) || isNaN(precioTercera)) {
+    alert('❌ Por favor, ingresa precios válidos para todas las calidades');
+    return;
+  }
 
-      if (precioPrimera < 0 || precioSegunda < 0 || precioTercera < 0) {
-        alert('❌ Los precios no pueden ser negativos');
-        return;
-      }
+  if (precioPrimera < 0 || precioSegunda < 0 || precioTercera < 0) {
+    alert('❌ Los precios no pueden ser negativos');
+    return;
+  }
 
-      // Confirmación antes de actualizar globalmente
-      const confirmacion = confirm(
-        `⚠️ CONFIRMACIÓN GLOBAL\n\n` +
-        `Estás a punto de actualizar los precios de "${frutaActualEdicion.nombre}" en TODAS las fincas:\n\n` +
-        `💎 Primera: ${precioPrimera.toLocaleString()}\n` +
-        `✨ Segunda: ${precioSegunda.toLocaleString()}\n` +
-        `⭐ Tercera: ${precioTercera.toLocaleString()}\n\n` +
-        `¿Estás seguro de continuar?`
-      );
+  // Confirmación antes de actualizar globalmente
+  const confirmacion = confirm(
+    `⚠️ CONFIRMACIÓN GLOBAL\n\n` +
+    `Estás a punto de actualizar los precios de "${frutaActualEdicion.nombre}" en TODAS las fincas:\n\n` +
+    `💎 Primera: ${precioPrimera.toLocaleString()}\n` +
+    `✨ Segunda: ${precioSegunda.toLocaleString()}\n` +
+    `⭐ Tercera: ${precioTercera.toLocaleString()}\n\n` +
+    `¿Estás seguro de continuar?`
+  );
 
-      if (!confirmacion) return;
+  if (!confirmacion) return;
 
-      const btnGuardar = document.getElementById('guardarCambios');
-      const textoOriginal = btnGuardar.textContent;
-      btnGuardar.textContent = '⏳ Actualizando en todas las fincas...';
-      btnGuardar.disabled = true;
+  const btnGuardar = document.getElementById('guardarCambios');
+  const textoOriginal = btnGuardar.textContent;
+  btnGuardar.textContent = '⏳ Actualizando en todas las fincas...';
+  btnGuardar.disabled = true;
 
-      try {
-        const nuevosPrecios = {
-          primera: precioPrimera,
-          segunda: precioSegunda,
-          tercera: precioTercera
-        };
+  try {
+    const nuevosPrecios = {
+      primera: precioPrimera,
+      segunda: precioSegunda,
+      tercera: precioTercera
+    };
 
-        // ✅ Usar la nueva ruta para actualización global
-        const resultado = await apiFetch(`/precios/actualizar-global/${frutaActualEdicion._id}`, 'PUT', {
-          precios: nuevosPrecios,
-          usuario: usuario,
-          adminAlias: alias || usuario
-        });
+    // ✅ Usar la nueva ruta para actualización global
+    const resultado = await apiFetch(`/precios/actualizar-global/${frutaActualEdicion._id}`, 'PUT', {
+      precios: nuevosPrecios,
+      usuario: usuario,
+      adminAlias: alias || usuario
+    });
 
-        alert(
-          `✅ ¡Actualización completada!\n\n` +
-          `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} registro(s).\n\n` +
-          `Todos los cambios se aplicaron correctamente.`
-        );
-        
-        cerrarModal();
-        
-        // Recargar frutas para mostrar los nuevos precios
-        cargarTodasLasFrutas();
-        
-      } catch (error) {
-        console.error('Error al guardar precios:', error);
-        alert('❌ Error al actualizar los precios globalmente. Por favor, inténtalo de nuevo.');
-      } finally {
-        btnGuardar.textContent = textoOriginal;
-        btnGuardar.disabled = false;
-      }
-    }
+    alert(
+      `✅ ¡Actualización completada!\n\n` +
+      `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} registro(s).\n\n` +
+      `Todos los cambios se aplicaron correctamente.`
+    );
+    
+    cerrarModal();
+    
+    // Recargar frutas para mostrar los nuevos precios
+    cargarTodasLasFrutas();
+    
+  } catch (error) {
+    console.error('Error al guardar precios:', error);
+    alert('❌ Error al actualizar los precios globalmente. Por favor, inténtalo de nuevo.');
+  } finally {
+    btnGuardar.textContent = textoOriginal;
+    btnGuardar.disabled = false;
+  }
+}
 
     // Búsqueda de frutas
     function configurarBusqueda() {

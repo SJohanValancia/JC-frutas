@@ -12,38 +12,64 @@ const guardarBtn = document.getElementById("guardarPrecios");
 
 cargarPreciosGuardados();
 
+// Cuando se guarda el precio en el frontend, también debe actualizarse globalmente
+async function guardarCambiosPrecios() {
+  const precioPrimera = parseFloat(document.getElementById('precioPrimera').value);
+  const precioSegunda = parseFloat(document.getElementById('precioSegunda').value);
+  const precioTercera = parseFloat(document.getElementById('precioTercera').value);
+
+  const precios = {
+    primera: precioPrimera,
+    segunda: precioSegunda,
+    tercera: precioTercera
+  };
+
+  // Confirmación para actualizar globalmente
+  const confirmacion = confirm(
+    `Estás a punto de actualizar los precios de esta fruta en todas las fincas. ¿Estás seguro?`
+  );
+
+  if (!confirmacion) return;
+
+  try {
+    // Actualizar el precio globalmente
+    await apiFetch(`/precios/actualizar-global/${frutaId}`, "PUT", {
+      precios: precios,
+      usuario: usuario,
+      adminAlias: usuario
+    });
+
+    alert("Precios actualizados globalmente en todas las fincas");
+  } catch (err) {
+    alert("Error al actualizar los precios globalmente: " + err.message);
+  }
+}
 
 
+// Después de actualizar los precios globalmente, recargamos los precios
 async function cargarPreciosGuardados() {
   try {
-    // Primero, cargar los precios globales
+    // Cargar precios globales
     const preciosGlobales = await apiFetch('/precios/todos-los-precios', "GET");
-    
-    // Obtener precios de la finca específica
+    // Cargar precios específicos para la finca
     const preciosGuardados = await apiFetch(`/precios/por-finca/${fincaId}`, "GET");
 
     let frutasFinales = [];
 
-    // Si existen precios específicos para la finca, usarlos
     if (preciosGuardados.length > 0) {
-      // Tomamos el último documento de precios guardados para esta finca
-      for (const doc of preciosGuardados) {
-        if (doc.frutas?.length > frutasFinales.length) {
-          frutasFinales = doc.frutas;
-        }
-      }
+      // Usamos los precios específicos para esta finca si existen
+      frutasFinales = preciosGuardados[0].frutas;
     } else {
       // Si no existen precios específicos, usamos los precios globales
       frutasFinales = preciosGlobales;
     }
 
-    // Renderizar los precios para esta finca
     renderFrutasGuardadas(frutasFinales);
-
   } catch (err) {
     console.error("Error al cargar precios guardados:", err);
   }
 }
+
 
 
 
