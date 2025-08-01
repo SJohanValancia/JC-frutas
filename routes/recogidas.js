@@ -746,4 +746,97 @@ router.get("/historial-liquidaciones/:adminAlias", async (req, res) => {
   }
 });
 
+
+router.post("/liquidar-multiples", async (req, res) => {
+  const { recogidaIds, usuario, adminAlias } = req.body;
+
+  if (!recogidaIds || !Array.isArray(recogidaIds) || recogidaIds.length === 0) {
+    return res.status(400).json({ error: "Se requiere un array de IDs de recogidas" });
+  }
+
+  if (!usuario) {
+    return res.status(400).json({ error: "Usuario requerido" });
+  }
+
+  try {
+    console.log(`🔥 Iniciando liquidación masiva de ${recogidaIds.length} recogidas por ${usuario}`);
+
+    const resultados = {
+      exitosas: 0,
+      errores: 0,
+      detalles: []
+    };
+
+    // Procesar cada recogida
+    for (let i = 0; i < recogidaIds.length; i++) {
+      const recogidaId = recogidaIds[i];
+      
+      try {
+        const recogida = await Recogida.findById(recogidaId);
+        if (!recogida) {
+          resultados.errores++;
+          resultados.detalles.push({
+            id: recogidaId,
+            error: "Recogida no encontrada"
+          });
+          continue;
+        }
+
+        // Marcar como pendiente si no está marcada
+        if (!recogida.estadoLiquidacion) {
+          recogida.estadoLiquidacion = "pendiente";
+          recogida.fechaMarcadoLiquidacion = new Date();
+          recogida.usuarioMarcaLiquidacion = usuario;
+        }
+
+        // Liquidar inmediatamente
+        recogida.estadoLiquidacion = "liquidada";
+        recogida.fechaLiquidacion = new Date();
+        recogida.usuarioLiquida = usuario;
+
+        await recogida.save();
+
+        resultados.exitosas++;
+        resultados.detalles.push({
+          id: recogidaId,
+          success: true,
+          fecha: recogida.fecha,
+          kilos: recogida.totalKilos,
+          valor: recogida.valorPagar
+        });
+
+        console.log(`✅ Recogida ${i + 1}/${recogidaIds.length} liquidada: ${recogidaId}`);
+
+      } catch (error) {
+        console.error(`❌ Error liquidando recogida ${recogidaId}:`, error);
+        resultados.errores++;
+        resultados.detalles.push({
+          id: recogidaId,
+          error: error.message
+        });
+      }
+    }
+
+    const mensaje = resultados.errores === 0 ? 
+      `✅ Liquidación masiva completada: ${resultados.exitosas} recogidas liquidadas` :
+      `⚠️ Liquidación completada con errores: ${resultados.exitosas} exitosas, ${resultados.errores} errores`;
+
+    console.log(mensaje);
+
+    res.status(200).json({
+      success: resultados.errores === 0,
+      message: mensaje,
+      resultados: resultados,
+      totalProcesadas: recogidaIds.length,
+      exitosas: resultados.exitosas,
+      errores: resultados.errores
+    });
+
+  } catch (error) {
+    console.error("❌ Error en liquidación masiva:", error);
+    res.status(500).json({ error: "Error interno en liquidación masiva: " + error.message });
+  }
+});
+
+
 module.exports = router;

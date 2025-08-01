@@ -559,7 +559,7 @@
                 document.getElementById('noDataMessage').style.display = 'none';
 
                 // Primero intentamos obtener liquidaciones pendientes
-                let response = await fetch(`https://jc-frutas.onrender.com/api/recogidas/liquidaciones/${adminAlias}?usuario=${encodeURIComponent(usuario)}`);
+                let response = await fetch(`https://jc-frutas.onrender.com/recogidas/liquidaciones/${adminAlias}?usuario=${encodeURIComponent(usuario)}`);
                 
                 if (!response.ok) {
                     throw new Error('Error al cargar liquidaciones pendientes');
