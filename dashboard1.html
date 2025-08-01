@@ -166,15 +166,56 @@
         min-width: auto;
       }
     }
+    
+
+       .boton-liquidacion {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      transition: all 0.3s ease;
+      margin-left: 20px;
+      display: inline-block;
+    }
+
+    .boton-liquidacion:hover {
+      background: linear-gradient(135deg, #5a6fd8, #6a4c93);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .boton-liquidacion:active {
+      transform: translateY(0);
+    }
+    
+    /* Estilo de los botones existentes */
+    .botones-container {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+      position: relative;
+    }
+
+    .botones-container button {
+      flex: 1;
+      min-width: 120px;
+      padding: 8px 12px;
+      font-size: 0.85em;
+    }
   </style>
 </head>
 <body>
 
-  
-
   <div class="container">
 
         <button id="btnEditarPrecios" class="floating-btn">✏️ Editar Precios</button>
+        <button id="btnLiquidacion" class="boton-liquidacion">💰 Ir a Liquidación</button>
 
     <h1 id="saludo">Bienvenido</h1>
     <button id="btnAgregarFinca">➕ Agregar Finca</button>
@@ -205,7 +246,10 @@
     let alias = params.get("alias");
     let adminAlias = alias;
 
-    
+    // ✅ SOLUCIÓN: Agregar event listener al botón de liquidación
+    document.getElementById('btnLiquidacion').addEventListener('click', function() {
+      window.location.href = "liquidacionmes.html";
+    });
 
 const btnEditarPrecios = document.getElementById("btnEditarPrecios");
 
@@ -344,11 +388,8 @@ function insertarArribaFueraContainer(button) {
   topContainer.style.cssText = `
     position: absolute;
     top: -1px;
-    left: -2
-    
-    0px;
+    left: -20px;
     right: 0;
-
   `;
 
   // Ajustar estilos del botón para la posición superior

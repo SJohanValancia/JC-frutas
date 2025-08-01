@@ -12,6 +12,27 @@ const recogidaSchema = new mongoose.Schema({
   precio: { type: Number, default: 0 }, // Precio de referencia principal
   totalKilos: { type: Number, required: true },
   valorPagar: { type: Number, default: 0 },
+  estadoLiquidacion: {
+  type: String,
+  enum: ['pendiente', 'liquidada', 'cancelada'],
+  default: undefined // Sin estado por defecto (recogidas normales no tienen estado)
+},
+fechaMarcadoLiquidacion: {
+  type: Date,
+  default: undefined
+},
+usuarioMarcaLiquidacion: {
+  type: String,
+  default: undefined
+},
+fechaLiquidacion: {
+  type: Date,
+  default: undefined
+},
+usuarioLiquida: {
+  type: String,
+  default: undefined
+},
   pesas: [
     {
       kilos: { type: Number, required: true },

@@ -564,4 +564,186 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
   }
 });
 
+// ✅ NUEVAS RUTAS PARA LIQUIDACIONES - Agregar al final de recogidas.js
+
+// POST /recogidas/marcar-liquidacion/:id - Marcar recogida para liquidación
+router.post("/marcar-liquidacion/:id", async (req, res) => {
+  const { id } = req.params;
+  const { usuario, adminAlias } = req.body;
+
+  try {
+    const recogida = await Recogida.findById(id);
+    if (!recogida) {
+      return res.status(404).json({ error: "Recogida no encontrada" });
+    }
+
+    // Marcar como pendiente de liquidación
+    recogida.estadoLiquidacion = "pendiente";
+    recogida.fechaMarcadoLiquidacion = new Date();
+    recogida.usuarioMarcaLiquidacion = usuario;
+    
+    await recogida.save();
+
+    console.log(`✅ Recogida ${id} marcada para liquidación por ${usuario}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Recogida marcada para liquidación",
+      recogida: recogida
+    });
+  } catch (error) {
+    console.error("❌ Error al marcar recogida para liquidación:", error);
+    res.status(500).json({ error: "Error interno al marcar para liquidación" });
+  }
+});
+
+// GET /recogidas/liquidaciones/:adminAlias - Obtener recogidas pendientes de liquidación
+router.get("/liquidaciones/:adminAlias", async (req, res) => {
+  const { adminAlias } = req.params;
+  const { usuario } = req.query;
+
+  try {
+    // Buscar recogidas marcadas para liquidación
+    const recogidas = await Recogida.find({ 
+      adminAlias,
+      estadoLiquidacion: "pendiente"
+    }).sort({ fechaMarcadoLiquidacion: -1 });
+
+    // Verificar tipo de usuario para filtrar precios
+    let userData = null;
+    let isSubusuario = false;
+    
+    if (usuario) {
+      userData = await User.findOne({ username: usuario });
+      isSubusuario = userData && userData.tipo === 2;
+    }
+
+    // Filtrar datos según tipo de usuario
+    const recogidasFiltradas = recogidas.map(recogida => {
+      if (isSubusuario) {
+        const recogidaFiltrada = { ...recogida.toObject() };
+        delete recogidaFiltrada.precio;
+        delete recogidaFiltrada.valorPagar;
+        
+        if (recogidaFiltrada.pesas) {
+          recogidaFiltrada.pesas = recogidaFiltrada.pesas.map(pesa => ({
+            kilos: pesa.kilos,
+            fruta: pesa.fruta,
+            calidad: pesa.calidad,
+            // Omitir valores monetarios
+          }));
+        }
+        
+        return recogidaFiltrada;
+      } else {
+        return recogida;
+      }
+    });
+
+    console.log(`📋 Consultando liquidaciones para ${adminAlias}: ${recogidas.length} pendientes`);
+
+    res.status(200).json({
+      recogidas: recogidasFiltradas,
+      total: recogidas.length,
+      tipoUsuario: userData ? userData.tipo : 1,
+      esSubusuario: isSubusuario
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener liquidaciones:", error);
+    res.status(500).json({ error: "Error al obtener liquidaciones pendientes" });
+  }
+});
+
+// PUT /recogidas/cambiar-estado-liquidacion/:id - Cambiar estado de liquidación
+router.put("/cambiar-estado-liquidacion/:id", async (req, res) => {
+  const { id } = req.params;
+  const { estado, usuario } = req.body; // estado: 'pendiente', 'liquidada', 'cancelada'
+
+  try {
+    const recogida = await Recogida.findById(id);
+    if (!recogida) {
+      return res.status(404).json({ error: "Recogida no encontrada" });
+    }
+
+    recogida.estadoLiquidacion = estado;
+    
+    if (estado === "liquidada") {
+      recogida.fechaLiquidacion = new Date();
+      recogida.usuarioLiquida = usuario;
+    }
+
+    await recogida.save();
+
+    console.log(`✅ Estado de liquidación cambiado a '${estado}' para recogida ${id}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      message: `Recogida marcada como ${estado}`,
+      recogida: recogida
+    });
+  } catch (error) {
+    console.error("❌ Error al cambiar estado de liquidación:", error);
+    res.status(500).json({ error: "Error interno al cambiar estado" });
+  }
+});
+
+// GET /recogidas/historial-liquidaciones/:adminAlias - Historial de liquidaciones
+router.get("/historial-liquidaciones/:adminAlias", async (req, res) => {
+  const { adminAlias } = req.params;
+  const { usuario, estado } = req.query;
+
+  try {
+    const filtros = { adminAlias };
+    
+    if (estado && estado !== 'todas') {
+      filtros.estadoLiquidacion = estado;
+    } else {
+      // Solo mostrar las que han sido marcadas para liquidación (no las normales sin estado)
+      filtros.estadoLiquidacion = { $in: ['pendiente', 'liquidada', 'cancelada'] };
+    }
+
+    const recogidas = await Recogida.find(filtros).sort({ fechaMarcadoLiquidacion: -1 });
+
+    // Verificar tipo de usuario
+    let userData = null;
+    let isSubusuario = false;
+    
+    if (usuario) {
+      userData = await User.findOne({ username: usuario });
+      isSubusuario = userData && userData.tipo === 2;
+    }
+
+    // Filtrar según tipo de usuario
+    const recogidasFiltradas = recogidas.map(recogida => {
+      if (isSubusuario) {
+        const recogidaFiltrada = { ...recogida.toObject() };
+        delete recogidaFiltrada.precio;
+        delete recogidaFiltrada.valorPagar;
+        
+        if (recogidaFiltrada.pesas) {
+          recogidaFiltrada.pesas = recogidaFiltrada.pesas.map(pesa => ({
+            kilos: pesa.kilos,
+            fruta: pesa.fruta,
+            calidad: pesa.calidad,
+          }));
+        }
+        
+        return recogidaFiltrada;
+      } else {
+        return recogida;
+      }
+    });
+
+    res.status(200).json({
+      recogidas: recogidasFiltradas,
+      total: recogidas.length,
+      tipoUsuario: userData ? userData.tipo : 1,
+      esSubusuario: isSubusuario
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener historial de liquidaciones:", error);
+    res.status(500).json({ error: "Error al obtener historial" });
+  }
+});
+
 module.exports = router;
