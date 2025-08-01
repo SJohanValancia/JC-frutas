@@ -1,27 +1,87 @@
 const mongoose = require("mongoose");
 
-// Definimos el esquema para los precios de fruta
 const precioFrutaSchema = new mongoose.Schema({
   fincaId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Finca",
-    default: null // ✅ si es null, son precios base que aplican a todas las fincas
+    default: null
   },
-  fecha: {
+  frutas: [{
+    nombre: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    // ✅ Nuevo campo para búsquedas normalizadas
+    nombreNormalizado: {
+      type: String,
+      trim: true,
+      lowercase: true
+    },
+    precios: {
+      primera: {
+        type: Number,
+        required: true,
+        min: 0
+      },
+      segunda: {
+        type: Number,
+        required: true,
+        min: 0
+      },
+      tercera: {
+        type: Number,
+        required: true,
+        min: 0
+      }
+    }
+  }],
+  usuario: {
+    type: String,
+    required: true
+  },
+  adminAlias: {
+    type: String,
+    required: true
+  },
+  fechaCreacion: {
     type: Date,
     default: Date.now
   },
-  frutas: [
-    {
-      nombre: String,
-      precios: {
-        primera: Number,
-        segunda: Number,
-        tercera: Number
-      }
-    }
-  ]
+  fechaActualizacion: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-// Exportamos el modelo para poder usarlo en rutas y controladores
+// ✅ Middleware para normalizar nombres antes de guardar
+precioFrutaSchema.pre('save', function(next) {
+  if (this.frutas && this.frutas.length > 0) {
+    this.frutas.forEach(fruta => {
+      if (fruta.nombre && !fruta.nombreNormalizado) {
+        fruta.nombreNormalizado = fruta.nombre
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^\w\s]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+    });
+  }
+  next();
+});
+
+// ✅ Índice compuesto para búsquedas eficientes
+precioFrutaSchema.index({ 
+  usuario: 1, 
+  adminAlias: 1, 
+  "frutas.nombreNormalizado": 1 
+});
+
+precioFrutaSchema.index({ 
+  fincaId: 1, 
+  "frutas.nombreNormalizado": 1 
+});
+
 module.exports = mongoose.model("PrecioFruta", precioFrutaSchema);

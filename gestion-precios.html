@@ -489,23 +489,23 @@
     }
 
     // ✅ Cargar todas las frutas con precios más frecuentes
-    async function cargarTodasLasFrutas() {
-      try {
-        const frutasData = await apiFetch('/precios/todos-los-precios-con-frecuencia');
-        
-        todasLasFrutas = frutasData;
-        mostrarFrutas(todasLasFrutas);
-        
-      } catch (error) {
-        console.error('Error al cargar frutas:', error);
-        document.getElementById('loadingContainer').innerHTML = `
-          <p style="color: #ff6b6b;">❌ Error al cargar las frutas</p>
-          <p style="font-size: 0.9rem; opacity: 0.8;">Por favor, recarga la página</p>
-        `;
-      }
-    }
-
-
+async function cargarTodasLasFrutas() {
+  try {
+    // ✅ Enviar parámetros de usuario para filtrar solo sus fincas
+    const endpoint = `/precios/todos-los-precios-con-frecuencia?usuario=${encodeURIComponent(usuario)}&adminAlias=${encodeURIComponent(alias || usuario)}`;
+    const frutasData = await apiFetch(endpoint);
+    
+    todasLasFrutas = frutasData;
+    mostrarFrutas(todasLasFrutas);
+    
+  } catch (error) {
+    console.error('Error al cargar frutas:', error);
+    document.getElementById('loadingContainer').innerHTML = `
+      <p style="color: #ff6b6b;">❌ Error al cargar las frutas</p>
+      <p style="font-size: 0.9rem; opacity: 0.8;">Por favor, recarga la página</p>
+    `;
+  }
+}
 
     // ✅ Mostrar frutas con precios más frecuentes
     function mostrarFrutas(frutas) {
@@ -567,35 +567,36 @@
     }
 
     // ✅ Abrir modal de edición con precios más frecuentes
-    async function abrirModalEdicion(frutaId, nombreFruta) {
-      frutaActualEdicion = { _id: frutaId, nombre: nombreFruta };
-      
-      // Establecer nombre en el modal
-      document.getElementById('modalFrutaNombre').textContent = nombreFruta;
-      
-      try {
-        // ✅ Cargar precios con frecuencia
-        const frutaConPrecios = await apiFetch(`/precios/fruta-con-frecuencia/${frutaId}`);
-        
-        if (frutaConPrecios && frutaConPrecios.precios) {
-          document.getElementById('precioPrimera').value = frutaConPrecios.precios.primera;
-          document.getElementById('precioSegunda').value = frutaConPrecios.precios.segunda;
-          document.getElementById('precioTercera').value = frutaConPrecios.precios.tercera;
-        }
-      } catch (error) {
-        console.error('Error al cargar precios actuales:', error);
-        // Si no se pueden cargar los precios actuales, usar los de la vista
-        const fruta = todasLasFrutas.find(f => f._id === frutaId);
-        if (fruta && fruta.precios) {
-          document.getElementById('precioPrimera').value = fruta.precios.primera;
-          document.getElementById('precioSegunda').value = fruta.precios.segunda;
-          document.getElementById('precioTercera').value = fruta.precios.tercera;
-        }
-      }
-      
-      // Mostrar modal
-      document.getElementById('editModal').classList.add('active');
+async function abrirModalEdicion(frutaId, nombreFruta) {
+  frutaActualEdicion = { _id: frutaId, nombre: nombreFruta };
+  
+  // Establecer nombre en el modal
+  document.getElementById('modalFrutaNombre').textContent = nombreFruta;
+  
+  try {
+    // ✅ Cargar precios con frecuencia solo del usuario actual
+    const endpoint = `/precios/fruta-con-frecuencia/${frutaId}?usuario=${encodeURIComponent(usuario)}&adminAlias=${encodeURIComponent(alias || usuario)}`;
+    const frutaConPrecios = await apiFetch(endpoint);
+    
+    if (frutaConPrecios && frutaConPrecios.precios) {
+      document.getElementById('precioPrimera').value = frutaConPrecios.precios.primera;
+      document.getElementById('precioSegunda').value = frutaConPrecios.precios.segunda;
+      document.getElementById('precioTercera').value = frutaConPrecios.precios.tercera;
     }
+  } catch (error) {
+    console.error('Error al cargar precios actuales:', error);
+    // Si no se pueden cargar los precios actuales, usar los de la vista
+    const fruta = todasLasFrutas.find(f => f._id === frutaId);
+    if (fruta && fruta.precios) {
+      document.getElementById('precioPrimera').value = fruta.precios.primera;
+      document.getElementById('precioSegunda').value = fruta.precios.segunda;
+      document.getElementById('precioTercera').value = fruta.precios.tercera;
+    }
+  }
+  
+  // Mostrar modal
+  document.getElementById('editModal').classList.add('active');
+}
 
     // Cerrar modal
     function cerrarModal() {
@@ -603,8 +604,6 @@
       frutaActualEdicion = null;
     }
 
-    // ✅ Guardar cambios de precios GLOBALMENTE
-// ✅ Guardar cambios de precios GLOBALMENTE
 async function guardarCambiosPrecios() {
   if (!frutaActualEdicion) return;
 
@@ -623,13 +622,14 @@ async function guardarCambiosPrecios() {
     return;
   }
 
-  // Confirmación antes de actualizar globalmente
+  // ✅ Confirmación personalizada para el usuario
   const confirmacion = confirm(
-    `⚠️ CONFIRMACIÓN GLOBAL\n\n` +
-    `Estás a punto de actualizar los precios de "${frutaActualEdicion.nombre}" en TODAS las fincas:\n\n` +
-    `💎 Primera: ${precioPrimera.toLocaleString()}\n` +
-    `✨ Segunda: ${precioSegunda.toLocaleString()}\n` +
-    `⭐ Tercera: ${precioTercera.toLocaleString()}\n\n` +
+    `⚠️ CONFIRMACIÓN DE ACTUALIZACIÓN GLOBAL\n\n` +
+    `Estás a punto de actualizar los precios de "${frutaActualEdicion.nombre}" en TODAS TUS FINCAS:\n\n` +
+    `💎 Primera: $${precioPrimera.toLocaleString()}\n` +
+    `✨ Segunda: $${precioSegunda.toLocaleString()}\n` +
+    `⭐ Tercera: $${precioTercera.toLocaleString()}\n\n` +
+    `Solo se actualizarán las fincas que te pertenecen.\n\n` +
     `¿Estás seguro de continuar?`
   );
 
@@ -637,7 +637,7 @@ async function guardarCambiosPrecios() {
 
   const btnGuardar = document.getElementById('guardarCambios');
   const textoOriginal = btnGuardar.textContent;
-  btnGuardar.textContent = '⏳ Actualizando en todas las fincas...';
+  btnGuardar.textContent = '⏳ Actualizando en tus fincas...';
   btnGuardar.disabled = true;
 
   try {
@@ -647,7 +647,7 @@ async function guardarCambiosPrecios() {
       tercera: precioTercera
     };
 
-    // ✅ Usar la nueva ruta para actualización global
+    // ✅ Usar la ruta modificada que filtra por usuario
     const resultado = await apiFetch(`/precios/actualizar-global/${frutaActualEdicion._id}`, 'PUT', {
       precios: nuevosPrecios,
       usuario: usuario,
@@ -656,7 +656,7 @@ async function guardarCambiosPrecios() {
 
     alert(
       `✅ ¡Actualización completada!\n\n` +
-      `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} registro(s).\n\n` +
+      `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} de tus fincas.\n\n` +
       `Todos los cambios se aplicaron correctamente.`
     );
     
@@ -667,36 +667,55 @@ async function guardarCambiosPrecios() {
     
   } catch (error) {
     console.error('Error al guardar precios:', error);
-    alert('❌ Error al actualizar los precios globalmente. Por favor, inténtalo de nuevo.');
+    alert('❌ Error al actualizar los precios en tus fincas. Por favor, inténtalo de nuevo.');
   } finally {
     btnGuardar.textContent = textoOriginal;
     btnGuardar.disabled = false;
   }
 }
-
     // Búsqueda de frutas
-    function configurarBusqueda() {
-      const searchInput = document.getElementById('searchInput');
-      let timeoutBusqueda;
+// ✅ Función para normalizar nombres (igual que en backend)
+function normalizarNombre(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Eliminar tildes
+    .replace(/[^\w\s]/g, '') // Eliminar caracteres especiales excepto espacios
+    .replace(/\s+/g, ' ') // Reemplazar múltiples espacios por uno solo
+    .trim(); // Eliminar espacios al inicio y final
+}
 
-      searchInput.addEventListener('input', () => {
-        clearTimeout(timeoutBusqueda);
+// ✅ Búsqueda normalizada de frutas
+function configurarBusqueda() {
+  const searchInput = document.getElementById('searchInput');
+  let timeoutBusqueda;
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(timeoutBusqueda);
+    
+    timeoutBusqueda = setTimeout(() => {
+      const terminoBusqueda = searchInput.value.trim();
+      
+      if (terminoBusqueda === '') {
+        mostrarFrutas(todasLasFrutas);
+      } else {
+        // ✅ Normalizar término de búsqueda
+        const terminoNormalizado = normalizarNombre(terminoBusqueda);
         
-        timeoutBusqueda = setTimeout(() => {
-          const terminoBusqueda = searchInput.value.toLowerCase().trim();
+        const frutasFiltradas = todasLasFrutas.filter(fruta => {
+          // ✅ Buscar tanto en nombre original como en nombre normalizado
+          const nombreOriginalNormalizado = normalizarNombre(fruta.nombre);
+          const nombreNormalizado = fruta.nombreNormalizado || nombreOriginalNormalizado;
           
-          if (terminoBusqueda === '') {
-            mostrarFrutas(todasLasFrutas);
-          } else {
-            const frutasFiltradas = todasLasFrutas.filter(fruta =>
-              fruta.nombre.toLowerCase().includes(terminoBusqueda)
-            );
-            mostrarFrutas(frutasFiltradas);
-          }
-        }, 300);
-      });
-    }
-
+          return nombreNormalizado.includes(terminoNormalizado) || 
+                 nombreOriginalNormalizado.includes(terminoNormalizado);
+        });
+        
+        mostrarFrutas(frutasFiltradas);
+      }
+    }, 300);
+  });
+}
     // Volver al dashboard
     function volverAlDashboard() {
       let dashboardUrl = `dashboard1.html?usuario=${encodeURIComponent(usuario)}`;

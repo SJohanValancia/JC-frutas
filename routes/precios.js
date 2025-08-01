@@ -3,6 +3,26 @@ const router = express.Router();
 const PrecioFruta = require("../models/PrecioFruta");
 const Finca = require("../models/Finca");
 
+// ✅ Función para normalizar nombres de frutas (sin mayúsculas, tildes, espacios extra)
+function normalizarNombre(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Eliminar tildes
+    .replace(/[^\w\s]/g, '') // Eliminar caracteres especiales excepto espacios
+    .replace(/\s+/g, ' ') // Reemplazar múltiples espacios por uno solo
+    .trim(); // Eliminar espacios al inicio y final
+}
+
+// ✅ Función para formatear nombre para mostrar (Primera letra mayúscula)
+function formatearNombreParaMostrar(nombre) {
+  return nombre
+    .toLowerCase()
+    .split(' ')
+    .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+    .join(' ');
+}
+
 // Guardar precios nuevos para una finca
 router.post("/guardar", async (req, res) => {
   const { fincaId, frutas, usuario, adminAlias } = req.body;
@@ -12,17 +32,29 @@ router.post("/guardar", async (req, res) => {
   }
 
   try {
+    // ✅ Normalizar nombres de frutas antes de guardar
+    const frutasNormalizadas = frutas.map(fruta => ({
+      ...fruta,
+      nombre: formatearNombreParaMostrar(fruta.nombre),
+      nombreNormalizado: normalizarNombre(fruta.nombre)
+    }));
+
     // Guardar para la finca seleccionada, asociando al adminAlias y subusuario
-    const nuevo = new PrecioFruta({ fincaId, frutas, usuario, adminAlias });
+    const nuevo = new PrecioFruta({ 
+      fincaId, 
+      frutas: frutasNormalizadas, 
+      usuario, 
+      adminAlias 
+    });
     await nuevo.save();
 
     // Guardar esos mismos como base (opcional, para futuras fincas nuevas)
     await PrecioFruta.deleteMany({ fincaId: null });
-    const base = new PrecioFruta({ fincaId: null, frutas });
+    const base = new PrecioFruta({ fincaId: null, frutas: frutasNormalizadas });
     await base.save();
 
     // Buscar fincas que NO tienen datos todavía
-    const fincasConDatos = await PrecioFruta.distinct('fincaId'); // fincas que ya tienen precios
+    const fincasConDatos = await PrecioFruta.distinct('fincaId');
     const todasFincas = await Finca.find().lean();
 
     const fincasSinDatos = todasFincas
@@ -30,7 +62,12 @@ router.post("/guardar", async (req, res) => {
 
     // Crear precios para esas fincas sin datos
     for (const finca of fincasSinDatos) {
-      await new PrecioFruta({ fincaId: finca._id, frutas, usuario, adminAlias }).save();
+      await new PrecioFruta({ 
+        fincaId: finca._id, 
+        frutas: frutasNormalizadas, 
+        usuario, 
+        adminAlias 
+      }).save();
     }
 
     res.status(200).json({ finca: nuevo, base });
@@ -89,39 +126,37 @@ router.put("/actualizar/:frutaId", async (req, res) => {
   }
 
   try {
+    // ✅ Normalizar nombre si se proporciona
+    const nombreFormateado = nombre ? formatearNombreParaMostrar(nombre) : undefined;
+    const nombreNormalizado = nombre ? normalizarNombre(nombre) : undefined;
+
+    let updateData = { 
+      "frutas.$.precios": precios,
+      usuario,
+      adminAlias,
+      fechaActualizacion: new Date()
+    };
+
+    if (nombreFormateado) {
+      updateData["frutas.$.nombre"] = nombreFormateado;
+      updateData["frutas.$.nombreNormalizado"] = nombreNormalizado;
+    }
+
     let resultado;
 
     if (fincaId) {
-      // ✅ Si se proporciona fincaId, actualizar SOLO esa finca
       resultado = await PrecioFruta.findOneAndUpdate(
         { 
           fincaId: fincaId,
           "frutas._id": frutaId 
         },
-        { 
-          $set: { 
-            "frutas.$.nombre": nombre, 
-            "frutas.$.precios": precios,
-            usuario,
-            adminAlias,
-            fechaActualizacion: new Date()
-          } 
-        },
+        { $set: updateData },
         { new: true }
       );
     } else {
-      // Si no hay fincaId específica, buscar la primera finca que tenga esa fruta
       resultado = await PrecioFruta.findOneAndUpdate(
         { "frutas._id": frutaId },
-        { 
-          $set: { 
-            "frutas.$.nombre": nombre, 
-            "frutas.$.precios": precios,
-            usuario,
-            adminAlias,
-            fechaActualizacion: new Date()
-          } 
-        },
+        { $set: updateData },
         { new: true }
       );
     }
@@ -187,21 +222,62 @@ router.delete("/eliminar/:idFruta", async (req, res) => {
 // Define this route in your backend
 router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
   try {
-    // Implement the logic to get all prices with frequency
-    let precios = await PrecioFruta.find({}).lean();
-    let frutasFinales = [];
+    const { usuario, adminAlias } = req.query;
     
-    // Logic to calculate the frequency of prices or any necessary data
+    let filtro = {};
+    if (usuario || adminAlias) {
+      filtro = {
+        $or: [
+          { usuario: usuario },
+          { adminAlias: usuario },
+          { usuario: adminAlias },
+          { adminAlias: adminAlias }
+        ]
+      };
+    }
+
+    const precios = await PrecioFruta.find(filtro).lean();
+
+    // ✅ Agrupar todas las frutas por nombre normalizado (evitar duplicados)
+    const frutasPorNombre = {};
+    
     precios.forEach(precio => {
       precio.frutas.forEach(fruta => {
-        if (!frutasFinales.some(f => f.nombre === fruta.nombre)) {
-          frutasFinales.push(fruta);
+        // ✅ Usar nombre normalizado para agrupar
+        const nombreNormalizado = fruta.nombreNormalizado || normalizarNombre(fruta.nombre);
+        
+        if (!frutasPorNombre[nombreNormalizado]) {
+          frutasPorNombre[nombreNormalizado] = {
+            _id: fruta._id,
+            nombre: fruta.nombre, // Mantener el nombre original para mostrar
+            nombreNormalizado: nombreNormalizado,
+            precios: []
+          };
         }
+        frutasPorNombre[nombreNormalizado].precios.push(fruta.precios || { primera: 0, segunda: 0, tercera: 0 });
       });
     });
 
-    // Send response back
-    res.status(200).json(frutasFinales); 
+    // Calcular precio más frecuente para cada fruta
+    const frutasFinales = Object.values(frutasPorNombre).map(fruta => {
+      const precioMasFrecuente = {
+        primera: calcularPrecioMasFrecuente(fruta.precios.map(p => p.primera)),
+        segunda: calcularPrecioMasFrecuente(fruta.precios.map(p => p.segunda)),
+        tercera: calcularPrecioMasFrecuente(fruta.precios.map(p => p.tercera))
+      };
+
+      return {
+        _id: fruta._id,
+        nombre: fruta.nombre,
+        nombreNormalizado: fruta.nombreNormalizado,
+        precios: precioMasFrecuente,
+        estadisticas: {
+          totalVariaciones: fruta.precios.length
+        }
+      };
+    });
+
+    res.status(200).json(frutasFinales);
   } catch (err) {
     console.error(err);
     res.status(500).send("Error al buscar precios");
@@ -219,18 +295,33 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
   }
 
   try {
-    // ✅ Buscar TODAS las fincas que tengan esa fruta
-    const fincasConFruta = await PrecioFruta.find({ "frutas._id": frutaId });
+    // ✅ Normalizar nombre si se proporciona
+    const nombreFormateado = nombre ? formatearNombreParaMostrar(nombre) : undefined;
+    const nombreNormalizado = nombre ? normalizarNombre(nombre) : undefined;
+
+    // Buscar SOLO las fincas que pertenecen al usuario actual Y que tengan esa fruta
+    const fincasConFruta = await PrecioFruta.find({ 
+      "frutas._id": frutaId,
+      $or: [
+        { usuario: usuario },
+        { adminAlias: usuario },
+        { usuario: adminAlias },
+        { adminAlias: adminAlias }
+      ]
+    });
 
     let fincasActualizadas = 0;
 
-    // ✅ Actualizar cada finca que tenga esa fruta
+    // Actualizar cada finca DEL USUARIO que tenga esa fruta
     for (const finca of fincasConFruta) {
       const frutaIndex = finca.frutas.findIndex(f => f._id.toString() === frutaId);
       
       if (frutaIndex !== -1) {
-        // Actualizar los precios de la fruta
-        if (nombre) finca.frutas[frutaIndex].nombre = nombre;
+        // ✅ Actualizar con normalización
+        if (nombreFormateado) {
+          finca.frutas[frutaIndex].nombre = nombreFormateado;
+          finca.frutas[frutaIndex].nombreNormalizado = nombreNormalizado;
+        }
         finca.frutas[frutaIndex].precios = precios;
         finca.usuario = usuario;
         finca.adminAlias = adminAlias;
@@ -241,12 +332,24 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
       }
     }
 
-    // ✅ También actualizar los precios base (fincaId: null) si existe
-    const preciosBase = await PrecioFruta.findOne({ fincaId: null });
+    // También actualizar los precios base (fincaId: null) si existe
+    const preciosBase = await PrecioFruta.findOne({ 
+      fincaId: null,
+      $or: [
+        { usuario: usuario },
+        { adminAlias: usuario },
+        { usuario: adminAlias },
+        { adminAlias: adminAlias }
+      ]
+    });
+    
     if (preciosBase) {
       const frutaBaseIndex = preciosBase.frutas.findIndex(f => f._id.toString() === frutaId);
       if (frutaBaseIndex !== -1) {
-        if (nombre) preciosBase.frutas[frutaBaseIndex].nombre = nombre;
+        if (nombreFormateado) {
+          preciosBase.frutas[frutaBaseIndex].nombre = nombreFormateado;
+          preciosBase.frutas[frutaBaseIndex].nombreNormalizado = nombreNormalizado;
+        }
         preciosBase.frutas[frutaBaseIndex].precios = precios;
         preciosBase.usuario = usuario;
         preciosBase.adminAlias = adminAlias;
@@ -256,10 +359,11 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
       }
     }
 
-    console.log(`✅ Precios actualizados GLOBALMENTE en ${fincasActualizadas} registros`);
+    console.log(`✅ Precios actualizados GLOBALMENTE para el usuario ${usuario} en ${fincasActualizadas} registros`);
     res.status(200).json({ 
-      message: "Precios actualizados globalmente en todas las fincas",
-      fincasActualizadas: fincasActualizadas
+      message: `Precios actualizados globalmente en todas TUS fincas (${fincasActualizadas} registros)`,
+      fincasActualizadas: fincasActualizadas,
+      usuario: usuario
     });
     
   } catch (err) {
@@ -268,20 +372,34 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
   }
 });
 
-
 // ✅ NUEVA RUTA: Obtener precios con frecuencias (precio más común)
 router.get("/fruta-con-frecuencia/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
+  const { usuario, adminAlias } = req.query;
   
   try {
-    // Buscar todas las fincas que tengan esa fruta
-    const fincasConFruta = await PrecioFruta.find({ "frutas._id": frutaId }).lean();
+    // ✅ Buscar solo fincas del usuario que tengan esa fruta
+    let filtro = { "frutas._id": frutaId };
+    
+    if (usuario || adminAlias) {
+      filtro = {
+        "frutas._id": frutaId,
+        $or: [
+          { usuario: usuario },
+          { adminAlias: usuario },
+          { usuario: adminAlias },
+          { adminAlias: adminAlias }
+        ]
+      };
+    }
+
+    const fincasConFruta = await PrecioFruta.find(filtro).lean();
     
     if (fincasConFruta.length === 0) {
-      return res.status(404).send("Fruta no encontrada");
+      return res.status(404).send("Fruta no encontrada en tus fincas");
     }
     
-    // Recopilar todos los precios de esa fruta
+    // Recopilar todos los precios de esa fruta (solo del usuario)
     const todosLosPrecios = [];
     let nombreFruta = "";
     
@@ -320,7 +438,6 @@ router.get("/fruta-con-frecuencia/:frutaId", async (req, res) => {
     res.status(500).send("Error al buscar fruta");
   }
 });
-
 // ✅ Función auxiliar para calcular el precio más frecuente
 function calcularPrecioMasFrecuente(precios) {
   if (precios.length === 0) return 0;
@@ -346,13 +463,26 @@ function calcularPrecioMasFrecuente(precios) {
   return precioMasFrecuente;
 }
 
-// ✅ MODIFICAR la ruta existente /todos-los-precios para incluir precios más frecuentes
 router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
   try {
-    // Obtener precios de todas las fincas
-    const precios = await PrecioFruta.find({}).lean();
+    // ✅ Obtener solo precios de las fincas del usuario actual
+    const { usuario, adminAlias } = req.query;
+    
+    let filtro = {};
+    if (usuario || adminAlias) {
+      filtro = {
+        $or: [
+          { usuario: usuario },
+          { adminAlias: usuario },
+          { usuario: adminAlias },
+          { adminAlias: adminAlias }
+        ]
+      };
+    }
 
-    // Agrupar todas las frutas por nombre
+    const precios = await PrecioFruta.find(filtro).lean();
+
+    // Agrupar todas las frutas por nombre (solo del usuario)
     const frutasPorNombre = {};
     
     precios.forEach(precio => {
@@ -401,23 +531,28 @@ router.post("/agregar-fruta/:fincaId", async (req, res) => {
   const { fruta, usuario, adminAlias } = req.body;
 
   try {
+    // ✅ Normalizar nombre de la nueva fruta
+    const frutaNormalizada = {
+      ...fruta,
+      nombre: formatearNombreParaMostrar(fruta.nombre),
+      nombreNormalizado: normalizarNombre(fruta.nombre)
+    };
+
     let preciosFinca = await PrecioFruta.findOne({ fincaId });
 
     if (!preciosFinca) {
-      // Si la finca no tiene precios, crear un nuevo documento
       const preciosBase = await PrecioFruta.findOne({ fincaId: null }).lean();
       const frutasIniciales = preciosBase ? preciosBase.frutas : [];
       
       preciosFinca = new PrecioFruta({
         fincaId,
-        frutas: [...frutasIniciales, fruta],
+        frutas: [...frutasIniciales, frutaNormalizada],
         usuario,
         adminAlias
       });
       await preciosFinca.save();
     } else {
-      // ✅ Agregar fruta SOLO a esta finca específica
-      preciosFinca.frutas.push(fruta);
+      preciosFinca.frutas.push(frutaNormalizada);
       preciosFinca.usuario = usuario;
       preciosFinca.adminAlias = adminAlias;
       preciosFinca.fechaActualizacion = new Date();

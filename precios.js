@@ -8,22 +8,30 @@ const cantidadInput = document.getElementById("cantidadFrutas");
 const frutasContainer = document.getElementById("frutasContainer");
 const guardarBtn = document.getElementById("guardarPrecios");
 
+// ✅ Función para normalizar nombres (igual que en el backend)
+function normalizarNombre(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Eliminar tildes
+    .replace(/[^\w\s]/g, '') // Eliminar caracteres especiales excepto espacios
+    .replace(/\s+/g, ' ') // Reemplazar múltiples espacios por uno solo
+    .trim(); // Eliminar espacios al inicio y final
+}
 
+// ✅ Función para formatear nombre para mostrar
+function formatearNombreParaMostrar(nombre) {
+  return nombre
+    .toLowerCase()
+    .split(' ')
+    .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+    .join(' ');
+}
 
 cargarPreciosGuardados();
 
-// Cuando se guarda el precio en el frontend, también debe actualizarse globalmente
-async function guardarCambiosPrecios() {
-  const precioPrimera = parseFloat(document.getElementById('precioPrimera').value);
-  const precioSegunda = parseFloat(document.getElementById('precioSegunda').value);
-  const precioTercera = parseFloat(document.getElementById('precioTercera').value);
-
-  const precios = {
-    primera: precioPrimera,
-    segunda: precioSegunda,
-    tercera: precioTercera
-  };
-
+// ✅ Función para guardar cambios de precios (SOLO para esta finca específica)
+async function guardarCambiosPrecios(frutaId, nuevosPrecios) {
   // Confirmación para actualizar globalmente
   const confirmacion = confirm(
     `Estás a punto de actualizar los precios de esta fruta en todas las fincas. ¿Estás seguro?`
@@ -34,17 +42,19 @@ async function guardarCambiosPrecios() {
   try {
     // Actualizar el precio globalmente
     await apiFetch(`/precios/actualizar-global/${frutaId}`, "PUT", {
-      precios: precios,
+      precios: nuevosPrecios,
       usuario: usuario,
       adminAlias: usuario
     });
 
     alert("Precios actualizados globalmente en todas las fincas");
+    // Recargar precios después de la actualización
+    cargarPreciosGuardados();
   } catch (err) {
+    console.error("Error al actualizar precios:", err);
     alert("Error al actualizar los precios globalmente: " + err.message);
   }
 }
-
 
 // Después de actualizar los precios globalmente, recargamos los precios
 async function cargarPreciosGuardados() {
@@ -70,10 +80,88 @@ async function cargarPreciosGuardados() {
   }
 }
 
+cantidadInput.addEventListener("input", () => {
+  const cantidad = parseInt(cantidadInput.value);
+  frutasContainer.innerHTML = "";
 
+  for (let i = 0; i < cantidad; i++) {
+    const div = document.createElement("div");
+    div.className = "fruta-card";
+    div.innerHTML = `
+      <input placeholder="Nombre de la fruta" class="nombreFruta">
+      <div class="precios-por-calidad">
+        <label>Primera: <input type="number" placeholder="Precio primera" class="precioFruta primera"></label>
+        <label>Segunda: <input type="number" placeholder="Precio segunda" class="precioFruta segunda"></label>
+        <label>Tercera: <input type="number" placeholder="Precio tercera" class="precioFruta tercera"></label>
+      </div>
+    `;
+    frutasContainer.appendChild(div);
+  }
+});
 
+guardarBtn.addEventListener("click", async () => {
+  const nombres = document.querySelectorAll(".nombreFruta");
+  const primeras = document.querySelectorAll(".precioFruta.primera");
+  const segundas = document.querySelectorAll(".precioFruta.segunda");
+  const terceras = document.querySelectorAll(".precioFruta.tercera");
 
+  const frutas = [];
 
+  for (let i = 0; i < nombres.length; i++) {
+    const nombreOriginal = nombres[i].value.trim();
+    const precioPrimera = parseFloat(primeras[i].value);
+    const precioSegunda = parseFloat(segundas[i].value);
+    const precioTercera = parseFloat(terceras[i].value);
+
+    if (nombreOriginal && !isNaN(precioPrimera) && !isNaN(precioSegunda) && !isNaN(precioTercera)) {
+      // ✅ Formatear nombre antes de guardar
+      const nombreFormateado = formatearNombreParaMostrar(nombreOriginal);
+      
+      frutas.push({
+        nombre: nombreFormateado,
+        nombreNormalizado: normalizarNombre(nombreOriginal),
+        precios: {
+          primera: precioPrimera,
+          segunda: precioSegunda,
+          tercera: precioTercera
+        }
+      });
+    }
+  }
+
+  if (!fincaId || frutas.length === 0) {
+    alert("Completa los datos correctamente");
+    return;
+  }
+
+  try {
+    // Verificar si existen precios específicos para esta finca
+    const existentes = await apiFetch(`/precios/por-finca/${fincaId}`, "GET");
+    const fincaYaTienePrecios = existentes.length > 0 && existentes[existentes.length - 1]?.frutas?.length > 0;
+
+    if (fincaYaTienePrecios) {
+      // Si ya existen precios específicos, actualizamos los precios solo para esta finca
+      for (const fruta of frutas) {
+        await apiFetch(`/precios/actualizar/${fincaId}`, "PUT", { 
+          fruta,
+          usuario: usuario,
+          adminAlias: usuario
+        });
+      }
+    } else {
+      // Si no existen precios para la finca, guardamos los precios globales
+      await apiFetch("/precios/guardar", "POST", { fincaId, frutas });
+    }
+
+    // Recargar frutas después de agregar nuevas
+    cargarPreciosGuardados();
+
+    alert("Frutas guardadas correctamente");
+    window.location.href = `dashboard1.html?usuario=${encodeURIComponent(usuario)}`;
+  } catch (err) {
+    alert("Error al guardar frutas: " + err.message);
+  }
+});
 
 cantidadInput.addEventListener("input", () => {
   const cantidad = parseInt(cantidadInput.value);
@@ -81,7 +169,7 @@ cantidadInput.addEventListener("input", () => {
 
   for (let i = 0; i < cantidad; i++) {
     const div = document.createElement("div");
-    div.className = "fruta-card";  // nuevo estilo para mejor apariencia
+    div.className = "fruta-card";
     div.innerHTML = `
       <input placeholder="Nombre de la fruta" class="nombreFruta">
       <div class="precios-por-calidad">
@@ -126,44 +214,37 @@ guardarBtn.addEventListener("click", async () => {
   }
 
   try {
-    // Verificar si existen precios específicos para esta finca
-    const existentes = await apiFetch(`/precios/por-finca/${fincaId}`, "GET");
-    const fincaYaTienePrecios = existentes.length > 0 && existentes[existentes.length - 1]?.frutas?.length > 0;
-
-    if (fincaYaTienePrecios) {
-      // Si ya existen precios específicos, actualizamos los precios solo para esta finca
-      for (const fruta of frutas) {
-        await apiFetch(`/precios/actualizar/${fincaId}`, "PUT", { 
-          fruta,
-          usuario: usuario,
-          adminAlias: usuario
-        });
-      }
-    } else {
-      // Si no existen precios para la finca, guardamos los precios globales
-      await apiFetch("/precios/guardar", "POST", { fincaId, frutas });
+    // ✅ Usar la ruta correcta para agregar frutas a una finca específica
+    for (const fruta of frutas) {
+      await apiFetch(`/precios/agregar-fruta/${fincaId}`, "POST", { 
+        fruta,
+        usuario: usuario,
+        adminAlias: usuario
+      });
     }
 
-    // Recargar frutas después de agregar nuevas
-    cargarPreciosGuardados();  // Recargar para actualizar los precios
-
     alert("Frutas guardadas correctamente");
-    window.location.href = `dashboard1.html?usuario=${encodeURIComponent(usuario)}`;
+    
+    // Recargar frutas después de agregar nuevas
+    cargarPreciosGuardados();
+    
+    // Limpiar formulario
+    cantidadInput.value = "";
+    frutasContainer.innerHTML = "";
+    
+    // Opcional: redirigir al dashboard
+    // window.location.href = `dashboard1.html?usuario=${encodeURIComponent(usuario)}`;
   } catch (err) {
+    console.error("Error al guardar frutas:", err);
     alert("Error al guardar frutas: " + err.message);
   }
 });
-
-
-
-
-
 
 function renderFrutasGuardadas(frutas) {
   frutasContainer.innerHTML = ""; // Limpiar
 
   frutas.forEach((fruta, index) => {
-    const precios = fruta.precios || { primera: 0, segunda: 0, tercera: 0 }; // 👈 protección
+    const precios = fruta.precios || { primera: 0, segunda: 0, tercera: 0 };
 
     const div = document.createElement("div");
     div.className = "fruta-card";
@@ -187,19 +268,20 @@ function renderFrutasGuardadas(frutas) {
     eliminarBtn.addEventListener("click", () => eliminarFruta(fruta, div));
   });
 }
-
-
-// ✅ Función toggleEdicion modificada para enviar fincaId
+// ✅ Función toggleEdicion modificada para manejar edición local vs global
 async function toggleEdicion(div, fruta, btn) {
   const inputs = div.querySelectorAll("input");
   const editando = btn.textContent === "💾 Guardar";
 
   if (editando) {
     // Guardar cambios
-    const nombre = inputs[0].value.trim();
+    const nombreOriginal = inputs[0].value.trim();
     const precioPrimera = parseFloat(inputs[1].value);
     const precioSegunda = parseFloat(inputs[2].value);
     const precioTercera = parseFloat(inputs[3].value);
+
+    // ✅ Formatear nombre antes de enviar
+    const nombreFormateado = formatearNombreParaMostrar(nombreOriginal);
 
     try {
       const esEdicionGlobal = btn.dataset.global === 'true';
@@ -207,7 +289,7 @@ async function toggleEdicion(div, fruta, btn) {
       if (esEdicionGlobal) {
         // Si se está editando globalmente, actualizamos los precios en todas las fincas
         await apiFetch(`/precios/actualizar-global/${fruta._id}`, "PUT", {
-          nombre,
+          nombre: nombreFormateado,
           precios: {
             primera: precioPrimera,
             segunda: precioSegunda,
@@ -220,7 +302,7 @@ async function toggleEdicion(div, fruta, btn) {
       } else {
         // Si es solo para esta finca, actualizamos solo para esa finca
         await apiFetch(`/precios/actualizar/${fruta._id}`, "PUT", {
-          nombre,
+          nombre: nombreFormateado,
           precios: {
             primera: precioPrimera,
             segunda: precioSegunda,
@@ -235,6 +317,10 @@ async function toggleEdicion(div, fruta, btn) {
 
       btn.textContent = "✏️ Editar";
       inputs.forEach(input => input.disabled = true);
+      
+      // ✅ Actualizar el nombre mostrado en el input
+      inputs[0].value = nombreFormateado;
+      
     } catch (err) {
       alert("Error al actualizar: " + err.message);
     }
@@ -245,9 +331,6 @@ async function toggleEdicion(div, fruta, btn) {
   }
 }
 
-
-
-// ✅ Función eliminarFruta modificada para enviar fincaId
 async function eliminarFruta(fruta, div) {
   if (!confirm("¿Estás seguro de eliminar esta fruta solo de esta finca?")) return;
   
@@ -255,7 +338,7 @@ async function eliminarFruta(fruta, div) {
     await apiFetch(`/precios/eliminar/${fruta._id}`, "DELETE", {
       usuario: usuario,
       adminAlias: usuario,
-      fincaId: fincaId  // ✅ Enviar fincaId para eliminar solo de esta finca
+      fincaId: fincaId
     });
     div.remove();
     alert("Fruta eliminada solo de esta finca");
@@ -263,7 +346,6 @@ async function eliminarFruta(fruta, div) {
     alert("Error al eliminar: " + err.message);
   }
 }
-
 
 const btnVolver = document.getElementById("btnVolverDashboard");
 btnVolver.addEventListener("click", () => {
