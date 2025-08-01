@@ -403,7 +403,33 @@ background: rgba(128, 105, 105, 0.329);
         font-size: 0.7rem;
         padding: 2px 6px;
       }
+
+
     }
+
+
+    /* 🔥 ESTILOS PARA ETIQUETA DE LIQUIDACIÓN */
+.liquidada-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 5px 12px;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 1;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
   </style>
 </head>
 <body>
@@ -737,131 +763,138 @@ function formatearFecha(fecha) {
       return frutasUnicas.length > 0 ? frutasUnicas : [recogida.fruta || 'Sin especificar'];
     }
 
-    function mostrarRecogidas(listaFiltrada) {
-      lista.innerHTML = "";
-      if (listaFiltrada.length === 0) {
-        lista.innerHTML = `
-          <div class="no-resultados">
-            <h3>🔍 No hay coincidencias</h3>
-            <p>Intenta ajustar los filtros para encontrar más resultados</p>
-          </div>
-        `;
-        return;
-      }
+function mostrarRecogidas(listaFiltrada) {
+  lista.innerHTML = "";
+  if (listaFiltrada.length === 0) {
+    lista.innerHTML = `
+      <div class="no-resultados">
+        <h3>🔍 No hay coincidencias</h3>
+        <p>Intenta ajustar los filtros para encontrar más resultados</p>
+      </div>
+    `;
+    return;
+  }
 
-      listaFiltrada.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  listaFiltrada.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
-      // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
-      const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
+  // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
+  const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
 
-      listaFiltrada.forEach(r => {
-        const card = document.createElement("div");
-        card.className = "recogida-card";
-        
-        const promedioKilo = r.pesas.length > 0 ? (r.totalKilos / r.pesas.length).toFixed(1) : 0;
-        const fechaFormateada = formatearFecha(r.fecha);
-        
-        // 🔥 OBTENER TODAS LAS FRUTAS DE LA RECOGIDA
-        const frutasRecogida = obtenerFrutasRecogida(r);
-        
-        // 🔥 CREAR HTML PARA MOSTRAR FRUTAS (UNA O MÚLTIPLES)
-        let frutasHTML = '';
-        if (frutasRecogida.length === 1) {
-          frutasHTML = `<span class="info-value fruta">${frutasRecogida[0]}</span>`;
-        } else {
-          frutasHTML = `
-            <div class="frutas-multiple">
-              ${frutasRecogida.map(fruta => `<span class="fruta-tag">${fruta}</span>`).join('')}
-            </div>
-          `;
-        }
-        
-        // 🔥 CONDICIONAR CONTENIDO SEGÚN TIPO DE USUARIO
-        let metricsHTML = '';
-        let valorTotalHTML = '';
-        
-        if (debeOcultarPrecios) {
-          // Para subusuarios: solo mostrar pesas y promedio de kilos
-          metricsHTML = `
-            <div class="card-metrics">
-              <div class="metric-item">
-                <span class="metric-value">${r.pesas.length}</span>
-                <span class="metric-label">Pesas</span>
-              </div>
-              <div class="metric-item">
-                <span class="metric-value">${promedioKilo}</span>
-                <span class="metric-label">Kg/Pesa</span>
-              </div>
-            </div>
-          `;
-          valorTotalHTML = ''; // Sin valor total
-        } else {
-          // Para administradores: mostrar todo
-          const precioKilo = r.totalKilos > 0 && r.valorPagar ? (r.valorPagar / r.totalKilos).toFixed(0) : 0;
-          
-          metricsHTML = `
-            <div class="card-metrics">
-              <div class="metric-item">
-                <span class="metric-value">${r.pesas.length}</span>
-                <span class="metric-label">Pesas</span>
-              </div>
-              <div class="metric-item">
-                <span class="metric-value">${promedioKilo}</span>
-                <span class="metric-label">Kg/Pesa</span>
-              </div>
-              <div class="metric-item">
-                <span class="metric-value">${precioKilo}</span>
-                <span class="metric-label">$/Kg</span>
-              </div>
-            </div>
-          `;
-          
-          valorTotalHTML = `
-            <div class="info-group" style="margin-bottom: 15px;">
-              <span class="info-label">💰 Total a Pagar</span>
-              <span class="info-value valor">${(r.valorPagar || 0).toLocaleString()}</span>
-            </div>
-          `;
-        }
-        
-        card.innerHTML = `
-          <div class="card-header">
-            <div class="fecha-badge">${fechaFormateada}</div>
-            <div class="calidad-badge calidad-${r.calidad}">${r.calidad}</div>
-          </div>
-          
-          <div class="card-content">
-            <div class="info-group">
-              <span class="info-label">🍉 ${frutasRecogida.length > 1 ? 'Frutas' : 'Fruta'}</span>
-              ${frutasHTML}
-            </div>
-            <div class="info-group">
-              <span class="info-label">⚖️ Total Kilos</span>
-              <span class="info-value kilos">${r.totalKilos} kg</span>
-            </div>
-          </div>
-
-          ${metricsHTML}
-          ${valorTotalHTML}
-
-          <div class="card-footer">
-            <div class="usuario-info">
-              <div class="usuario-avatar">${obtenerIniciales(r.alias || r.usuario)}</div>
-              <span>Recogida realizada por: ${r.alias || r.usuario || "Usuario no registrado"}</span>
-            </div>
-            <button class="editar-btn" data-id="${r._id}">✏️ Editar</button>
-          </div>
-        `;
-
-        card.querySelector(".editar-btn").addEventListener("click", () => {
-          // 🔥 PASAR USUARIO EN LA URL AL EDITAR
-          window.location.href = `recogida.html?modo=editar&idRecogida=${r._id}&fincaId=${r.fincaId}&usuario=${encodeURIComponent(usuario)}`;
-        });
-
-        lista.appendChild(card);
-      });
+  listaFiltrada.forEach(r => {
+    const card = document.createElement("div");
+    card.className = "recogida-card";
+    
+    const promedioKilo = r.pesas.length > 0 ? (r.totalKilos / r.pesas.length).toFixed(1) : 0;
+    const fechaFormateada = formatearFecha(r.fecha);
+    
+    // 🔥 OBTENER TODAS LAS FRUTAS DE LA RECOGIDA
+    const frutasRecogida = obtenerFrutasRecogida(r);
+    
+    // 🔥 VERIFICAR SI LA RECOGIDA ESTÁ LIQUIDADA
+    const estaLiquidada = r.estadoLiquidacion === 'liquidada';
+    
+    // 🔥 CREAR HTML PARA LA ETIQUETA DE LIQUIDACIÓN
+    const liquidadaBadge = estaLiquidada ? 
+      `<div class="liquidada-badge">✅ LIQUIDADA</div>` : '';
+    
+    // 🔥 CREAR HTML PARA MOSTRAR FRUTAS (UNA O MÚLTIPLES)
+    let frutasHTML = '';
+    if (frutasRecogida.length === 1) {
+      frutasHTML = `<span class="info-value fruta">${frutasRecogida[0]}</span>`;
+    } else {
+      frutasHTML = `
+        <div class="frutas-multiple">
+          ${frutasRecogida.map(fruta => `<span class="fruta-tag">${fruta}</span>`).join('')}
+        </div>
+      `;
     }
+    
+    // 🔥 CONDICIONAR CONTENIDO SEGÚN TIPO DE USUARIO
+    let metricsHTML = '';
+    let valorTotalHTML = '';
+    
+    if (debeOcultarPrecios) {
+      // Para subusuarios: solo mostrar pesas y promedio de kilos
+      metricsHTML = `
+        <div class="card-metrics">
+          <div class="metric-item">
+            <span class="metric-value">${r.pesas.length}</span>
+            <span class="metric-label">Pesas</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">${promedioKilo}</span>
+            <span class="metric-label">Kg/Pesa</span>
+          </div>
+        </div>
+      `;
+      valorTotalHTML = ''; // Sin valor total
+    } else {
+      // Para administradores: mostrar todo
+      const precioKilo = r.totalKilos > 0 && r.valorPagar ? (r.valorPagar / r.totalKilos).toFixed(0) : 0;
+      
+      metricsHTML = `
+        <div class="card-metrics">
+          <div class="metric-item">
+            <span class="metric-value">${r.pesas.length}</span>
+            <span class="metric-label">Pesas</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">${promedioKilo}</span>
+            <span class="metric-label">Kg/Pesa</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">${precioKilo}</span>
+            <span class="metric-label">$/Kg</span>
+          </div>
+        </div>
+      `;
+      
+      valorTotalHTML = `
+        <div class="info-group" style="margin-bottom: 15px;">
+          <span class="info-label">💰 Total a Pagar</span>
+          <span class="info-value valor">${(r.valorPagar || 0).toLocaleString()}</span>
+        </div>
+      `;
+    }
+    
+    card.innerHTML = `
+      ${liquidadaBadge}
+      <div class="card-header">
+        <div class="fecha-badge">${fechaFormateada}</div>
+        <div class="calidad-badge calidad-${r.calidad}">${r.calidad}</div>
+      </div>
+      
+      <div class="card-content">
+        <div class="info-group">
+          <span class="info-label">🍉 ${frutasRecogida.length > 1 ? 'Frutas' : 'Fruta'}</span>
+          ${frutasHTML}
+        </div>
+        <div class="info-group">
+          <span class="info-label">⚖️ Total Kilos</span>
+          <span class="info-value kilos">${r.totalKilos} kg</span>
+        </div>
+      </div>
 
+      ${metricsHTML}
+      ${valorTotalHTML}
+
+      <div class="card-footer">
+        <div class="usuario-info">
+          <div class="usuario-avatar">${obtenerIniciales(r.alias || r.usuario)}</div>
+          <span>Recogida realizada por: ${r.alias || r.usuario || "Usuario no registrado"}</span>
+        </div>
+        <button class="editar-btn" data-id="${r._id}">✏️ Editar</button>
+      </div>
+    `;
+
+    card.querySelector(".editar-btn").addEventListener("click", () => {
+      // 🔥 PASAR USUARIO EN LA URL AL EDITAR
+      window.location.href = `recogida.html?modo=editar&idRecogida=${r._id}&fincaId=${r.fincaId}&usuario=${encodeURIComponent(usuario)}`;
+    });
+
+    lista.appendChild(card);
+  });
+}
     // Escuchar filtros
     Object.values(filtros).forEach(input => {
       input.addEventListener("input", aplicarFiltros);
