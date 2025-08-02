@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const NotaFinca = require("../models/NotasFincas");
+const NotaFinca = require("../models/NotaFinca");
 const Finca = require("../models/Finca");
 
 // 📝 Crear nueva nota para una finca
@@ -36,6 +36,31 @@ router.post("/agregar", async (req, res) => {
   } catch (err) {
     console.error("❌ Error al crear nota:", err);
     res.status(500).json({ error: "Error al crear la nota: " + err.message });
+  }
+});
+
+// 🔍 Obtener una nota específica por ID (NUEVA RUTA)
+router.get("/:notaId", async (req, res) => {
+  const { notaId } = req.params;
+  
+  console.log("🔍 Obteniendo nota por ID:", notaId);
+
+  try {
+    const nota = await NotaFinca.findById(notaId);
+    
+    if (!nota) {
+      return res.status(404).json({ error: "Nota no encontrada" });
+    }
+
+    if (!nota.activa) {
+      return res.status(404).json({ error: "Nota no disponible" });
+    }
+
+    console.log("✅ Nota encontrada:", nota);
+    res.status(200).json(nota);
+  } catch (err) {
+    console.error("❌ Error al obtener nota:", err);
+    res.status(500).json({ error: "Error al obtener la nota: " + err.message });
   }
 });
 
