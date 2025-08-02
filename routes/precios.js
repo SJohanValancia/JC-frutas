@@ -180,6 +180,31 @@ router.put("/actualizar/:frutaId", async (req, res) => {
   }
 });
 
+// ✅ FUNCIÓN AUXILIAR para calcular el precio más frecuente
+function calcularPrecioMasFrecuente(precios) {
+  if (precios.length === 0) return 0;
+  
+  // Contar frecuencias
+  const frecuencias = {};
+  precios.forEach(precio => {
+    const precioStr = precio.toString();
+    frecuencias[precioStr] = (frecuencias[precioStr] || 0) + 1;
+  });
+  
+  // Encontrar el precio con mayor frecuencia
+  let maxFrecuencia = 0;
+  let precioMasFrecuente = precios[0];
+  
+  Object.entries(frecuencias).forEach(([precio, frecuencia]) => {
+    if (frecuencia > maxFrecuencia) {
+      maxFrecuencia = frecuencia;
+      precioMasFrecuente = parseFloat(precio);
+    }
+  });
+  
+  return precioMasFrecuente;
+}
+
 // 🔥 PUT /precios/actualizar-global/:frutaId - ACTUALIZACIÓN GLOBAL DE PRECIOS
 router.put("/actualizar-global/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
@@ -216,11 +241,14 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
       ];
     }
 
+    console.log("🔍 Filtros de búsqueda:", JSON.stringify(filtrosBusqueda, null, 2));
+
     const fincasConFruta = await PrecioFruta.find(filtrosBusqueda);
     
     console.log(`🔍 Encontradas ${fincasConFruta.length} fincas con la fruta para actualizar`);
     
     if (fincasConFruta.length === 0) {
+      console.log("❌ No se encontraron fincas con esta fruta para el usuario");
       return res.status(404).json({ 
         error: "No se encontraron fincas con esta fruta para el usuario actual" 
       });
@@ -506,31 +534,6 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
   }
 });
 
-// ✅ Función auxiliar para calcular el precio más frecuente
-function calcularPrecioMasFrecuente(precios) {
-  if (precios.length === 0) return 0;
-  
-  // Contar frecuencias
-  const frecuencias = {};
-  precios.forEach(precio => {
-    const precioStr = precio.toString();
-    frecuencias[precioStr] = (frecuencias[precioStr] || 0) + 1;
-  });
-  
-  // Encontrar el precio con mayor frecuencia
-  let maxFrecuencia = 0;
-  let precioMasFrecuente = precios[0];
-  
-  Object.entries(frecuencias).forEach(([precio, frecuencia]) => {
-    if (frecuencia > maxFrecuencia) {
-      maxFrecuencia = frecuencia;
-      precioMasFrecuente = parseFloat(precio);
-    }
-  });
-  
-  return precioMasFrecuente;
-}
-
 // 🔥 GET /precios/verificar-estructura - Ruta de diagnóstico mejorada
 router.get("/verificar-estructura", async (req, res) => {
   try {
@@ -667,7 +670,5 @@ router.post("/migrar-datos-usuario", async (req, res) => {
     });
   }
 });
-
-//
 
 module.exports = router;
