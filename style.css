@@ -31,7 +31,11 @@ body {
   overflow-x: hidden;
 }
 
+.editarGlobalBtn{
 
+  display: none;
+
+}
 
 /* Animaciones base */
 @keyframes float {
