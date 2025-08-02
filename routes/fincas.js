@@ -55,25 +55,18 @@ router.post("/agregar", async (req, res) => {
     // 2️⃣ Verificamos si ya tiene precios propios
     const preciosExistentes = await PrecioFruta.findOne({ fincaId: finca._id });
 
-    if (!preciosExistentes) {
-      // 3️⃣ Buscar precios base (fincaId: null)
-      let preciosBase = await PrecioFruta.findOne({ fincaId: null }).lean();
-
-      // Si no hay precios base, busca de cualquier otra finca como ejemplo
-      if (!preciosBase) {
-        preciosBase = await PrecioFruta.findOne({ fincaId: { $ne: null } }).lean();
-      }
-
-      if (preciosBase) {
-        // 4️⃣ Copiar frutas y precios completos a la finca nueva
-        const copia = new PrecioFruta({
-          fincaId: finca._id,
-          frutas: preciosBase.frutas
-        });
-        await copia.save();
-        console.log("✅ Precios copiados a la nueva finca");
-      }
-    }
+// En lugar de copiar precios automáticamente:
+if (!preciosExistentes) {
+  // Crear registro de precios vacío en lugar de copiar
+  const preciosVacios = new PrecioFruta({
+    fincaId: finca._id,
+    frutas: [], // Array vacío en lugar de copiar
+    usuario: usuario,
+    adminAlias: adminAliasParaGuardar
+  });
+  await preciosVacios.save();
+  console.log("✅ Registro de precios vacío creado para nueva finca");
+}
 
     res.status(200).json(finca);
   } catch (err) {

@@ -500,18 +500,20 @@
     }
 
     // ✅ FUNCIÓN CORREGIDA: Cargar todas las frutas del usuario
-    async function cargarTodasLasFrutas() {
-      try {
+async function cargarTodasLasFrutas() {
+    try {
         console.log("📥 Iniciando carga de frutas para usuario:", usuario);
         
         if (!usuario) {
-          throw new Error("Usuario no definido en los parámetros de URL");
+            throw new Error("Usuario no definido en los parámetros de URL");
         }
 
-        // ✅ Construir endpoint con parámetros correctos
+        // Limpiar variable de edición al recargar
+        frutaActualEdicion = null;
+        
         let endpoint = `/precios/todos-los-precios-con-frecuencia?usuario=${encodeURIComponent(usuario)}`;
         if (alias && alias !== usuario) {
-          endpoint += `&adminAlias=${encodeURIComponent(alias)}`;
+            endpoint += `&adminAlias=${encodeURIComponent(alias)}`;
         }
         
         console.log("🔗 Endpoint construido:", endpoint);
@@ -519,32 +521,35 @@
         const frutasData = await apiFetch(endpoint);
         console.log("📊 Respuesta de la API:", frutasData);
         
-        // ✅ VALIDACIÓN MEJORADA: Asegurar que todasLasFrutas sea siempre un array
+        // Validación mejorada del array de respuesta
         if (Array.isArray(frutasData)) {
-          todasLasFrutas = frutasData;
-        } else if (frutasData && Array.isArray(frutasData.frutas)) {
-          todasLasFrutas = frutasData.frutas;
+            todasLasFrutas = frutasData.map(fruta => ({
+                ...fruta,
+                precios: fruta.precios || { primera: 0, segunda: 0, tercera: 0 }
+            }));
+        } else if (frutasData?.frutas) {
+            todasLasFrutas = frutasData.frutas.map(fruta => ({
+                ...fruta,
+                precios: fruta.precios || { primera: 0, segunda: 0, tercera: 0 }
+            }));
         } else {
-          console.warn("⚠️ Respuesta de API no es un array, inicializando array vacío");
-          todasLasFrutas = [];
+            console.warn("⚠️ Respuesta de API no es un array, inicializando array vacío");
+            todasLasFrutas = [];
         }
         
         console.log(`✅ Cargadas ${todasLasFrutas.length} frutas únicas`);
-        
         mostrarFrutas(todasLasFrutas);
         
-      } catch (error) {
+    } catch (error) {
         console.error('❌ Error al cargar frutas:', error);
-        // ✅ MANEJO DE ERROR MEJORADO
-        todasLasFrutas = []; // Asegurar que sea un array vacío
+        todasLasFrutas = [];
         document.getElementById('loadingContainer').innerHTML = `
-          <p style="color: #ff6b6b;">❌ Error al cargar las frutas</p>
-          <p style="font-size: 0.9rem; opacity: 0.8;">${error.message}</p>
-          <button onclick="cargarTodasLasFrutas()" style="margin-top: 10px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">🔄 Reintentar</button>
+            <p style="color: #ff6b6b;">❌ Error al cargar las frutas</p>
+            <p style="font-size: 0.9rem; opacity: 0.8;">${error.message}</p>
+            <button onclick="cargarTodasLasFrutas()" style="margin-top: 10px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">🔄 Reintentar</button>
         `;
-      }
     }
-
+}
     // ✅ Mostrar frutas con precios más frecuentes
     function mostrarFrutas(frutas) {
       const loadingContainer = document.getElementById('loadingContainer');
@@ -612,69 +617,75 @@
     }
 
     // ✅ FUNCIÓN CORREGIDA: Abrir modal de edición
-    async function abrirModalEdicion(frutaId, nombreFruta) {
-      console.log(`✏️ Abriendo modal para fruta: ${nombreFruta} (ID: ${frutaId})`);
-      
-      // ✅ VALIDACIÓN MEJORADA: Verificar que todasLasFrutas existe y es un array
-      if (!Array.isArray(todasLasFrutas)) {
-        console.error("❌ todasLasFrutas no es un array:", todasLasFrutas);
+async function abrirModalEdicion(frutaId, nombreFruta) {
+    console.log(`✏️ Abriendo modal para fruta: ${nombreFruta} (ID: ${frutaId})`);
+    
+    // Validación mejorada del array de frutas
+    if (!Array.isArray(todasLasFrutas)) {
+        console.error("❌ todasLasFrutas no es un array, inicializando...");
         todasLasFrutas = [];
-      }
-      
-      frutaActualEdicion = { _id: frutaId, nombre: nombreFruta };
-      
-      // Establecer nombre en el modal
-      document.getElementById('modalFrutaNombre').textContent = nombreFruta;
-      
-      try {
-        // ✅ Buscar los precios actuales de la fruta con validación
-        const fruta = todasLasFrutas.find(f => f && f._id === frutaId);
+        await cargarTodasLasFrutas(); // Intentar recargar si hay problema
+    }
+    
+    // Crear objeto seguro para edición
+    frutaActualEdicion = { 
+        _id: frutaId, 
+        nombre: nombreFruta,
+        precios: { primera: 0, segunda: 0, tercera: 0 } // Valores por defecto
+    };
+    
+    // Establecer nombre en el modal
+    document.getElementById('modalFrutaNombre').textContent = nombreFruta;
+    
+    try {
+        // Buscar con validación segura
+        const fruta = todasLasFrutas.find(f => f?._id === frutaId);
         
-        if (fruta && fruta.precios) {
-          console.log("📝 Precios actuales encontrados:", fruta.precios);
-          document.getElementById('precioPrimera').value = fruta.precios.primera || 0;
-          document.getElementById('precioSegunda').value = fruta.precios.segunda || 0;
-          document.getElementById('precioTercera').value = fruta.precios.tercera || 0;
+        if (fruta?.precios) {
+            console.log("📝 Precios actuales encontrados:", fruta.precios);
+            frutaActualEdicion.precios = { ...fruta.precios }; // Copiar precios
+            document.getElementById('precioPrimera').value = fruta.precios.primera || 0;
+            document.getElementById('precioSegunda').value = fruta.precios.segunda || 0;
+            document.getElementById('precioTercera').value = fruta.precios.tercera || 0;
         } else {
-          console.log("⚠️ No se encontraron precios para la fruta, usando valores por defecto");
-          document.getElementById('precioPrimera').value = 0;
-          document.getElementById('precioSegunda').value = 0;
-          document.getElementById('precioTercera').value = 0;
+            console.warn("⚠️ No se encontraron precios para la fruta, usando valores por defecto");
+            document.getElementById('precioPrimera').value = 0;
+            document.getElementById('precioSegunda').value = 0;
+            document.getElementById('precioTercera').value = 0;
         }
-      } catch (error) {
+    } catch (error) {
         console.error('❌ Error al cargar precios actuales:', error);
-        // Usar valores por defecto si hay error
         document.getElementById('precioPrimera').value = 0;
         document.getElementById('precioSegunda').value = 0;
         document.getElementById('precioTercera').value = 0;
-      }
-      
-      // Mostrar modal
-      document.getElementById('editModal').classList.add('active');
     }
-
+    
+    // Mostrar modal
+    document.getElementById('editModal').classList.add('active');
+}
     // Cerrar modal
-    function cerrarModal() {
-      document.getElementById('editModal').classList.remove('active');
-      frutaActualEdicion = null;
-    }
+function cerrarModal() {
+    document.getElementById('editModal').classList.remove('active');
+    // No limpiamos frutaActualEdicion aquí para evitar problemas
+    // Se limpiará cuando se recarguen los datos o en el próximo guardado
+}
 
-    // ✅ FUNCIÓN CORREGIDA: Guardar cambios de precios globalmente
 async function guardarCambiosPrecios() {
-    // Validación robusta del objeto frutaActualEdicion
+    // 1. Validación inicial robusta
     if (!frutaActualEdicion || !frutaActualEdicion._id || !frutaActualEdicion.nombre) {
         console.error("❌ Fruta no válida para edición:", frutaActualEdicion);
         alert('Error: No hay fruta seleccionada o datos incompletos');
         return;
     }
 
+    // Guardar TODOS los datos necesarios en variables locales
+    const frutaId = frutaActualEdicion._id;
+    const nombreFrutaActual = frutaActualEdicion.nombre;
     const precioPrimera = parseFloat(document.getElementById('precioPrimera').value);
     const precioSegunda = parseFloat(document.getElementById('precioSegunda').value);
     const precioTercera = parseFloat(document.getElementById('precioTercera').value);
 
-    console.log("💰 Precios a guardar:", { precioPrimera, precioSegunda, precioTercera });
-
-    // Validación exhaustiva de precios
+    // 2. Validación de precios
     if (isNaN(precioPrimera) || isNaN(precioSegunda) || isNaN(precioTercera)) {
         alert('❌ Por favor, ingresa precios válidos para todas las calidades');
         return;
@@ -685,10 +696,10 @@ async function guardarCambiosPrecios() {
         return;
     }
 
-    // Confirmación detallada
+    // 3. Confirmación con datos locales
     const confirmacion = confirm(
         `⚠️ ACTUALIZACIÓN GLOBAL\n\n` +
-        `Estás a punto de actualizar los precios de "${frutaActualEdicion.nombre}" en TODAS TUS FINCAS:\n\n` +
+        `Estás a punto de actualizar los precios de "${nombreFrutaActual}" en TODAS TUS FINCAS:\n\n` +
         `💎 Primera: $${precioPrimera.toLocaleString()}\n` +
         `✨ Segunda: $${precioSegunda.toLocaleString()}\n` +
         `⭐ Tercera: $${precioTercera.toLocaleString()}\n\n` +
@@ -709,10 +720,11 @@ async function guardarCambiosPrecios() {
             tercera: precioTercera
         };
 
-        console.log("🌍 Iniciando actualización global para fruta:", frutaActualEdicion._id);
+        console.log("🌍 Iniciando actualización global para fruta:", frutaId);
         
+        // 4. Llamada a la API
         const resultado = await apiFetch(
-            `/precios/actualizar-global/${frutaActualEdicion._id}`, 
+            `/precios/actualizar-global/${frutaId}`, 
             'PUT', 
             {
                 precios: nuevosPrecios,
@@ -728,35 +740,25 @@ async function guardarCambiosPrecios() {
             throw new Error(resultado.error || "Error desconocido al actualizar");
         }
 
-        // Mostrar resumen detallado
+        // 5. Cerrar modal PRIMERO (importante)
+        cerrarModal();
+        
+        // 6. Recargar datos
+        try {
+            await cargarTodasLasFrutas();
+        } catch (errorRecarga) {
+            console.error("Error al recargar frutas:", errorRecarga);
+            // Continuamos aunque falle la recarga
+        }
+        
+        // 7. Mostrar mensaje de éxito (usando variables locales)
         alert(
             `✅ ¡Actualización completada!\n\n` +
-            `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} finca(s).\n\n` +
+            `Precios de "${nombreFrutaActual}" actualizados en ${resultado.fincasActualizadas} finca(s).\n\n` +
             `💎 Primera: $${precioPrimera.toLocaleString()}\n` +
             `✨ Segunda: $${precioSegunda.toLocaleString()}\n` +
             `⭐ Tercera: $${precioTercera.toLocaleString()}`
         );
-        
-        cerrarModal();
-        
-        // Actualización local con validación robusta
-        if (Array.isArray(todasLasFrutas)) {
-            const frutaIndex = todasLasFrutas.findIndex(f => f && f._id === frutaActualEdicion._id);
-            
-            if (frutaIndex !== -1) {
-                // Actualizar sin mutar el objeto original
-                const nuevasFrutas = [...todasLasFrutas];
-                nuevasFrutas[frutaIndex] = {
-                    ...nuevasFrutas[frutaIndex],
-                    precios: { ...nuevosPrecios }
-                };
-                todasLasFrutas = nuevasFrutas;
-                mostrarFrutas(todasLasFrutas);
-            } else {
-                console.warn("⚠️ Fruta no encontrada en lista local, recargando datos...");
-                await cargarTodasLasFrutas();
-            }
-        }
         
     } catch (error) {
         console.error('❌ Error al guardar precios:', error);
@@ -766,6 +768,8 @@ async function guardarCambiosPrecios() {
         btnGuardar.disabled = false;
     }
 }
+
+
 // Búsqueda de frutas
     function configurarBusqueda() {
       const searchInput = document.getElementById('searchInput');

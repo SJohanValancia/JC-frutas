@@ -205,72 +205,82 @@ function calcularPrecioMasFrecuente(precios) {
   return precioMasFrecuente;
 }
 
-// 🔥 PUT /precios/actualizar-global/:frutaId - ACTUALIZACIÓN GLOBAL DE PRECIOS CORREGIDA
-// 🔥 PUT /precios/actualizar-global/:frutaId - ACTUALIZACIÓN GLOBAL MEJORADA
 router.put("/actualizar-global/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
-  const { precios, usuario, adminAlias, filtrarPorUsuario } = req.body;
+  const { precios, usuario, adminAlias } = req.body;
 
   console.log(`🌍 INICIANDO ACTUALIZACIÓN GLOBAL para fruta ${frutaId}`);
   
-  // Validaciones estrictas
-  if (!precios || !usuario || !frutaId) {
-    return res.status(400).json({ error: "Datos incompletos para actualización global" });
+  // Validaciones
+  if (!precios || !usuario) {
+    return res.status(400).json({ error: "Datos incompletos" });
   }
 
   try {
-    // FILTRO ESTRICTO por usuario
-    const filtrosBusqueda = {
+    // 1. Primero encontrar la fruta para obtener su nombre
+    const frutaOriginal = await PrecioFruta.findOne({
       "frutas._id": frutaId,
+      $or: [
+        { usuario: adminAlias || usuario },
+        { adminAlias: adminAlias || usuario }
+      ]
+    });
+
+    if (!frutaOriginal) {
+      return res.status(404).json({ error: "Fruta no encontrada" });
+    }
+
+    const frutaEncontrada = frutaOriginal.frutas.find(f => f._id.toString() === frutaId);
+    const nombreFruta = frutaEncontrada.nombre;
+
+    // 2. Buscar TODAS las fincas del usuario que tengan frutas con este nombre
+    const filtros = {
+      "frutas.nombre": nombreFruta,
       $or: [
         { usuario: adminAlias || usuario },
         { adminAlias: adminAlias || usuario }
       ]
     };
 
-    console.log("🔍 Filtros de búsqueda:", filtrosBusqueda);
+    const fincasConFruta = await PrecioFruta.find(filtros);
     
-    const fincasConFruta = await PrecioFruta.find(filtrosBusqueda);
-    
-    if (fincasConFruta.length === 0) {
-      return res.status(404).json({ 
-        error: "No se encontraron fincas con esta fruta para el usuario actual",
-        detalles: { frutaId, usuario, adminAlias }
+    // 3. Actualizar todas las coincidencias
+    let fincasActualizadas = 0;
+    const bulkOps = [];
+
+    fincasConFruta.forEach(finca => {
+      finca.frutas.forEach(fruta => {
+        if (fruta.nombre === nombreFruta) {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: finca._id, "frutas._id": fruta._id },
+              update: {
+                $set: {
+                  "frutas.$.precios": precios,
+                  fecha: new Date()
+                }
+              }
+            }
+          });
+          fincasActualizadas++;
+        }
       });
+    });
+
+    if (bulkOps.length > 0) {
+      await PrecioFruta.bulkWrite(bulkOps);
     }
 
-    // Actualizar TODAS las fincas encontradas
-    let fincasActualizadas = 0;
-    const resultados = await Promise.all(
-      fincasConFruta.map(async finca => {
-        const frutaIndex = finca.frutas.findIndex(f => f._id.toString() === frutaId);
-        if (frutaIndex !== -1) {
-          finca.frutas[frutaIndex].precios = precios;
-          finca.fecha = new Date();
-          await finca.save();
-          fincasActualizadas++;
-          return { fincaId: finca.fincaId, success: true };
-        }
-        return { fincaId: finca.fincaId, success: false };
-      })
-    );
-
-    console.log(`✅ Actualizadas ${fincasActualizadas} fincas`);
-    
     res.status(200).json({
       success: true,
       message: `Precios actualizados en ${fincasActualizadas} finca(s)`,
-      fincasActualizadas,
-      preciosAplicados: precios,
-      detalles: resultados
+      fruta: nombreFruta,
+      precios
     });
     
   } catch (err) {
     console.error("❌ Error en actualización global:", err);
-    res.status(500).json({ 
-      error: "Error interno al actualizar precios globalmente",
-      detalles: err.message 
-    });
+    res.status(500).json({ error: "Error al actualizar: " + err.message });
   }
 });
 
@@ -394,97 +404,66 @@ router.get("/fruta-con-frecuencia/:frutaId", async (req, res) => {
 });
 
 // ✅ GET /precios/todos-los-precios-con-frecuencia - RUTA CORREGIDA
+// En /todos-los-precios-con-frecuencia
 router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
   const { usuario, adminAlias } = req.query;
   
-  console.log(`📊 Consultando todos los precios con frecuencia para usuario: ${usuario || adminAlias}`);
-  
   try {
-    // 🔥 CONSULTA MEJORADA: SOLO filtrar por usuario específico (sin fallbacks de compatibilidad)
-    const filtros = {};
-    
-    if (usuario || adminAlias) {
-      const usuarioActual = adminAlias || usuario;
-      filtros.$or = [
-        { adminAlias: usuarioActual },
-        { usuario: usuarioActual }
-      ];
-      
-      console.log(`🔒 Aplicando filtro ESTRICTO para usuario: ${usuarioActual}`);
-    }
-    
-    console.log("🔍 Filtros aplicados:", JSON.stringify(filtros, null, 2));
+    const usuarioActual = adminAlias || usuario;
+    const filtros = {
+      $or: [
+        { usuario: usuarioActual },
+        { adminAlias: usuarioActual }
+      ]
+    };
     
     const precios = await PrecioFruta.find(filtros).lean();
-    console.log(`🔍 Encontrados ${precios.length} registros de precios totales`);
-
-    if (precios.length === 0) {
-      console.log("⚠️ No se encontraron registros de precios para el usuario");
-      return res.status(200).json([]);
-    }
-
-    // ✅ DEBUG: Mostrar algunos documentos encontrados
-    console.log("📋 Primeros 3 documentos encontrados:");
-    precios.slice(0, 3).forEach((doc, index) => {
-      console.log(`  ${index + 1}. FincaId: ${doc.fincaId}, Usuario: ${doc.usuario}, AdminAlias: ${doc.adminAlias}, Frutas: ${doc.frutas?.length || 0}`);
-    });
-
-    // Agrupar todas las frutas por nombre
-    const frutasPorNombre = {};
-    let totalFrutasEncontradas = 0;
     
-    precios.forEach(precio => {
-      if (precio.frutas && Array.isArray(precio.frutas)) {
-        precio.frutas.forEach(fruta => {
-          totalFrutasEncontradas++;
-          const nombreLower = fruta.nombre.toLowerCase();
-          if (!frutasPorNombre[nombreLower]) {
-            frutasPorNombre[nombreLower] = {
-              _id: fruta._id,
-              nombre: fruta.nombre,
-              precios: []
-            };
-          }
-          frutasPorNombre[nombreLower].precios.push(fruta.precios || { primera: 0, segunda: 0, tercera: 0 });
+    // Agrupar por nombre de fruta ignorando mayúsculas/minúsculas
+    const frutasAgrupadas = {};
+    
+    precios.forEach(doc => {
+      doc.frutas.forEach(fruta => {
+        const nombreNormalizado = fruta.nombre.toLowerCase().trim();
+        
+        if (!frutasAgrupadas[nombreNormalizado]) {
+          frutasAgrupadas[nombreNormalizado] = {
+            ids: [fruta._id.toString()],
+            nombre: fruta.nombre,
+            precios: [],
+            documentos: []
+          };
+        }
+        
+        frutasAgrupadas[nombreNormalizado].precios.push(fruta.precios);
+        frutasAgrupadas[nombreNormalizado].documentos.push({
+          fincaId: doc.fincaId,
+          docId: doc._id
         });
-      }
+      });
     });
-
-    console.log(`🍎 Total de frutas individuales encontradas: ${totalFrutasEncontradas}`);
-    console.log(`🏷️ Frutas únicas agrupadas: ${Object.keys(frutasPorNombre).length}`);
-
-    // Calcular precio más frecuente para cada fruta
-    const frutasFinales = Object.values(frutasPorNombre).map(fruta => {
-      const precioMasFrecuente = {
-        primera: calcularPrecioMasFrecuente(fruta.precios.map(p => p.primera)),
-        segunda: calcularPrecioMasFrecuente(fruta.precios.map(p => p.segunda)),
-        tercera: calcularPrecioMasFrecuente(fruta.precios.map(p => p.tercera))
-      };
-
+    
+    // Calcular precios más frecuentes
+    const resultado = Object.values(frutasAgrupadas).map(grupo => {
       return {
-        _id: fruta._id,
-        nombre: fruta.nombre,
-        precios: precioMasFrecuente,
+        _id: grupo.ids[0], // Usar el primer ID como referencia
+        nombre: grupo.nombre,
+        ids: grupo.ids, // Todos los IDs de esta fruta
+        precios: {
+          primera: calcularPrecioMasFrecuente(grupo.precios.map(p => p.primera)),
+          segunda: calcularPrecioMasFrecuente(grupo.precios.map(p => p.segunda)),
+          tercera: calcularPrecioMasFrecuente(grupo.precios.map(p => p.tercera))
+        },
         estadisticas: {
-          totalVariaciones: fruta.precios.length
+          totalVariaciones: grupo.precios.length,
+          fincas: grupo.documentos.length
         }
       };
     });
-
-    console.log(`✅ Devolviendo ${frutasFinales.length} frutas únicas con precios frecuentes`);
     
-    // ✅ DEBUG: Mostrar las primeras frutas que se van a devolver
-    if (frutasFinales.length > 0) {
-      console.log("🎯 Primeras frutas a devolver:");
-      frutasFinales.slice(0, 3).forEach((fruta, index) => {
-        console.log(`  ${index + 1}. ${fruta.nombre} - Primera: ${fruta.precios.primera}, Variaciones: ${fruta.estadisticas.totalVariaciones}`);
-      });
-    }
-    
-    res.status(200).json(frutasFinales);
+    res.status(200).json(resultado);
   } catch (err) {
-    console.error("❌ Error al buscar precios con frecuencia:", err);
-    res.status(500).json({ error: "Error al buscar precios: " + err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
