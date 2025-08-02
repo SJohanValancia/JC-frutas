@@ -411,7 +411,7 @@
     </div>
 
     <div class="info-banner">
-      <strong>⚠️ IMPORTANTE:</strong> Los cambios realizados aquí se aplicarán a <strong>TODAS las fincas</strong> que tengan estas frutas.
+      <strong>⚠️ IMPORTANTE:</strong> Los cambios realizados aquí se aplicarán a <strong>TODAS TUS FINCAS</strong> que tengan estas frutas.
     </div>
 
     <div class="search-container">
@@ -439,7 +439,7 @@
       </div>
 
       <div class="advertencia-global">
-        ⚠️ Estos cambios se aplicarán en TODAS las fincas que tengan esta fruta
+        ⚠️ Estos cambios se aplicarán en TODAS TUS FINCAS que tengan esta fruta
       </div>
 
       <div class="precio-group">
@@ -519,13 +519,24 @@
         const frutasData = await apiFetch(endpoint);
         console.log("📊 Respuesta de la API:", frutasData);
         
-        todasLasFrutas = frutasData || [];
+        // ✅ VALIDACIÓN MEJORADA: Asegurar que todasLasFrutas sea siempre un array
+        if (Array.isArray(frutasData)) {
+          todasLasFrutas = frutasData;
+        } else if (frutasData && Array.isArray(frutasData.frutas)) {
+          todasLasFrutas = frutasData.frutas;
+        } else {
+          console.warn("⚠️ Respuesta de API no es un array, inicializando array vacío");
+          todasLasFrutas = [];
+        }
+        
         console.log(`✅ Cargadas ${todasLasFrutas.length} frutas únicas`);
         
         mostrarFrutas(todasLasFrutas);
         
       } catch (error) {
         console.error('❌ Error al cargar frutas:', error);
+        // ✅ MANEJO DE ERROR MEJORADO
+        todasLasFrutas = []; // Asegurar que sea un array vacío
         document.getElementById('loadingContainer').innerHTML = `
           <p style="color: #ff6b6b;">❌ Error al cargar las frutas</p>
           <p style="font-size: 0.9rem; opacity: 0.8;">${error.message}</p>
@@ -604,14 +615,20 @@
     async function abrirModalEdicion(frutaId, nombreFruta) {
       console.log(`✏️ Abriendo modal para fruta: ${nombreFruta} (ID: ${frutaId})`);
       
+      // ✅ VALIDACIÓN MEJORADA: Verificar que todasLasFrutas existe y es un array
+      if (!Array.isArray(todasLasFrutas)) {
+        console.error("❌ todasLasFrutas no es un array:", todasLasFrutas);
+        todasLasFrutas = [];
+      }
+      
       frutaActualEdicion = { _id: frutaId, nombre: nombreFruta };
       
       // Establecer nombre en el modal
       document.getElementById('modalFrutaNombre').textContent = nombreFruta;
       
       try {
-        // ✅ Buscar los precios actuales de la fruta
-        const fruta = todasLasFrutas.find(f => f._id === frutaId);
+        // ✅ Buscar los precios actuales de la fruta con validación
+        const fruta = todasLasFrutas.find(f => f && f._id === frutaId);
         
         if (fruta && fruta.precios) {
           console.log("📝 Precios actuales encontrados:", fruta.precios);
@@ -646,6 +663,7 @@
     async function guardarCambiosPrecios() {
       if (!frutaActualEdicion) {
         console.error("❌ No hay fruta seleccionada para edición");
+        alert('❌ Error: No hay fruta seleccionada para edición');
         return;
       }
 
@@ -698,31 +716,38 @@
           adminAlias: alias || usuario
         });
 
-        // ✅ Usar la ruta de actualización global
+        // ✅ Usar la ruta de actualización global CON FILTRO ESTRICTO
         const resultado = await apiFetch(`/precios/actualizar-global/${frutaActualEdicion._id}`, 'PUT', {
           precios: nuevosPrecios,
           usuario: usuario,
-          adminAlias: alias || usuario
+          adminAlias: alias || usuario,
+          // ✅ NUEVO: Añadir filtro explícito para solo actualizar fincas del usuario
+          filtrarPorUsuario: true
         });
 
         console.log("✅ Resultado de actualización:", resultado);
 
+        // ✅ Validar resultado antes de mostrar alert
+        const fincasActualizadas = resultado.fincasActualizadas || resultado.detalles?.fincasActualizadas || 0;
+
         alert(
           `✅ ¡Actualización completada!\n\n` +
-          `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} de tus fincas.\n\n` +
+          `Precios de "${frutaActualEdicion.nombre}" actualizados en ${fincasActualizadas} de tus fincas.\n\n` +
           `💎 Primera: $${precioPrimera.toLocaleString()}\n` +
           `✨ Segunda: $${precioSegunda.toLocaleString()}\n` +
           `⭐ Tercera: $${precioTercera.toLocaleString()}\n\n` +
-          `Todos los cambios se aplicaron correctamente.`
+          `${resultado.message || 'Todos los cambios se aplicaron correctamente.'}`
         );
         
         cerrarModal();
         
         // ✅ Actualizar la fruta en la lista local para mostrar los nuevos precios
-        const frutaIndex = todasLasFrutas.findIndex(f => f._id === frutaActualEdicion._id);
-        if (frutaIndex !== -1) {
-          todasLasFrutas[frutaIndex].precios = nuevosPrecios;
-          mostrarFrutas(todasLasFrutas); // Re-renderizar con los nuevos precios
+        if (Array.isArray(todasLasFrutas)) {
+          const frutaIndex = todasLasFrutas.findIndex(f => f && f._id === frutaActualEdicion._id);
+          if (frutaIndex !== -1) {
+            todasLasFrutas[frutaIndex].precios = nuevosPrecios;
+            mostrarFrutas(todasLasFrutas); // Re-renderizar con los nuevos precios
+          }
         }
         
       } catch (error) {
@@ -748,10 +773,13 @@
           if (terminoBusqueda === '') {
             mostrarFrutas(todasLasFrutas);
           } else {
-            const frutasFiltradas = todasLasFrutas.filter(fruta =>
-              fruta.nombre.toLowerCase().includes(terminoBusqueda)
-            );
-            mostrarFrutas(frutasFiltradas);
+            // ✅ VALIDACIÓN: Asegurar que todasLasFrutas es un array
+            if (Array.isArray(todasLasFrutas)) {
+              const frutasFiltradas = todasLasFrutas.filter(fruta =>
+                fruta && fruta.nombre && fruta.nombre.toLowerCase().includes(terminoBusqueda)
+              );
+              mostrarFrutas(frutasFiltradas);
+            }
           }
         }, 300);
       });

@@ -205,14 +205,15 @@ function calcularPrecioMasFrecuente(precios) {
   return precioMasFrecuente;
 }
 
-// 🔥 PUT /precios/actualizar-global/:frutaId - ACTUALIZACIÓN GLOBAL DE PRECIOS
+// 🔥 PUT /precios/actualizar-global/:frutaId - ACTUALIZACIÓN GLOBAL DE PRECIOS CORREGIDA
 router.put("/actualizar-global/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
-  const { precios, usuario, adminAlias } = req.body;
+  const { precios, usuario, adminAlias, filtrarPorUsuario } = req.body;
 
   console.log(`🌍 INICIANDO ACTUALIZACIÓN GLOBAL para fruta ${frutaId}`);
   console.log("📝 Nuevos precios:", precios);
   console.log("👤 Usuario:", usuario, "Admin:", adminAlias);
+  console.log("🔒 Filtrar por usuario:", filtrarPorUsuario);
 
   if (!precios || !usuario) {
     return res.status(400).json({ error: "Datos incompletos para actualización global" });
@@ -228,34 +229,55 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
   }
 
   try {
-    // ✅ Buscar TODAS las fincas que tengan esa fruta Y que pertenezcan al usuario/admin
+    // ✅ FILTROS MEJORADOS: Buscar TODAS las fincas que tengan esa fruta Y que pertenezcan ESTRICTAMENTE al usuario
     const filtrosBusqueda = {
       "frutas._id": frutaId
     };
 
-    // Solo filtrar por usuario si se proporciona adminAlias o usuario
-    if (adminAlias || usuario) {
-      filtrosBusqueda.$or = [
-        { adminAlias: adminAlias || usuario },
-        { usuario: usuario }
+    // ✅ CORRECCIÓN CRÍTICA: Filtro ESTRICTO por usuario (sin fallbacks de compatibilidad)
+    if (filtrarPorUsuario && (usuario || adminAlias)) {
+      const usuarioActual = adminAlias || usuario;
+      filtrosBusqueda.$and = [
+        {
+          $or: [
+            { usuario: usuarioActual },
+            { adminAlias: usuarioActual }
+          ]
+        }
       ];
+      
+      console.log(`🔒 FILTRO ESTRICTO aplicado para usuario: ${usuarioActual}`);
     }
 
-    console.log("🔍 Filtros de búsqueda:", JSON.stringify(filtrosBusqueda, null, 2));
+    console.log("🔍 Filtros de búsqueda aplicados:", JSON.stringify(filtrosBusqueda, null, 2));
 
     const fincasConFruta = await PrecioFruta.find(filtrosBusqueda);
     
     console.log(`🔍 Encontradas ${fincasConFruta.length} fincas con la fruta para actualizar`);
     
+    // ✅ DEBUG: Mostrar qué fincas se encontraron
+    if (fincasConFruta.length > 0) {
+      console.log("📋 Fincas encontradas:");
+      fincasConFruta.forEach((finca, index) => {
+        console.log(`  ${index + 1}. FincaId: ${finca.fincaId}, Usuario: ${finca.usuario}, AdminAlias: ${finca.adminAlias}`);
+      });
+    }
+    
     if (fincasConFruta.length === 0) {
       console.log("❌ No se encontraron fincas con esta fruta para el usuario");
       return res.status(404).json({ 
-        error: "No se encontraron fincas con esta fruta para el usuario actual" 
+        error: "No se encontraron fincas con esta fruta para el usuario actual",
+        detalles: {
+          frutaId: frutaId,
+          usuarioBuscado: adminAlias || usuario,
+          filtroAplicado: filtrosBusqueda
+        }
       });
     }
 
     let fincasActualizadas = 0;
     let erroresActualizacion = [];
+    let detallesActualizacion = [];
 
     // ✅ Actualizar cada finca que tenga esa fruta
     for (const finca of fincasConFruta) {
@@ -264,6 +286,9 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
         
         if (frutaIndex !== -1) {
           console.log(`📝 Actualizando fruta en finca: ${finca.fincaId || 'Base'}`);
+          
+          // ✅ GUARDAR PRECIOS ANTERIORES para el log
+          const preciosAnteriores = { ...finca.frutas[frutaIndex].precios };
           
           // Actualizar los precios de la fruta
           finca.frutas[frutaIndex].precios = {
@@ -279,7 +304,16 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
           await finca.save();
           fincasActualizadas++;
           
-          console.log(`✅ Finca actualizada: ${finca.fincaId || 'Base'} - Nuevos precios aplicados`);
+          // ✅ Guardar detalles de la actualización
+          detallesActualizacion.push({
+            fincaId: finca.fincaId,
+            preciosAnteriores: preciosAnteriores,
+            preciosNuevos: precios
+          });
+          
+          console.log(`✅ Finca actualizada: ${finca.fincaId || 'Base'} - Precios: ${preciosAnteriores.primera} → ${precios.primera} (Primera)`);
+        } else {
+          console.warn(`⚠️ Fruta con ID ${frutaId} no encontrada en finca ${finca.fincaId}`);
         }
       } catch (fincaError) {
         console.error(`❌ Error actualizando finca ${finca.fincaId}:`, fincaError);
@@ -290,23 +324,28 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
       }
     }
 
-    // Verificar si hubo errores
+    // ✅ Verificar si hubo errores
     if (erroresActualizacion.length > 0) {
       console.warn(`⚠️ Se encontraron ${erroresActualizacion.length} errores durante la actualización`);
     }
 
-    console.log(`🎉 ACTUALIZACIÓN GLOBAL COMPLETADA: ${fincasActualizadas} registros actualizados`);
+    console.log(`🎉 ACTUALIZACIÓN GLOBAL COMPLETADA: ${fincasActualizadas} de ${fincasConFruta.length} registros actualizados`);
     
+    // ✅ RESPUESTA MEJORADA con más detalles
     res.status(200).json({ 
       success: true,
-      message: `Precios actualizados globalmente en ${fincasActualizadas} finca(s)`,
+      message: `Precios actualizados globalmente en ${fincasActualizadas} finca(s) de tu propiedad`,
       fincasActualizadas: fincasActualizadas,
       preciosAplicados: precios,
       errores: erroresActualizacion.length > 0 ? erroresActualizacion : undefined,
       detalles: {
+        frutaId: frutaId,
+        usuarioSolicitante: usuario,
+        adminAlias: adminAlias,
         fincasEncontradas: fincasConFruta.length,
         fincasActualizadas: fincasActualizadas,
-        errores: erroresActualizacion.length
+        errores: erroresActualizacion.length,
+        actualizacionesDetalladas: detallesActualizacion
       }
     });
     
@@ -314,7 +353,9 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
     console.error("❌ Error crítico al actualizar precios globalmente:", err);
     res.status(500).json({ 
       error: "Error interno al actualizar precios globalmente",
-      detalles: err.message 
+      detalles: err.message,
+      frutaId: frutaId,
+      usuario: usuario
     });
   }
 });
@@ -378,14 +419,12 @@ router.get("/fruta-con-frecuencia/:frutaId", async (req, res) => {
       "frutas._id": frutaId
     };
     
-    // ✅ Filtrar por usuario solo si se proporciona
+    // ✅ Filtrar por usuario ESTRICTAMENTE
     if (usuario || adminAlias) {
+      const usuarioActual = adminAlias || usuario;
       filtros.$or = [
-        { adminAlias: adminAlias || usuario },
-        { usuario: usuario },
-        // ✅ FALLBACK: También buscar documentos sin estos campos (compatibilidad hacia atrás)
-        { usuario: { $exists: false } },
-        { adminAlias: { $exists: false } }
+        { adminAlias: usuarioActual },
+        { usuario: usuarioActual }
       ];
     }
     
@@ -446,17 +485,17 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
   console.log(`📊 Consultando todos los precios con frecuencia para usuario: ${usuario || adminAlias}`);
   
   try {
-    // 🔥 CONSULTA MEJORADA: Incluir compatibilidad hacia atrás
+    // 🔥 CONSULTA MEJORADA: SOLO filtrar por usuario específico (sin fallbacks de compatibilidad)
     const filtros = {};
     
     if (usuario || adminAlias) {
+      const usuarioActual = adminAlias || usuario;
       filtros.$or = [
-        { adminAlias: adminAlias || usuario },
-        { usuario: usuario },
-        // ✅ FALLBACK: También buscar documentos antiguos sin estos campos
-        { usuario: { $exists: false } },
-        { adminAlias: { $exists: false } }
+        { adminAlias: usuarioActual },
+        { usuario: usuarioActual }
       ];
+      
+      console.log(`🔒 Aplicando filtro ESTRICTO para usuario: ${usuarioActual}`);
     }
     
     console.log("🔍 Filtros aplicados:", JSON.stringify(filtros, null, 2));
@@ -465,7 +504,7 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
     console.log(`🔍 Encontrados ${precios.length} registros de precios totales`);
 
     if (precios.length === 0) {
-      console.log("⚠️ No se encontraron registros de precios");
+      console.log("⚠️ No se encontraron registros de precios para el usuario");
       return res.status(200).json([]);
     }
 
@@ -523,7 +562,7 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
     if (frutasFinales.length > 0) {
       console.log("🎯 Primeras frutas a devolver:");
       frutasFinales.slice(0, 3).forEach((fruta, index) => {
-        console.log(`  ${index + 1}. ${fruta.nombre} - Primera: $${fruta.precios.primera}, Variaciones: ${fruta.estadisticas.totalVariaciones}`);
+        console.log(`  ${index + 1}. ${fruta.nombre} - Primera: ${fruta.precios.primera}, Variaciones: ${fruta.estadisticas.totalVariaciones}`);
       });
     }
     
@@ -543,14 +582,12 @@ router.get("/verificar-estructura", async (req, res) => {
     
     const todosLosPrecios = await PrecioFruta.find({}).lean();
     
-    // Filtrar por usuario si se proporciona
+    // ✅ FILTRO MEJORADO: Solo mostrar datos del usuario específico
     let preciosUsuario = [];
     if (usuario) {
       preciosUsuario = todosLosPrecios.filter(p => 
         p.usuario === usuario || 
-        p.adminAlias === usuario ||
-        !p.usuario || // Documentos sin campo usuario
-        !p.adminAlias  // Documentos sin campo adminAlias
+        p.adminAlias === usuario
       );
     }
     
@@ -668,6 +705,49 @@ router.post("/migrar-datos-usuario", async (req, res) => {
       error: "Error durante la migración", 
       detalles: err.message 
     });
+  }
+});
+
+// 🔥 NUEVA RUTA: GET /precios/contar-fincas-con-fruta/:frutaId - Contar cuántas fincas tienen una fruta específica
+router.get("/contar-fincas-con-fruta/:frutaId", async (req, res) => {
+  const frutaId = req.params.frutaId;
+  const { usuario, adminAlias } = req.query;
+  
+  console.log(`🔢 Contando fincas con fruta ${frutaId} para usuario: ${usuario || adminAlias}`);
+  
+  try {
+    const filtros = {
+      "frutas._id": frutaId
+    };
+    
+    // Filtrar por usuario si se proporciona
+    if (usuario || adminAlias) {
+      const usuarioActual = adminAlias || usuario;
+      filtros.$or = [
+        { usuario: usuarioActual },
+        { adminAlias: usuarioActual }
+      ];
+    }
+    
+    const fincasConFruta = await PrecioFruta.find(filtros).lean();
+    
+    const resultado = {
+      frutaId: frutaId,
+      totalFincas: fincasConFruta.length,
+      fincas: fincasConFruta.map(finca => ({
+        fincaId: finca.fincaId,
+        usuario: finca.usuario,
+        adminAlias: finca.adminAlias,
+        fecha: finca.fecha
+      }))
+    };
+    
+    console.log(`📊 Resultado: ${resultado.totalFincas} fincas tienen la fruta ${frutaId}`);
+    
+    res.status(200).json(resultado);
+  } catch (err) {
+    console.error("❌ Error al contar fincas:", err);
+    res.status(500).json({ error: "Error al contar fincas: " + err.message });
   }
 });
 
