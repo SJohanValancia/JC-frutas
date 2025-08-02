@@ -342,21 +342,29 @@ router.get("/fruta-con-frecuencia/:frutaId", async (req, res) => {
   const { usuario, adminAlias } = req.query;
   
   console.log(`📊 Consultando precios con frecuencia para fruta ${frutaId}`);
+  console.log(`👤 Filtros: usuario=${usuario}, adminAlias=${adminAlias}`);
   
   try {
-    // Buscar todas las fincas que tengan esa fruta y pertenezcan al usuario
+    // 🔥 CONSULTA MEJORADA: Buscar todas las fincas que tengan esa fruta
     const filtros = {
       "frutas._id": frutaId
     };
     
+    // ✅ Filtrar por usuario solo si se proporciona
     if (usuario || adminAlias) {
       filtros.$or = [
         { adminAlias: adminAlias || usuario },
-        { usuario: usuario }
+        { usuario: usuario },
+        // ✅ FALLBACK: También buscar documentos sin estos campos (compatibilidad hacia atrás)
+        { usuario: { $exists: false } },
+        { adminAlias: { $exists: false } }
       ];
     }
     
+    console.log("🔍 Filtros aplicados:", JSON.stringify(filtros, null, 2));
+    
     const fincasConFruta = await PrecioFruta.find(filtros).lean();
+    console.log(`📊 Documentos encontrados: ${fincasConFruta.length}`);
     
     if (fincasConFruta.length === 0) {
       return res.status(404).json({ error: "Fruta no encontrada en las fincas del usuario" });
@@ -403,36 +411,50 @@ router.get("/fruta-con-frecuencia/:frutaId", async (req, res) => {
   }
 });
 
-// ✅ GET /precios/todos-los-precios-con-frecuencia - Obtener todos los precios con frecuencias
+// ✅ GET /precios/todos-los-precios-con-frecuencia - RUTA CORREGIDA
 router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
   const { usuario, adminAlias } = req.query;
   
   console.log(`📊 Consultando todos los precios con frecuencia para usuario: ${usuario || adminAlias}`);
   
   try {
-    // Filtrar solo las fincas del usuario/admin
+    // 🔥 CONSULTA MEJORADA: Incluir compatibilidad hacia atrás
     const filtros = {};
     
     if (usuario || adminAlias) {
       filtros.$or = [
         { adminAlias: adminAlias || usuario },
-        { usuario: usuario }
+        { usuario: usuario },
+        // ✅ FALLBACK: También buscar documentos antiguos sin estos campos
+        { usuario: { $exists: false } },
+        { adminAlias: { $exists: false } }
       ];
     }
     
+    console.log("🔍 Filtros aplicados:", JSON.stringify(filtros, null, 2));
+    
     const precios = await PrecioFruta.find(filtros).lean();
-    console.log(`🔍 Encontrados ${precios.length} registros de precios para el usuario`);
+    console.log(`🔍 Encontrados ${precios.length} registros de precios totales`);
 
     if (precios.length === 0) {
+      console.log("⚠️ No se encontraron registros de precios");
       return res.status(200).json([]);
     }
 
+    // ✅ DEBUG: Mostrar algunos documentos encontrados
+    console.log("📋 Primeros 3 documentos encontrados:");
+    precios.slice(0, 3).forEach((doc, index) => {
+      console.log(`  ${index + 1}. FincaId: ${doc.fincaId}, Usuario: ${doc.usuario}, AdminAlias: ${doc.adminAlias}, Frutas: ${doc.frutas?.length || 0}`);
+    });
+
     // Agrupar todas las frutas por nombre
     const frutasPorNombre = {};
+    let totalFrutasEncontradas = 0;
     
     precios.forEach(precio => {
       if (precio.frutas && Array.isArray(precio.frutas)) {
         precio.frutas.forEach(fruta => {
+          totalFrutasEncontradas++;
           const nombreLower = fruta.nombre.toLowerCase();
           if (!frutasPorNombre[nombreLower]) {
             frutasPorNombre[nombreLower] = {
@@ -445,6 +467,9 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
         });
       }
     });
+
+    console.log(`🍎 Total de frutas individuales encontradas: ${totalFrutasEncontradas}`);
+    console.log(`🏷️ Frutas únicas agrupadas: ${Object.keys(frutasPorNombre).length}`);
 
     // Calcular precio más frecuente para cada fruta
     const frutasFinales = Object.values(frutasPorNombre).map(fruta => {
@@ -465,6 +490,15 @@ router.get("/todos-los-precios-con-frecuencia", async (req, res) => {
     });
 
     console.log(`✅ Devolviendo ${frutasFinales.length} frutas únicas con precios frecuentes`);
+    
+    // ✅ DEBUG: Mostrar las primeras frutas que se van a devolver
+    if (frutasFinales.length > 0) {
+      console.log("🎯 Primeras frutas a devolver:");
+      frutasFinales.slice(0, 3).forEach((fruta, index) => {
+        console.log(`  ${index + 1}. ${fruta.nombre} - Primera: $${fruta.precios.primera}, Variaciones: ${fruta.estadisticas.totalVariaciones}`);
+      });
+    }
+    
     res.status(200).json(frutasFinales);
   } catch (err) {
     console.error("❌ Error al buscar precios con frecuencia:", err);
@@ -497,23 +531,56 @@ function calcularPrecioMasFrecuente(precios) {
   return precioMasFrecuente;
 }
 
-// 🔥 GET /precios/verificar-estructura - Ruta de diagnóstico (opcional, para debug)
+// 🔥 GET /precios/verificar-estructura - Ruta de diagnóstico mejorada
 router.get("/verificar-estructura", async (req, res) => {
   try {
+    const { usuario } = req.query;
+    
+    console.log(`🔧 DIAGNÓSTICO para usuario: ${usuario}`);
+    
     const todosLosPrecios = await PrecioFruta.find({}).lean();
     
+    // Filtrar por usuario si se proporciona
+    let preciosUsuario = [];
+    if (usuario) {
+      preciosUsuario = todosLosPrecios.filter(p => 
+        p.usuario === usuario || 
+        p.adminAlias === usuario ||
+        !p.usuario || // Documentos sin campo usuario
+        !p.adminAlias  // Documentos sin campo adminAlias
+      );
+    }
+    
     const diagnostico = {
-      totalRegistros: todosLosPrecios.length,
+      totalRegistrosGlobal: todosLosPrecios.length,
+      registrosDelUsuario: usuario ? preciosUsuario.length : 'No especificado',
       registrosPorTipo: {
         conFincaId: todosLosPrecios.filter(p => p.fincaId !== null).length,
-        sinFincaId: todosLosPrecios.filter(p => p.fincaId === null).length
+        sinFincaId: todosLosPrecios.filter(p => p.fincaId === null).length,
+        conUsuario: todosLosPrecios.filter(p => p.usuario).length,
+        sinUsuario: todosLosPrecios.filter(p => !p.usuario).length,
+        conAdminAlias: todosLosPrecios.filter(p => p.adminAlias).length,
+        sinAdminAlias: todosLosPrecios.filter(p => !p.adminAlias).length
       },
       frutasTotales: 0,
       ejemploEstructura: todosLosPrecios.length > 0 ? {
         _id: todosLosPrecios[0]._id,
         fincaId: todosLosPrecios[0].fincaId,
+        usuario: todosLosPrecios[0].usuario || 'NO DEFINIDO',
+        adminAlias: todosLosPrecios[0].adminAlias || 'NO DEFINIDO',
         totalFrutas: todosLosPrecios[0].frutas?.length || 0,
         primeraFruta: todosLosPrecios[0].frutas?.[0] || null
+      } : null,
+      // ✅ Información específica del usuario consultado
+      infoUsuario: usuario ? {
+        registrosEncontrados: preciosUsuario.length,
+        fincasDelUsuario: preciosUsuario.map(p => ({
+          fincaId: p.fincaId,
+          usuario: p.usuario,
+          adminAlias: p.adminAlias,
+          totalFrutas: p.frutas?.length || 0,
+          fecha: p.fecha
+        }))
       } : null
     };
     
@@ -524,10 +591,80 @@ router.get("/verificar-estructura", async (req, res) => {
       }
     });
     
+    console.log("🔧 Diagnóstico completado:", JSON.stringify(diagnostico, null, 2));
+    
     res.status(200).json(diagnostico);
   } catch (err) {
     console.error("Error en diagnóstico:", err);
     res.status(500).json({ error: "Error en diagnóstico: " + err.message });
+  }
+});
+
+// 🔥 NUEVA RUTA: POST /precios/migrar-datos-usuario - Migrar datos antiguos sin usuario
+router.post("/migrar-datos-usuario", async (req, res) => {
+  const { usuario, adminAlias } = req.body;
+  
+  if (!usuario) {
+    return res.status(400).json({ error: "Usuario requerido para migración" });
+  }
+  
+  console.log(`🔄 INICIANDO MIGRACIÓN de datos sin usuario para: ${usuario}`);
+  
+  try {
+    // Buscar documentos que no tengan campos usuario o adminAlias
+    const documentosSinUsuario = await PrecioFruta.find({
+      $or: [
+        { usuario: { $exists: false } },
+        { adminAlias: { $exists: false } },
+        { usuario: null },
+        { adminAlias: null }
+      ]
+    });
+    
+    console.log(`📊 Encontrados ${documentosSinUsuario.length} documentos para migrar`);
+    
+    if (documentosSinUsuario.length === 0) {
+      return res.status(200).json({
+        message: "No hay documentos que necesiten migración",
+        documentosMigrados: 0
+      });
+    }
+    
+    let documentosMigrados = 0;
+    
+    // Actualizar cada documento
+    for (const doc of documentosSinUsuario) {
+      try {
+        doc.usuario = usuario;
+        doc.adminAlias = adminAlias || usuario;
+        doc.fecha = doc.fecha || new Date();
+        
+        await doc.save();
+        documentosMigrados++;
+        
+        console.log(`✅ Documento migrado: ${doc._id} (FincaId: ${doc.fincaId})`);
+      } catch (docError) {
+        console.error(`❌ Error migrando documento ${doc._id}:`, docError);
+      }
+    }
+    
+    console.log(`🎉 MIGRACIÓN COMPLETADA: ${documentosMigrados} documentos actualizados`);
+    
+    res.status(200).json({
+      success: true,
+      message: `Migración completada exitosamente`,
+      documentosEncontrados: documentosSinUsuario.length,
+      documentosMigrados: documentosMigrados,
+      usuarioAsignado: usuario,
+      adminAliasAsignado: adminAlias || usuario
+    });
+    
+  } catch (err) {
+    console.error("❌ Error en migración:", err);
+    res.status(500).json({ 
+      error: "Error durante la migración", 
+      detalles: err.message 
+    });
   }
 });
 

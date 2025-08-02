@@ -470,6 +470,10 @@
     const usuario = urlParams.get("usuario");
     const alias = urlParams.get("alias");
 
+    console.log("🔍 Parámetros URL detectados:");
+    console.log("Usuario:", usuario);
+    console.log("Alias:", alias);
+
     // Variables globales
     let todasLasFrutas = [];
     let frutaActualEdicion = null;
@@ -483,29 +487,53 @@
       
       if (data) config.body = JSON.stringify(data);
       
+      console.log(`🌐 API Call: ${method} ${endpoint}`);
+      if (data) console.log("📝 Data:", data);
+      
       const response = await fetch(`https://jc-frutas.onrender.com${endpoint}`, config);
-      if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ API Error ${response.status}:`, errorText);
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
       return response.json();
     }
 
-    // ✅ Cargar todas las frutas con precios más frecuentes
-async function cargarTodasLasFrutas() {
-  try {
-    // ✅ Enviar parámetros de usuario para filtrar solo sus fincas
-    const endpoint = `/precios/todos-los-precios-con-frecuencia?usuario=${encodeURIComponent(usuario)}&adminAlias=${encodeURIComponent(alias || usuario)}`;
-    const frutasData = await apiFetch(endpoint);
-    
-    todasLasFrutas = frutasData;
-    mostrarFrutas(todasLasFrutas);
-    
-  } catch (error) {
-    console.error('Error al cargar frutas:', error);
-    document.getElementById('loadingContainer').innerHTML = `
-      <p style="color: #ff6b6b;">❌ Error al cargar las frutas</p>
-      <p style="font-size: 0.9rem; opacity: 0.8;">Por favor, recarga la página</p>
-    `;
-  }
-}
+    // ✅ FUNCIÓN CORREGIDA: Cargar todas las frutas del usuario
+    async function cargarTodasLasFrutas() {
+      try {
+        console.log("📥 Iniciando carga de frutas para usuario:", usuario);
+        
+        if (!usuario) {
+          throw new Error("Usuario no definido en los parámetros de URL");
+        }
+
+        // ✅ Construir endpoint con parámetros correctos
+        let endpoint = `/precios/todos-los-precios-con-frecuencia?usuario=${encodeURIComponent(usuario)}`;
+        if (alias && alias !== usuario) {
+          endpoint += `&adminAlias=${encodeURIComponent(alias)}`;
+        }
+        
+        console.log("🔗 Endpoint construido:", endpoint);
+        
+        const frutasData = await apiFetch(endpoint);
+        console.log("📊 Respuesta de la API:", frutasData);
+        
+        todasLasFrutas = frutasData || [];
+        console.log(`✅ Cargadas ${todasLasFrutas.length} frutas únicas`);
+        
+        mostrarFrutas(todasLasFrutas);
+        
+      } catch (error) {
+        console.error('❌ Error al cargar frutas:', error);
+        document.getElementById('loadingContainer').innerHTML = `
+          <p style="color: #ff6b6b;">❌ Error al cargar las frutas</p>
+          <p style="font-size: 0.9rem; opacity: 0.8;">${error.message}</p>
+          <button onclick="cargarTodasLasFrutas()" style="margin-top: 10px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">🔄 Reintentar</button>
+        `;
+      }
+    }
+
     // ✅ Mostrar frutas con precios más frecuentes
     function mostrarFrutas(frutas) {
       const loadingContainer = document.getElementById('loadingContainer');
@@ -514,9 +542,16 @@ async function cargarTodasLasFrutas() {
 
       loadingContainer.style.display = 'none';
       
+      console.log(`🎨 Mostrando ${frutas.length} frutas`);
+      
       if (frutas.length === 0) {
         frutasGrid.style.display = 'none';
         noResults.style.display = 'block';
+        noResults.innerHTML = `
+          🚫 No se encontraron frutas para este usuario<br>
+          <small style="opacity: 0.7;">Usuario: ${usuario || 'No definido'}</small><br>
+          <small style="opacity: 0.7;">Alias: ${alias || 'No definido'}</small>
+        `;
         return;
       }
 
@@ -554,7 +589,7 @@ async function cargarTodasLasFrutas() {
             </div>
           </div>
           <div class="estadisticas">
-            📊 Precio más común de ${fruta.estadisticas?.totalVariaciones || 1} finca(s)
+            📊 Precio más común de ${fruta.estadisticas?.totalVariaciones || 1} registro(s)
           </div>
           <button class="editar-btn" onclick="abrirModalEdicion('${fruta._id}', '${fruta.nombre}')">
             🌍 Actualizar Globalmente
@@ -565,37 +600,41 @@ async function cargarTodasLasFrutas() {
       });
     }
 
-    // ✅ Abrir modal de edición con precios más frecuentes
-async function abrirModalEdicion(frutaId, nombreFruta) {
-  frutaActualEdicion = { _id: frutaId, nombre: nombreFruta };
-  
-  // Establecer nombre en el modal
-  document.getElementById('modalFrutaNombre').textContent = nombreFruta;
-  
-  try {
-    // ✅ Cargar precios con frecuencia solo del usuario actual
-    const endpoint = `/precios/fruta-con-frecuencia/${frutaId}?usuario=${encodeURIComponent(usuario)}&adminAlias=${encodeURIComponent(alias || usuario)}`;
-    const frutaConPrecios = await apiFetch(endpoint);
-    
-    if (frutaConPrecios && frutaConPrecios.precios) {
-      document.getElementById('precioPrimera').value = frutaConPrecios.precios.primera;
-      document.getElementById('precioSegunda').value = frutaConPrecios.precios.segunda;
-      document.getElementById('precioTercera').value = frutaConPrecios.precios.tercera;
+    // ✅ FUNCIÓN CORREGIDA: Abrir modal de edición
+    async function abrirModalEdicion(frutaId, nombreFruta) {
+      console.log(`✏️ Abriendo modal para fruta: ${nombreFruta} (ID: ${frutaId})`);
+      
+      frutaActualEdicion = { _id: frutaId, nombre: nombreFruta };
+      
+      // Establecer nombre en el modal
+      document.getElementById('modalFrutaNombre').textContent = nombreFruta;
+      
+      try {
+        // ✅ Buscar los precios actuales de la fruta
+        const fruta = todasLasFrutas.find(f => f._id === frutaId);
+        
+        if (fruta && fruta.precios) {
+          console.log("📝 Precios actuales encontrados:", fruta.precios);
+          document.getElementById('precioPrimera').value = fruta.precios.primera || 0;
+          document.getElementById('precioSegunda').value = fruta.precios.segunda || 0;
+          document.getElementById('precioTercera').value = fruta.precios.tercera || 0;
+        } else {
+          console.log("⚠️ No se encontraron precios para la fruta, usando valores por defecto");
+          document.getElementById('precioPrimera').value = 0;
+          document.getElementById('precioSegunda').value = 0;
+          document.getElementById('precioTercera').value = 0;
+        }
+      } catch (error) {
+        console.error('❌ Error al cargar precios actuales:', error);
+        // Usar valores por defecto si hay error
+        document.getElementById('precioPrimera').value = 0;
+        document.getElementById('precioSegunda').value = 0;
+        document.getElementById('precioTercera').value = 0;
+      }
+      
+      // Mostrar modal
+      document.getElementById('editModal').classList.add('active');
     }
-  } catch (error) {
-    console.error('Error al cargar precios actuales:', error);
-    // Si no se pueden cargar los precios actuales, usar los de la vista
-    const fruta = todasLasFrutas.find(f => f._id === frutaId);
-    if (fruta && fruta.precios) {
-      document.getElementById('precioPrimera').value = fruta.precios.primera;
-      document.getElementById('precioSegunda').value = fruta.precios.segunda;
-      document.getElementById('precioTercera').value = fruta.precios.tercera;
-    }
-  }
-  
-  // Mostrar modal
-  document.getElementById('editModal').classList.add('active');
-}
 
     // Cerrar modal
     function cerrarModal() {
@@ -603,77 +642,99 @@ async function abrirModalEdicion(frutaId, nombreFruta) {
       frutaActualEdicion = null;
     }
 
-async function guardarCambiosPrecios() {
-  if (!frutaActualEdicion) return;
+    // ✅ FUNCIÓN CORREGIDA: Guardar cambios de precios globalmente
+    async function guardarCambiosPrecios() {
+      if (!frutaActualEdicion) {
+        console.error("❌ No hay fruta seleccionada para edición");
+        return;
+      }
 
-  const precioPrimera = parseFloat(document.getElementById('precioPrimera').value);
-  const precioSegunda = parseFloat(document.getElementById('precioSegunda').value);
-  const precioTercera = parseFloat(document.getElementById('precioTercera').value);
+      const precioPrimera = parseFloat(document.getElementById('precioPrimera').value);
+      const precioSegunda = parseFloat(document.getElementById('precioSegunda').value);
+      const precioTercera = parseFloat(document.getElementById('precioTercera').value);
 
-  // Validar que los precios sean válidos
-  if (isNaN(precioPrimera) || isNaN(precioSegunda) || isNaN(precioTercera)) {
-    alert('❌ Por favor, ingresa precios válidos para todas las calidades');
-    return;
-  }
+      console.log("💰 Precios a guardar:", { precioPrimera, precioSegunda, precioTercera });
 
-  if (precioPrimera < 0 || precioSegunda < 0 || precioTercera < 0) {
-    alert('❌ Los precios no pueden ser negativos');
-    return;
-  }
+      // Validar que los precios sean válidos
+      if (isNaN(precioPrimera) || isNaN(precioSegunda) || isNaN(precioTercera)) {
+        alert('❌ Por favor, ingresa precios válidos para todas las calidades');
+        return;
+      }
 
-  // ✅ Confirmación personalizada para el usuario
-  const confirmacion = confirm(
-    `⚠️ CONFIRMACIÓN DE ACTUALIZACIÓN GLOBAL\n\n` +
-    `Estás a punto de actualizar los precios de "${frutaActualEdicion.nombre}" en TODAS TUS FINCAS:\n\n` +
-    `💎 Primera: $${precioPrimera.toLocaleString()}\n` +
-    `✨ Segunda: $${precioSegunda.toLocaleString()}\n` +
-    `⭐ Tercera: $${precioTercera.toLocaleString()}\n\n` +
-    `Solo se actualizarán las fincas que te pertenecen.\n\n` +
-    `¿Estás seguro de continuar?`
-  );
+      if (precioPrimera < 0 || precioSegunda < 0 || precioTercera < 0) {
+        alert('❌ Los precios no pueden ser negativos');
+        return;
+      }
 
-  if (!confirmacion) return;
+      // ✅ Confirmación personalizada para el usuario
+      const confirmacion = confirm(
+        `⚠️ CONFIRMACIÓN DE ACTUALIZACIÓN GLOBAL\n\n` +
+        `Estás a punto de actualizar los precios de "${frutaActualEdicion.nombre}" en TODAS TUS FINCAS:\n\n` +
+        `💎 Primera: $${precioPrimera.toLocaleString()}\n` +
+        `✨ Segunda: $${precioSegunda.toLocaleString()}\n` +
+        `⭐ Tercera: $${precioTercera.toLocaleString()}\n\n` +
+        `Solo se actualizarán las fincas que te pertenecen.\n\n` +
+        `¿Estás seguro de continuar?`
+      );
 
-  const btnGuardar = document.getElementById('guardarCambios');
-  const textoOriginal = btnGuardar.textContent;
-  btnGuardar.textContent = '⏳ Actualizando en tus fincas...';
-  btnGuardar.disabled = true;
+      if (!confirmacion) return;
 
-  try {
-    const nuevosPrecios = {
-      primera: precioPrimera,
-      segunda: precioSegunda,
-      tercera: precioTercera
-    };
+      const btnGuardar = document.getElementById('guardarCambios');
+      const textoOriginal = btnGuardar.textContent;
+      btnGuardar.textContent = '⏳ Actualizando en tus fincas...';
+      btnGuardar.disabled = true;
 
-    // ✅ Usar la ruta modificada que filtra por usuario
-    const resultado = await apiFetch(`/precios/actualizar-global/${frutaActualEdicion._id}`, 'PUT', {
-      precios: nuevosPrecios,
-      usuario: usuario,
-      adminAlias: alias || usuario
-    });
+      try {
+        const nuevosPrecios = {
+          primera: precioPrimera,
+          segunda: precioSegunda,
+          tercera: precioTercera
+        };
 
-    alert(
-      `✅ ¡Actualización completada!\n\n` +
-      `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} de tus fincas.\n\n` +
-      `Todos los cambios se aplicaron correctamente.`
-    );
-    
-    cerrarModal();
-    
-    // Recargar frutas para mostrar los nuevos precios
-    cargarTodasLasFrutas();
-    
-  } catch (error) {
-    console.error('Error al guardar precios:', error);
-    alert('❌ Error al actualizar los precios en tus fincas. Por favor, inténtalo de nuevo.');
-  } finally {
-    btnGuardar.textContent = textoOriginal;
-    btnGuardar.disabled = false;
-  }
-}
+        console.log("🌍 Iniciando actualización global para fruta:", frutaActualEdicion._id);
+        console.log("📝 Datos a enviar:", {
+          precios: nuevosPrecios,
+          usuario: usuario,
+          adminAlias: alias || usuario
+        });
 
-// Búsqueda de frutas
+        // ✅ Usar la ruta de actualización global
+        const resultado = await apiFetch(`/precios/actualizar-global/${frutaActualEdicion._id}`, 'PUT', {
+          precios: nuevosPrecios,
+          usuario: usuario,
+          adminAlias: alias || usuario
+        });
+
+        console.log("✅ Resultado de actualización:", resultado);
+
+        alert(
+          `✅ ¡Actualización completada!\n\n` +
+          `Precios de "${frutaActualEdicion.nombre}" actualizados en ${resultado.fincasActualizadas} de tus fincas.\n\n` +
+          `💎 Primera: $${precioPrimera.toLocaleString()}\n` +
+          `✨ Segunda: $${precioSegunda.toLocaleString()}\n` +
+          `⭐ Tercera: $${precioTercera.toLocaleString()}\n\n` +
+          `Todos los cambios se aplicaron correctamente.`
+        );
+        
+        cerrarModal();
+        
+        // ✅ Actualizar la fruta en la lista local para mostrar los nuevos precios
+        const frutaIndex = todasLasFrutas.findIndex(f => f._id === frutaActualEdicion._id);
+        if (frutaIndex !== -1) {
+          todasLasFrutas[frutaIndex].precios = nuevosPrecios;
+          mostrarFrutas(todasLasFrutas); // Re-renderizar con los nuevos precios
+        }
+        
+      } catch (error) {
+        console.error('❌ Error al guardar precios:', error);
+        alert(`❌ Error al actualizar los precios en tus fincas:\n\n${error.message}\n\nPor favor, inténtalo de nuevo.`);
+      } finally {
+        btnGuardar.textContent = textoOriginal;
+        btnGuardar.disabled = false;
+      }
+    }
+
+    // Búsqueda de frutas
     function configurarBusqueda() {
       const searchInput = document.getElementById('searchInput');
       let timeoutBusqueda;
@@ -702,11 +763,24 @@ async function guardarCambiosPrecios() {
       if (alias) {
         dashboardUrl += `&alias=${encodeURIComponent(alias)}`;
       }
+      console.log("🔙 Volviendo al dashboard:", dashboardUrl);
       window.location.href = dashboardUrl;
     }
 
     // Event listeners
     document.addEventListener('DOMContentLoaded', () => {
+      console.log("🚀 Página cargada, iniciando configuración...");
+      
+      // Verificar parámetros esenciales
+      if (!usuario) {
+        document.getElementById('loadingContainer').innerHTML = `
+          <p style="color: #ff6b6b;">❌ Error: Usuario no definido</p>
+          <p style="font-size: 0.9rem; opacity: 0.8;">Esta página requiere un parámetro 'usuario' en la URL</p>
+          <button onclick="history.back()" style="margin-top: 10px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">← Volver</button>
+        `;
+        return;
+      }
+      
       // Configurar modal
       document.getElementById('guardarCambios').addEventListener('click', guardarCambiosPrecios);
       document.getElementById('cancelarEdicion').addEventListener('click', cerrarModal);
