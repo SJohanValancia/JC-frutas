@@ -8,6 +8,9 @@ const authRoutes = require("./routes/auth");
 const fincaRoutes = require("./routes/fincas");
 const precioRoutes = require("./routes/precios");
 const recogidaRoutes = require("./routes/recogidas");
+// 🔥 AGREGAR: Importar las rutas de notas
+const notaRoutes = require("./routes/nota");
+
 require("dotenv").config();
 
 const app = express();
@@ -47,10 +50,14 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Conectado a MongoDB"))
   .catch(err => console.error("❌ Error al conectar:", err));
 
+// ✅ RUTAS EXISTENTES
 app.use("/auth", authRoutes);
 app.use("/fincas", fincaRoutes);
 app.use("/precios", precioRoutes);
 app.use("/recogidas", recogidaRoutes);
+
+// 🔥 AGREGAR: Rutas de notas de fincas
+app.use("/notas-finca", notaRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
