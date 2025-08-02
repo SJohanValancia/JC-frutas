@@ -454,8 +454,8 @@
 
   <div class="container">
 
-        <button id="btnEditarPrecios" class="floating-btn">✏️ Editar Precios</button>
-        <button id="btnLiquidacion" class="boton-liquidacion">💰 Ir a Liquidación</button>
+        <button id="btnEditarPrecios" class="floating-btn">✏️ Globalizar Precios</button>
+        <button id="btnLiquidacion" class="boton-liquidacion">💰 liqudiaciones</button>
 
     <h1 id="saludo">Bienvenido</h1>
     <button id="btnAgregarFinca">➕ Agregar Finca</button>
@@ -1431,10 +1431,8 @@ function verLiquidacionesFinca(fincaId, fincaNombre, fincaPropietario) {
             <div class="nota-content">${nota.contenido}</div>
             <div class="nota-meta">
               <span>Creada: ${fechaCreacion}</span>
-              <span>Modificada: ${fechaModificacion}</span>
             </div>
             <div class="nota-actions">
-              <button class="edit-nota-btn" data-nota-id="${nota._id}">✏️ Editar</button>
               <button class="delete-nota-btn" data-nota-id="${nota._id}">🗑️ Eliminar</button>
             </div>
           `;
