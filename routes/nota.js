@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const NotaFinca = require("../models/NotaFinca");
+const NotaFinca = require("../models/NotasFincas");
 const Finca = require("../models/Finca");
 
 // 📝 Crear nueva nota para una finca
