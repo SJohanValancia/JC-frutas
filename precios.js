@@ -266,7 +266,7 @@ function renderFrutasGuardadas(frutas) {
       </div>
       <div class="botones-fruta">
         <button class="editarBtn" title="Editar solo en esta finca">✏️ Editar</button>
-        <button class="editarGlobalBtn" title="Actualizar en todas las fincas" style="background: #ff6b6b; color: white;">🌍 Editar Globalmente</button>
+        <button  class="editarGlobalBtn" title="Actualizar en todas las fincas" style="background: #ff6b6b; color: white;">🌍 Editar Globalmente</button>
         <button class="eliminarBtn" title="Eliminar solo de esta finca">🗑️ Eliminar</button>
       </div>
     `;
