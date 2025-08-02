@@ -14,6 +14,23 @@ router.post("/nueva", async (req, res) => {
     esRecogidaMultiple, resumenFrutas, resumenCalidades 
   } = req.body;
 
+  // 🔥 VALIDACIÓN DE FECHA - Hora Colombia (UTC-5)
+  const ahora = new Date();
+  const offsetColombia = -5 * 60 * 60 * 1000; // UTC-5 en milisegundos
+  const horaColombia = new Date(ahora.getTime() + offsetColombia);
+  const hoyColombia = horaColombia.toISOString().split('T')[0];
+  
+  const fechaRecogida = new Date(fecha);
+  const fechaRecogidaStr = fechaRecogida.toISOString().split('T')[0];
+  
+  // Validar que la fecha no sea futura
+  if (fechaRecogidaStr > hoyColombia) {
+    return res.status(400).json({ 
+      error: `No se pueden registrar recogidas con fecha futura (Fecha recogida: ${fechaRecogidaStr}, Hoy Colombia: ${hoyColombia})`,
+      horaColombia: horaColombia.toISOString()
+    });
+  }
+
   // Validaciones básicas
   if (!fincaId || !fruta || !calidad || !usuario || !totalKilos || !Array.isArray(pesas)) {
     return res.status(400).json({ error: "Datos incompletos" });
@@ -77,7 +94,7 @@ router.post("/nueva", async (req, res) => {
       fincaId,
       finca,
       propietario,
-      fecha: new Date(fecha).toISOString(),
+      fecha: fechaRecogida, // Usar la fecha ya validada
       usuario,
       alias: aliasParaGuardar,
       fruta, // Fruta principal (para referencia)
@@ -92,10 +109,19 @@ router.post("/nueva", async (req, res) => {
       // 🔥 CAMPOS ADICIONALES PARA RECOGIDAS MÚLTIPLES
       esRecogidaMultiple: esRecogidaMultiple || false,
       resumenFrutas: resumenFrutas || {},
-      resumenCalidades: resumenCalidades || {}
+      resumenCalidades: resumenCalidades || {},
+      
+      // 🔥 METADATOS DE FECHA PARA AUDITORÍA
+      metadata: {
+        fechaRegistro: new Date(),
+        fechaColombia: horaColombia,
+        fechaOriginalRecogida: fecha,
+        diferenciaHoras: (horaColombia.getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60)
+      }
     };
 
     console.log("💾 Guardando recogida con pesas individuales:");
+    console.log("📅 Fecha validada:", fechaRecogidaStr, "- Hoy Colombia:", hoyColombia);
     console.log("📊 Resumen de frutas:", datosRecogida.resumenFrutas);
     console.log("📊 Resumen de calidades:", datosRecogida.resumenCalidades);
     console.log("📦 Total pesas con info individual:", datosRecogida.pesas.length);
@@ -130,11 +156,22 @@ router.post("/nueva", async (req, res) => {
         frutasUnicas: [...new Set(recogida.pesas.map(p => p.fruta))],
         calidadesUnicas: [...new Set(recogida.pesas.map(p => p.calidad))],
         esMultiple: recogida.esRecogidaMultiple
+      },
+      metadata: {
+        fechaValidacion: {
+          fechaRecibida: fecha,
+          fechaGuardada: fechaRecogidaStr,
+          horaColombia: horaColombia.toISOString(),
+          hoyColombia: hoyColombia
+        }
       }
     });
   } catch (err) {
     console.error("❌ Error al guardar recogida con frutas individuales:", err);
-    res.status(500).json({ error: "Error interno: " + err.message });
+    res.status(500).json({ 
+      error: "Error interno: " + err.message,
+      horaColombia: horaColombia?.toISOString() || "No disponible"
+    });
   }
 });
 

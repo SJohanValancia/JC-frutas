@@ -87,7 +87,6 @@
     }
 
     .loading-info {
-      opacity: 0.6;
       text-align: center;
       padding: 10px;
       font-style: italic;
@@ -96,11 +95,6 @@
     .historial-btn {
       position: absolute;
       transform: translateX(-270px);
-    }
-
-    .historial-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
 
     /* Skeleton loading animation */
@@ -658,8 +652,11 @@ function insertarArribaFueraContainer(button) {
   topContainer.style.cssText = `
     position: absolute;
     top: -1px;
-    left: -2px;
+    left: -2
+    
+    0px;
     right: 0;
+
   `;
 
   // Ajustar estilos del botón para la posición superior

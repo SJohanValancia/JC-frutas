@@ -1,4 +1,4 @@
-// recogida.js - CORREGIDO PARA MANTENER FRUTAS Y CALIDADES INDIVIDUALES POR PESA
+// recogida.js - CORRECCIÓN PARA HACER EL CAMPO FECHA EDITABLE
 const params = new URLSearchParams(window.location.search);
 const fincaId = params.get("fincaId");
 const fincaNombre = params.get("finca");
@@ -27,14 +27,84 @@ let isSubusuario = false;
 let tipoUsuarioVerificado = null;
 let preciosDisponibles = [];
 
-// Set defaults - solo si los elementos existen
-if (fechaInput) {
-  const hoy = new Date().toISOString().split("T")[0];
-  fechaInput.value = hoy;
-  fechaInput.max = hoy;
+// 🔥 CONFIGURACIÓN MEJORADA DEL CAMPO FECHA - CON HORA LOCAL DE COLOMBIA
+function configurarCampoFecha() {
+  if (fechaInput) {
+    // Obtener fecha actual en hora de Colombia (UTC-5)
+    const ahora = new Date();
+    const offsetColombia = -5 * 60; // UTC-5 en minutos
+    const horaColombia = new Date(ahora.getTime() + offsetColombia * 60 * 1000);
+    
+    // Ajustar para considerar el cambio de día solo después de media noche
+    const horaActualCol = horaColombia.getHours();
+    const esAntesDeMediaNoche = horaActualCol < 24; // Cambiar a 24 para considerar siempre el día actual
+    
+    const hoyColombia = esAntesDeMediaNoche 
+      ? horaColombia.toISOString().split('T')[0]
+      : new Date(horaColombia.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    // Establecer valores por defecto
+    if (!fechaInput.value) {
+      fechaInput.value = hoyColombia;
+    }
+    
+    // 🔥 PERMITIR EDICIÓN PERO RESTRINGIR FECHAS FUTURAS
+    fechaInput.max = hoyColombia; // No permitir fechas futuras
+    fechaInput.disabled = false; // Asegurar que esté habilitado
+    fechaInput.readOnly = false; // Asegurar que no sea solo lectura
+    
+    // Agregar event listener para validación en tiempo real
+    fechaInput.addEventListener('change', function() {
+      const fechaSeleccionada = this.value;
+      
+      if (fechaSeleccionada > hoyColombia) {
+        alert("⚠️ No se pueden seleccionar fechas futuras");
+        this.value = hoyColombia;
+        mostrarAnimacionError("❌ Fecha futura no permitida");
+      } else {
+        console.log("✅ Fecha válida seleccionada:", fechaSeleccionada);
+        mostrarAnimacionExito("✅ Fecha actualizada");
+      }
+    });
+    
+    // Event listener para validación cuando el usuario escribe manualmente
+    fechaInput.addEventListener('input', function() {
+      const fechaSeleccionada = this.value;
+      
+      if (fechaSeleccionada > hoyColombia) {
+        this.setCustomValidity("No se pueden seleccionar fechas futuras");
+      } else {
+        this.setCustomValidity("");
+      }
+    });
+    
+    console.log("✅ Campo fecha configurado con hora de Colombia");
+    console.log("⏰ Hora actual en Colombia:", horaColombia.toISOString());
+    console.log("📅 Fecha máxima permitida:", hoyColombia);
+    console.log("📅 Fecha actual del campo:", fechaInput.value);
+  } else {
+    console.warn("⚠️ Campo fecha no encontrado");
+  }
 }
-if (fincaInput) fincaInput.value = fincaNombre || '';
-if (propietarioInput) propietarioInput.value = propietario || '';
+
+// 🔥 FUNCIÓN PARA MOSTRAR ANIMACIÓN DE ERROR
+function mostrarAnimacionError(mensaje) {
+  const div = document.createElement("div");
+  div.style.position = "fixed";
+  div.style.top = "50%";
+  div.style.left = "50%";
+  div.style.transform = "translate(-50%, -50%)";
+  div.style.padding = "20px";
+  div.style.background = "#f44336";
+  div.style.color = "white";
+  div.style.fontSize = "18px";
+  div.style.borderRadius = "12px";
+  div.style.zIndex = "9999";
+  div.style.boxShadow = "0 4px 12px rgba(244, 67, 54, 0.3)";
+  div.innerText = mensaje;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 2000);
+}
 
 // FUNCIÓN PARA VERIFICAR TIPO DE USUARIO
 async function verificarTipoUsuario() {
@@ -196,6 +266,24 @@ async function guardarRecogida() {
     return;
   }
 
+  // 🔥 VALIDAR FECHA ANTES DE GUARDAR
+  if (fechaInput) {
+    const fechaSeleccionada = fechaInput.value;
+    const fechaHoy = new Date().toISOString().split("T")[0];
+    
+    if (fechaSeleccionada > fechaHoy) {
+      alert("⚠️ No se puede guardar con una fecha futura. Por favor seleccione una fecha válida.");
+      fechaInput.focus();
+      return;
+    }
+    
+    if (!fechaSeleccionada) {
+      alert("⚠️ Por favor seleccione una fecha para la recogida.");
+      fechaInput.focus();
+      return;
+    }
+  }
+
   await verificarTipoUsuario();
   
   console.log("=== GUARDANDO RECOGIDA CON FRUTAS INDIVIDUALES ===");
@@ -271,7 +359,7 @@ async function guardarRecogida() {
     fincaId,
     finca: fincaNombre,
     propietario,
-    fecha: fechaInput ? fechaInput.value : new Date().toISOString().split("T")[0],
+    fecha: fechaInput ? fechaInput.value : new Date().toISOString().split("T")[0], // 🔥 USAR FECHA SELECCIONADA
     usuario: usuario,
     alias: currentUserAlias,
     fruta: frutaPrincipal, // Solo para referencia
@@ -286,6 +374,7 @@ async function guardarRecogida() {
   };
 
   console.log("📤 DATOS FINALES - Pesas con frutas individuales:", data);
+  console.log("📅 Fecha para guardar:", data.fecha);
   console.log("🔍 Verificación de pesas individuales:");
   data.pesas.forEach((pesa, idx) => {
     console.log(`   Pesa ${idx + 1}: ${pesa.kilos}kg de ${pesa.fruta} (${pesa.calidad})`);
@@ -488,6 +577,12 @@ async function cargarRecogidaExistente(id) {
 
     console.log("📊 Datos de recogida cargados:", recogida);
 
+    // 🔥 CARGAR LA FECHA DE LA RECOGIDA EXISTENTE
+    if (fechaInput && recogida.fecha) {
+      fechaInput.value = recogida.fecha;
+      console.log("📅 Fecha cargada desde recogida existente:", recogida.fecha);
+    }
+
     // Configurar selección inicial
     if (frutaSelect) frutaSelect.value = recogida.fruta || '';
     if (calidadSelect) calidadSelect.value = recogida.calidad || '';
@@ -612,6 +707,9 @@ Total Pesas: ${pesas.length}
 // 🔥 EVENT LISTENERS CON VERIFICACIÓN DE EXISTENCIA
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 DOM cargado - Configurando para mantener frutas individuales...");
+
+  // 🔥 CONFIGURAR CAMPO FECHA PRIMERO
+  configurarCampoFecha();
 
   // Configurar interfaz según tipo de usuario
   await configurarInterfazSegunTipoUsuario();
