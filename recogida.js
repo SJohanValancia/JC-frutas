@@ -854,3 +854,332 @@ document.addEventListener("DOMContentLoaded", async () => {
     alert("Error al inicializar la página: " + error.message);
   }
 });
+
+// 🔥 SISTEMA DE LIMPIEZA DE LOCALSTORAGE PARA MODO EDITAR
+// Agregar este código al final de recogida.js
+
+// Variables de control para la limpieza
+let limpiezaConfigurada = false;
+let yaLimpiado = false;
+
+// 🔥 FUNCIÓN PRINCIPAL PARA LIMPIAR DATOS DE EDICIÓN
+function limpiarDatosEdicion() {
+  if (yaLimpiado) {
+    console.log("🔄 Ya se limpiaron los datos previamente");
+    return;
+  }
+
+  console.log("🧹 Iniciando limpieza de datos de edición...");
+  
+  const clavesEdicion = [
+    "pesas_recogida",
+    "pesas_backup", 
+    "pesas_backup_timestamp",
+    "recogidaEditando",
+    "datosRecogidaOriginal",
+    "pesasEditando",
+    "datosEdicion",
+    "recogidaTemp",
+    "editMode",
+    "recogidaId"
+  ];
+  
+  let clavesLimpiadas = 0;
+  
+  // Limpiar claves específicas
+  clavesEdicion.forEach(clave => {
+    if (localStorage.getItem(clave)) {
+      localStorage.removeItem(clave);
+      console.log(`✅ Clave limpiada: ${clave}`);
+      clavesLimpiadas++;
+    }
+  });
+  
+  // Limpiar claves con patrones (backup con timestamp, autoguardado, etc.)
+  const todasLasClaves = Object.keys(localStorage);
+  const patronesALimpiar = [
+    'pesas_backup_',
+    'pesas_autosave_',
+    'recogida_temp_',
+    'edit_session_'
+  ];
+  
+  patronesALimpiar.forEach(patron => {
+    const clavesConPatron = todasLasClaves.filter(key => key.startsWith(patron));
+    clavesConPatron.forEach(clave => {
+      localStorage.removeItem(clave);
+      console.log(`🧹 Clave con patrón limpiada: ${clave}`);
+      clavesLimpiadas++;
+    });
+  });
+  
+  yaLimpiado = true;
+  console.log(`✅ Limpieza completada - ${clavesLimpiadas} claves eliminadas`);
+  
+  return clavesLimpiadas;
+}
+
+// 🔥 FUNCIÓN PARA DETECTAR SI ESTAMOS EN MODO EDITAR
+function esModoEditar() {
+  const params = new URLSearchParams(window.location.search);
+  const modo = params.get('modo');
+  const idRecogida = params.get('idRecogida');
+  
+  return modo === 'editar' && idRecogida;
+}
+
+// 🔥 FUNCIÓN PARA CONFIGURAR LA LIMPIEZA AL SALIR
+function configurarLimpiezaAlSalir() {
+  if (limpiezaConfigurada) {
+    console.log("🔄 Limpieza ya configurada");
+    return;
+  }
+  
+  console.log("⚙️ Configurando limpieza automática al salir del modo editar...");
+  
+  // 1. Al cerrar/recargar la página
+  window.addEventListener('beforeunload', function(e) {
+    if (esModoEditar()) {
+      console.log("🚪 Saliendo de modo editar - limpiando datos");
+      limpiarDatosEdicion();
+    }
+  });
+  
+  // 2. Al navegar hacia atrás/adelante
+  window.addEventListener('popstate', function(e) {
+    // Pequeño delay para verificar la nueva URL
+    setTimeout(() => {
+      if (!esModoEditar()) {
+        console.log("🔙 Navegación detectada - verificando limpieza");
+        limpiarDatosEdicion();
+      }
+    }, 100);
+  });
+  
+  // 3. Interceptar cambios de URL programáticos
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+  
+  history.pushState = function() {
+    if (esModoEditar()) {
+      console.log("🔄 Cambio de URL detectado - limpiando antes de navegar");
+      limpiarDatosEdicion();
+    }
+    return originalPushState.apply(history, arguments);
+  };
+  
+  history.replaceState = function() {
+    if (esModoEditar()) {
+      console.log("🔄 Reemplazo de URL detectado - limpiando");
+      limpiarDatosEdicion();
+    }
+    return originalReplaceState.apply(history, arguments);
+  };
+  
+  // 4. Al hacer clic en enlaces externos o botones de navegación
+  document.addEventListener('click', function(e) {
+    const elemento = e.target.closest('a, button');
+    if (elemento && esModoEditar()) {
+      // Verificar si es un enlace externo o botón de navegación
+      const esEnlaceExterno = elemento.tagName === 'A' && elemento.href && !elemento.href.includes('#');
+      const esBotonNavegacion = elemento.onclick && elemento.onclick.toString().includes('history') ||
+                               elemento.getAttribute('onclick') && elemento.getAttribute('onclick').includes('history');
+      
+      if (esEnlaceExterno || esBotonNavegacion) {
+        console.log("🔗 Navegación externa detectada - limpiando datos");
+        limpiarDatosEdicion();
+      }
+    }
+  });
+  
+  limpiezaConfigurada = true;
+  console.log("✅ Sistema de limpieza configurado correctamente");
+}
+
+// 🔥 FUNCIÓN PARA LIMPIAR DESPUÉS DE GUARDAR EXITOSAMENTE
+function limpiarDespuesDeGuardarEdicion() {
+  if (esModoEditar()) {
+    console.log("💾 Guardado exitoso en modo editar - limpiando datos");
+    setTimeout(() => {
+      limpiarDatosEdicion();
+    }, 500); // Pequeño delay para asegurar que el guardado se completó
+  }
+}
+
+// 🔥 FUNCIÓN PARA LIMPIAR AL CANCELAR EDICIÓN
+function limpiarAlCancelarEdicion() {
+  if (esModoEditar()) {
+    console.log("❌ Edición cancelada - limpiando datos");
+    limpiarDatosEdicion();
+  }
+}
+
+// 🔥 MODIFICAR LA FUNCIÓN EXISTENTE limpiarPesasCompleto PARA INCLUIR MODO EDITAR
+function limpiarPesasCompletoConEdicion() {
+  console.log("🧹 Ejecutando limpieza completa incluyendo datos de edición...");
+  
+  // Ejecutar la limpieza original
+  try {
+    const clavesALimpiar = [
+      "pesas_recogida",
+      "pesas_backup",
+      "pesas_backup_timestamp"
+    ];
+    
+    clavesALimpiar.forEach(clave => {
+      if (localStorage.getItem(clave)) {
+        localStorage.removeItem(clave);
+        console.log(`🧹 Clave limpiada: ${clave}`);
+      }
+    });
+    
+    // Limpiar backups con timestamp
+    const todasLasClaves = Object.keys(localStorage);
+    const clavesBackupTimestamp = todasLasClaves.filter(key => 
+      key.startsWith('pesas_backup_') && key !== 'pesas_backup'
+    );
+    
+    clavesBackupTimestamp.forEach(clave => {
+      localStorage.removeItem(clave);
+      console.log(`🧹 Backup con timestamp limpiado: ${clave}`);
+    });
+    
+    const clavesAutoguardado = todasLasClaves.filter(key => 
+      key.startsWith('pesas_autosave_')
+    );
+    
+    clavesAutoguardado.forEach(clave => {
+      localStorage.removeItem(clave);
+      console.log(`🧹 Autoguardado limpiado: ${clave}`);
+    });
+    
+    // 🔥 AGREGAR LIMPIEZA DE DATOS DE EDICIÓN
+    if (esModoEditar()) {
+      limpiarDatosEdicion();
+    }
+    
+    console.log("✅ LocalStorage limpiado completamente (incluyendo edición)");
+    return true;
+  } catch (error) {
+    console.error("❌ Error al limpiar localStorage:", error);
+    return false;
+  }
+}
+
+// 🔥 FUNCIÓN PARA INICIALIZAR EL SISTEMA DE LIMPIEZA
+function inicializarSistemaLimpieza() {
+  console.log("🚀 Inicializando sistema de limpieza para modo editar...");
+  
+  if (esModoEditar()) {
+    console.log("✅ Modo editar detectado - configurando limpieza automática");
+    configurarLimpiezaAlSalir();
+    
+    // Configurar limpieza en botones específicos
+    configurarBotonesParaLimpieza();
+  } else {
+    console.log("ℹ️ No estamos en modo editar");
+    // Verificar si hay datos residuales de ediciones anteriores
+    verificarYLimpiarDatosResiduales();
+  }
+}
+
+// 🔥 FUNCIÓN PARA CONFIGURAR BOTONES ESPECÍFICOS
+function configurarBotonesParaLimpieza() {
+  // Configurar botón "Volver"
+  const btnVolver = document.getElementById("btnVolverDashboard");
+  if (btnVolver) {
+    const originalClickHandler = btnVolver.onclick;
+    
+    btnVolver.addEventListener('click', function(e) {
+      console.log("🔙 Botón volver presionado - limpiando datos de edición");
+      limpiarDatosEdicion();
+      
+      // Ejecutar handler original si existe
+      if (originalClickHandler) {
+        originalClickHandler.call(this, e);
+      }
+    });
+    
+    console.log("✅ Botón volver configurado para limpieza");
+  }
+  
+  // Configurar otros botones de navegación
+  const botonesNavegacion = document.querySelectorAll('[onclick*="history"], [onclick*="window.location"]');
+  botonesNavegacion.forEach(boton => {
+    boton.addEventListener('click', function() {
+      console.log("🔄 Botón de navegación presionado - limpiando datos");
+      limpiarDatosEdicion();
+    });
+  });
+}
+
+// 🔥 FUNCIÓN PARA VERIFICAR Y LIMPIAR DATOS RESIDUALES
+function verificarYLimpiarDatosResiduales() {
+  const clavesEdicion = [
+    "pesas_recogida",
+    "recogidaEditando", 
+    "datosRecogidaOriginal",
+    "editMode"
+  ];
+  
+  const hayDatosResiduales = clavesEdicion.some(clave => localStorage.getItem(clave));
+  
+  if (hayDatosResiduales) {
+    console.log("🧹 Detectados datos residuales de edición anterior - limpiando...");
+    limpiarDatosEdicion();
+  }
+}
+
+// 🔥 FUNCIÓN PARA INTEGRAR CON LA FUNCIÓN DE GUARDADO EXISTENTE
+function integrarConGuardadoExistente() {
+  // Encontrar la función guardarRecogida original y modificarla
+  const originalGuardarRecogida = window.guardarRecogida;
+  
+  if (originalGuardarRecogida) {
+    window.guardarRecogida = async function() {
+      try {
+        // Ejecutar guardado original
+        const resultado = await originalGuardarRecogida.call(this);
+        
+        // Si el guardado fue exitoso y estamos en modo editar, limpiar
+        if (esModoEditar()) {
+          console.log("💾 Guardado exitoso en edición - programando limpieza");
+          setTimeout(() => {
+            limpiarDespuesDeGuardarEdicion();
+          }, 1000);
+        }
+        
+        return resultado;
+      } catch (error) {
+        console.error("❌ Error en guardado:", error);
+        throw error;
+      }
+    };
+    
+    console.log("✅ Función de guardado integrada con sistema de limpieza");
+  }
+}
+
+// 🔥 EJECUTAR CUANDO EL DOM ESTÉ LISTO
+document.addEventListener('DOMContentLoaded', function() {
+  // Delay pequeño para asegurar que todo está cargado
+  setTimeout(() => {
+    inicializarSistemaLimpieza();
+    integrarConGuardadoExistente();
+  }, 500);
+});
+
+// 🔥 TAMBIÉN EJECUTAR AL CARGAR LA PÁGINA COMPLETAMENTE
+window.addEventListener('load', function() {
+  // Verificación adicional después de que todo esté cargado
+  setTimeout(() => {
+    if (!limpiezaConfigurada && esModoEditar()) {
+      console.log("🔄 Configuración tardía del sistema de limpieza");
+      inicializarSistemaLimpieza();
+    }
+  }, 1000);
+});
+
+// 🔥 EXPORTAR FUNCIONES PARA USO MANUAL SI ES NECESARIO
+window.limpiarDatosEdicion = limpiarDatosEdicion;
+window.limpiarAlSalirEdicion = limpiarAlCancelarEdicion;
