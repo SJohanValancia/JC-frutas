@@ -465,6 +465,16 @@ background: rgba(128, 105, 105, 0.329);
             <option value="tercera">Tercera</option>
           </select>
         </div>
+
+        <div class="filtro-group">
+  <label class="filtro-label">📝 Estado</label>
+  <select id="filtroLiquidacion" class="filtro-input">
+    <option value="">Todas</option>
+    <option value="liquidada">Liquidadas</option>
+    <option value="activa">Activas</option>
+  </select>
+</div>
+
         <div class="filtro-group">
           <label class="filtro-label">👤 Usuario</label>
           <input type="text" id="filtroUsuario" class="filtro-input" placeholder="Buscar por usuario..." />
@@ -488,12 +498,15 @@ background: rgba(128, 105, 105, 0.329);
     const lista = document.getElementById("listaRecogidas");
     const statsResumen = document.getElementById("statsResumen");
     const filtrosActivos = document.getElementById("filtrosActivos");
+
+    
     const filtros = {
-      fecha: document.getElementById("filtroFecha"),
-      fruta: document.getElementById("filtroFruta"),
-      calidad: document.getElementById("filtroCalidad"),
-      usuario: document.getElementById("filtroUsuario"),
-    };
+  fecha: document.getElementById("filtroFecha"),
+  fruta: document.getElementById("filtroFruta"),
+  calidad: document.getElementById("filtroCalidad"),
+  usuario: document.getElementById("filtroUsuario"),
+  liquidacion: document.getElementById("filtroLiquidacion"), // Nuevo filtro
+};
 
     titulo.textContent = `Historial de recogidas: ${fincaNombre}`;
 
@@ -664,64 +677,73 @@ background: rgba(128, 105, 105, 0.329);
       }
     }
 
-    function mostrarFiltrosActivos() {
-      const activos = [];
-      
-      if (filtros.fecha.value) activos.push({tipo: 'fecha', valor: filtros.fecha.value, label: `📅 ${filtros.fecha.value}`});
-      if (filtros.fruta.value) activos.push({tipo: 'fruta', valor: filtros.fruta.value, label: `🍉 ${filtros.fruta.value}`});
-      if (filtros.calidad.value) activos.push({tipo: 'calidad', valor: filtros.calidad.value, label: `⭐ ${filtros.calidad.value}`});
-      if (filtros.usuario.value) activos.push({tipo: 'usuario', valor: filtros.usuario.value, label: `👤 ${filtros.usuario.value}`});
+function mostrarFiltrosActivos() {
+  const activos = [];
+  
+  if (filtros.fecha.value) activos.push({tipo: 'fecha', valor: filtros.fecha.value, label: `📅 ${filtros.fecha.value}`});
+  if (filtros.fruta.value) activos.push({tipo: 'fruta', valor: filtros.fruta.value, label: `🍉 ${filtros.fruta.value}`});
+  if (filtros.calidad.value) activos.push({tipo: 'calidad', valor: filtros.calidad.value, label: `⭐ ${filtros.calidad.value}`});
+  if (filtros.usuario.value) activos.push({tipo: 'usuario', valor: filtros.usuario.value, label: `👤 ${filtros.usuario.value}`});
+  if (filtros.liquidacion.value) activos.push({tipo: 'liquidacion', valor: filtros.liquidacion.value, label: `📝 ${filtros.liquidacion.value === 'liquidada' ? 'Liquidadas' : 'Activas'}`});
 
-      filtrosActivos.innerHTML = activos.map(filtro => `
-        <div class="filtro-activo">
-          ${filtro.label}
-          <button class="limpiar-filtro" onclick="limpiarFiltro('${filtro.tipo}')">×</button>
-        </div>
-      `).join('');
-    }
-
+  filtrosActivos.innerHTML = activos.map(filtro => `
+    <div class="filtro-activo">
+      ${filtro.label}
+      <button class="limpiar-filtro" onclick="limpiarFiltro('${filtro.tipo}')">×</button>
+    </div>
+  `).join('');
+}
     window.limpiarFiltro = function(tipo) {
       filtros[tipo].value = '';
       aplicarFiltros();
     }
 
-    function aplicarFiltros() {
-      const fecha = filtros.fecha.value;
-      const fruta = filtros.fruta.value.toLowerCase();
-      const calidad = filtros.calidad.value;
-      const usuario = filtros.usuario.value.toLowerCase();
+function aplicarFiltros() {
+  const fecha = filtros.fecha.value;
+  const fruta = filtros.fruta.value.toLowerCase();
+  const calidad = filtros.calidad.value;
+  const usuario = filtros.usuario.value.toLowerCase();
+  const liquidacion = filtros.liquidacion.value; // Nuevo filtro
 
-      const filtradas = todasLasRecogidas.filter(r => {
-        // 🔥 CORRECCIÓN DE FECHA: Manejo seguro de fechas
-        let coincideFecha = !fecha;
-        if (fecha && r.fecha) {
-          try {
-            const fechaRecogida = new Date(r.fecha).toISOString().split('T')[0];
-            coincideFecha = fechaRecogida === fecha;
-          } catch (error) {
-            console.error('Error al procesar fecha:', r.fecha);
-            coincideFecha = false;
-          }
-        }
-        
-        // 🔥 MEJORA EN FILTRO DE FRUTA: Buscar en todas las frutas de las pesas
-        let coincideFruta = !fruta;
-        if (fruta && r.pesas) {
-          const frutasRecogida = r.pesas.map(p => p.fruta || '').join(' ').toLowerCase();
-          coincideFruta = frutasRecogida.includes(fruta) || (r.fruta || '').toLowerCase().includes(fruta);
-        } else if (fruta) {
-          coincideFruta = (r.fruta || '').toLowerCase().includes(fruta);
-        }
-        
-        const coincideCalidad = !calidad || r.calidad === calidad;
-        const coincideUsuario = !usuario || (r.usuario || "").toLowerCase().includes(usuario);
-        return coincideFecha && coincideFruta && coincideCalidad && coincideUsuario;
-      });
-
-      mostrarFiltrosActivos();
-      mostrarRecogidas(filtradas);
+  const filtradas = todasLasRecogidas.filter(r => {
+    // 🔥 CORRECCIÓN DE FECHA: Manejo seguro de fechas
+    let coincideFecha = !fecha;
+    if (fecha && r.fecha) {
+      try {
+        const fechaRecogida = new Date(r.fecha).toISOString().split('T')[0];
+        coincideFecha = fechaRecogida === fecha;
+      } catch (error) {
+        console.error('Error al procesar fecha:', r.fecha);
+        coincideFecha = false;
+      }
     }
+    
+    // 🔥 MEJORA EN FILTRO DE FRUTA: Buscar en todas las frutas de las pesas
+    let coincideFruta = !fruta;
+    if (fruta && r.pesas) {
+      const frutasRecogida = r.pesas.map(p => p.fruta || '').join(' ').toLowerCase();
+      coincideFruta = frutasRecogida.includes(fruta) || (r.fruta || '').toLowerCase().includes(fruta);
+    } else if (fruta) {
+      coincideFruta = (r.fruta || '').toLowerCase().includes(fruta);
+    }
+    
+    const coincideCalidad = !calidad || r.calidad === calidad;
+    const coincideUsuario = !usuario || (r.usuario || "").toLowerCase().includes(usuario);
+    
+    // 🔥 NUEVO FILTRO: Estado de liquidación
+    let coincideLiquidacion = true;
+    if (liquidacion === 'liquidada') {
+      coincideLiquidacion = r.estadoLiquidacion === 'liquidada';
+    } else if (liquidacion === 'activa') {
+      coincideLiquidacion = r.estadoLiquidacion !== 'liquidada';
+    }
+    
+    return coincideFecha && coincideFruta && coincideCalidad && coincideUsuario && coincideLiquidacion;
+  });
 
+  mostrarFiltrosActivos();
+  mostrarRecogidas(filtradas);
+}
     function obtenerIniciales(nombre) {
       if (!nombre) return "?";
       return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();

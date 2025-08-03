@@ -847,6 +847,15 @@
         </div>
 
         <div class="filter-group">
+  <label>📝 Estado </label>
+  <select id="filtroLiquidacion" class="filter-select">
+    <option value="">Todas</option>
+    <option value="liquidada">Liquidadas</option>
+    <option value="activa">Activas</option>
+  </select>
+</div>
+
+        <div class="filter-group">
           <label>📅 Rango de fechas</label>
           <div class="date-range">
             <div class="date-info" id="dateInfo"></div>
@@ -1253,6 +1262,7 @@ function aplicarFiltros() {
   const filtroUsuario = document.getElementById('filtroUsuario').value;
   const fechaDesde = document.getElementById('fechaDesde').value;
   const fechaHasta = document.getElementById('fechaHasta').value;
+  const filtroLiquidacion = document.getElementById('filtroLiquidacion').value; // Nuevo filtro
 
   console.log("🔍 Aplicando filtros de fecha exactos:");
   console.log("   📅 Fecha desde:", fechaDesde);
@@ -1282,6 +1292,13 @@ function aplicarFiltros() {
     if (filtroUsuario) {
       const usuarioRecogida = recogida.alias || recogida.usuario;
       if (usuarioRecogida !== filtroUsuario) return false;
+    }
+
+    // 🔥 NUEVO FILTRO: Estado de liquidación
+    if (filtroLiquidacion === 'liquidada') {
+      if (recogida.estadoLiquidacion !== 'liquidada') return false;
+    } else if (filtroLiquidacion === 'activa') {
+      if (recogida.estadoLiquidacion === 'liquidada') return false;
     }
 
     // 🔥 FILTRO DE FECHAS EXACTO - SIN MÁRGENES DE ERROR
@@ -1335,7 +1352,6 @@ function aplicarFiltros() {
   actualizarStats();
   mostrarRecogidas();
 }
-
 // 🔥 FUNCIÓN PARA ACTUALIZAR INFORMACIÓN VISUAL DE FECHAS - CORREGIDA
 function actualizarInfoFechas(fechaDesde, fechaHasta) {
   const dateInfo = document.getElementById('dateInfo');
@@ -1365,6 +1381,7 @@ function limpiarFiltros() {
   document.getElementById('filtroUsuario').value = '';
   document.getElementById('fechaDesde').value = '';
   document.getElementById('fechaHasta').value = '';
+  document.getElementById('filtroLiquidacion').value = ''; // Limpiar nuevo filtro
   
   recogidasFiltradas = [...todasLasRecogidas];
   actualizarStats();
@@ -1507,6 +1524,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('filtroUsuario').addEventListener('change', aplicarFiltros);
   document.getElementById('fechaDesde').addEventListener('change', aplicarFiltros);
   document.getElementById('fechaHasta').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroLiquidacion').addEventListener('change', aplicarFiltros); // Nuevo event listener
   
   cargarRecogidas();
 });
