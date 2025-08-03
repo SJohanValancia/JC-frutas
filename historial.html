@@ -629,54 +629,47 @@ background: rgba(128, 105, 105, 0.329);
       }
     }
 
-    function mostrarEstadisticas() {
-      const totalRecogidas = todasLasRecogidas.length;
-      const totalKilos = todasLasRecogidas.reduce((sum, r) => sum + r.totalKilos, 0);
-      const totalValor = todasLasRecogidas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
-      const promedioKilos = totalRecogidas > 0 ? (totalKilos / totalRecogidas).toFixed(1) : 0;
+function mostrarEstadisticas(recogidasFiltradas = todasLasRecogidas) {
+  const totalRecogidas = recogidasFiltradas.length;
+  const totalKilos = recogidasFiltradas.reduce((sum, r) => sum + r.totalKilos, 0);
+  const totalValor = recogidasFiltradas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
+  const promedioKilos = totalRecogidas > 0 ? (totalKilos / totalRecogidas).toFixed(1) : 0;
 
-      // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
-      const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
+  // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
+  const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
 
-      if (debeOcultarPrecios) {
-        // Para subusuarios: solo mostrar estadísticas sin dinero
-        statsResumen.innerHTML = `
-          <div class="stat-item">
-            <span class="stat-value">${totalRecogidas}</span>
-            <span class="stat-label">Recogidas</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">${totalKilos.toLocaleString()}</span>
-            <span class="stat-label">Kg Total</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">${promedioKilos}</span>
-            <span class="stat-label">Kg Promedio</span>
-          </div>
-        `;
-      } else {
-        // Para administradores: mostrar todas las estadísticas
-        statsResumen.innerHTML = `
-          <div class="stat-item">
-            <span class="stat-value">${totalRecogidas}</span>
-            <span class="stat-label">Recogidas</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">${totalKilos.toLocaleString()}</span>
-            <span class="stat-label">Kg Total</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">${totalValor.toLocaleString()}</span>
-            <span class="stat-label">Valor Total</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">${promedioKilos}</span>
-            <span class="stat-label">Kg Promedio</span>
-          </div>
-        `;
-      }
-    }
+  if (debeOcultarPrecios) {
+    // Para subusuarios: solo mostrar estadísticas sin dinero
+    statsResumen.innerHTML = `
+      <div class="stat-item">
+        <span class="stat-value">${totalRecogidas}</span>
+        <span class="stat-label">Recogidas</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${totalKilos.toLocaleString()}</span>
+        <span class="stat-label">Kg Total</span>
+      </div>
 
+    `;
+  } else {
+    // Para administradores: mostrar todas las estadísticas
+    statsResumen.innerHTML = `
+      <div class="stat-item">
+        <span class="stat-value">${totalRecogidas}</span>
+        <span class="stat-label">Recogidas</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${totalKilos.toLocaleString()}</span>
+        <span class="stat-label">Kg Total</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">$${totalValor.toLocaleString()}</span>
+        <span class="stat-label">Valor Total</span>
+      </div>
+
+    `;
+  }
+}
 function mostrarFiltrosActivos() {
   const activos = [];
   
@@ -703,7 +696,7 @@ function aplicarFiltros() {
   const fruta = filtros.fruta.value.toLowerCase();
   const calidad = filtros.calidad.value;
   const usuario = filtros.usuario.value.toLowerCase();
-  const liquidacion = filtros.liquidacion.value; // Nuevo filtro
+  const liquidacion = filtros.liquidacion.value;
 
   const filtradas = todasLasRecogidas.filter(r => {
     // 🔥 CORRECCIÓN DE FECHA: Manejo seguro de fechas
@@ -741,10 +734,13 @@ function aplicarFiltros() {
     return coincideFecha && coincideFruta && coincideCalidad && coincideUsuario && coincideLiquidacion;
   });
 
+  // 🔥 ACTUALIZAR ESTADÍSTICAS CON DATOS FILTRADOS
+  mostrarEstadisticas(filtradas);
   mostrarFiltrosActivos();
   mostrarRecogidas(filtradas);
 }
-    function obtenerIniciales(nombre) {
+
+function obtenerIniciales(nombre) {
       if (!nombre) return "?";
       return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     }

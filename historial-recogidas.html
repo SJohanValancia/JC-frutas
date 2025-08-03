@@ -1071,6 +1071,9 @@ function actualizarStats() {
   const totalPagado = esSubusuario ? 0 : recogidas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
   const promedioKilos = totalRecogidas > 0 ? (totalKilos / totalRecogidas) : 0;
 
+  // 🔥 NUEVO: Calcular estadísticas por fruta
+  const estadisticasPorFruta = calcularEstadisticasPorFruta(recogidas);
+
   const statsHTML = `
     <div class="stat-card">
       <div class="stat-value">${totalRecogidas}</div>
@@ -1083,9 +1086,185 @@ function actualizarStats() {
       <div class="stat-label">💰 Total Pagado</div>
     </div>
     ` : ''}
+
+    <div class="stat-card">
+      <div class="stat-value">${totalKilos.toFixed(1)}</div>
+      <div class="stat-label">⚖️ Total Kilos</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-value">${promedioKilos.toFixed(1)}</div>
+      <div class="stat-label">📈 Promedio/Recogida</div>
+    </div>
   `;
 
-  document.getElementById('statsContainer').innerHTML = statsHTML;
+  // 🔥 NUEVO: HTML para estadísticas por fruta
+  const frutasStatsHTML = generarHTMLEstadisticasFrutas(estadisticasPorFruta);
+
+  document.getElementById('statsContainer').innerHTML = statsHTML + frutasStatsHTML;
+}
+
+
+function calcularEstadisticasPorFruta(recogidas) {
+  const estadisticas = {};
+
+  recogidas.forEach(recogida => {
+    if (recogida.pesas && Array.isArray(recogida.pesas)) {
+      // Si tiene pesas detalladas, usar esos datos
+      recogida.pesas.forEach(pesa => {
+        const fruta = pesa.fruta || 'Sin especificar';
+        
+        if (!estadisticas[fruta]) {
+          estadisticas[fruta] = {
+            recogidas: 0,
+            kilos: 0,
+            valor: 0,
+            pesas: 0
+          };
+        }
+        
+        estadisticas[fruta].kilos += pesa.kilos || 0;
+        estadisticas[fruta].valor += pesa.valor || 0;
+        estadisticas[fruta].pesas += 1;
+      });
+    } else {
+      // Si no tiene pesas detalladas, usar datos de la recogida general
+      const fruta = recogida.fruta || 'Sin especificar';
+      
+      if (!estadisticas[fruta]) {
+        estadisticas[fruta] = {
+          recogidas: 0,
+          kilos: 0,
+          valor: 0,
+          pesas: 0
+        };
+      }
+      
+      estadisticas[fruta].kilos += recogida.totalKilos || 0;
+      estadisticas[fruta].valor += recogida.valorPagar || 0;
+      estadisticas[fruta].pesas += 1;
+    }
+  });
+
+  // Contar recogidas únicas por fruta
+  recogidas.forEach(recogida => {
+    const frutasRecogida = obtenerFrutasUnicas(recogida);
+    frutasRecogida.forEach(fruta => {
+      if (estadisticas[fruta]) {
+        estadisticas[fruta].recogidas += 1;
+      }
+    });
+  });
+
+  return estadisticas;
+}
+
+function generarHTMLEstadisticasFrutas(estadisticas) {
+  const frutasOrdenadas = Object.entries(estadisticas)
+    .sort(([,a], [,b]) => b.kilos - a.kilos); // Ordenar por kilos descendente
+
+  if (frutasOrdenadas.length === 0) {
+    return '';
+  }
+
+  let frutasHTML = `
+    <div style="grid-column: 1/-1; margin-top: 20px;">
+      <div style="background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px; box-shadow: var(--shadow);">
+        <h3 style="text-align: center; color: var(--primary-color); margin-bottom: 20px; font-size: 1.3em;">
+          🍎 Estadísticas por Fruta
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+  `;
+
+  frutasOrdenadas.forEach(([fruta, stats]) => {
+    const promedioKilosPorRecogida = stats.recogidas > 0 ? (stats.kilos / stats.recogidas).toFixed(1) : 0;
+    
+    frutasHTML += `
+      <div style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 18px; text-align: center; border-left: 4px solid var(--success-color);">
+        <div style="font-size: 1.5em; margin-bottom: 8px;">${obtenerEmojifruta(fruta)}</div>
+        <div style="font-weight: 700; color: var(--primary-color); margin-bottom: 12px; font-size: 1.1em;">${fruta}</div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85em;">
+          <div>
+            <div style="color: var(--text-secondary); margin-bottom: 2px;">Recogidas</div>
+            <div style="font-weight: 600; color: var(--text-primary);">${stats.recogidas}</div>
+          </div>
+          <div>
+            <div style="color: var(--text-secondary); margin-bottom: 2px;">Pesas</div>
+            <div style="font-weight: 600; color: var(--text-primary);">${stats.pesas}</div>
+          </div>
+        </div>
+        
+        <div style="margin: 12px 0; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <div style="color: var(--text-secondary); font-size: 0.8em; margin-bottom: 4px;">Total Kilos</div>
+          <div style="font-size: 1.3em; font-weight: 700; color: var(--success-color);">${stats.kilos.toFixed(1)} kg</div>
+        </div>
+        
+        ${!esSubusuario ? `
+        <div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <div style="color: var(--text-secondary); font-size: 0.8em; margin-bottom: 4px;">Total Valor</div>
+          <div style="font-size: 1.1em; font-weight: 700; color: var(--warning-color);">${stats.valor.toLocaleString()}</div>
+        </div>
+        ` : ''}
+        
+        <div style="margin-top: 8px; font-size: 0.8em; color: var(--text-secondary);">
+          Promedio: ${promedioKilosPorRecogida} kg/recogida
+        </div>
+      </div>
+    `;
+  });
+
+  frutasHTML += `
+        </div>
+      </div>
+    </div>
+  `;
+
+  return frutasHTML;
+}
+
+// 🔥 NUEVA FUNCIÓN: Obtener emoji representativo para cada fruta
+function obtenerEmojifruta(fruta) {
+  const emojis = {
+    'mango': '🥭',
+    'aguacate': '🥑',
+    'limón': '🍋',
+    'naranja': '🍊',
+    'mandarina': '🍊',
+    'guayaba': '🍈',
+    'papaya': '🧡',
+    'maracuyá': '💛',
+    'lulo': '💚',
+    'tomate': '🍅',
+    'plátano': '🍌',
+    'banano': '🍌',
+    'coco': '🥥',
+    'piña': '🍍',
+    'fresa': '🍓',
+    'mora': '🫐',
+    'uva': '🍇',
+    'pera': '🍐',
+    'manzana': '🍎',
+    'durazno': '🍑',
+    'ciruela': '🟣'
+  };
+  
+  const frutaLower = fruta.toLowerCase();
+  
+  // Buscar coincidencia exacta
+  if (emojis[frutaLower]) {
+    return emojis[frutaLower];
+  }
+  
+  // Buscar coincidencia parcial
+  for (const [nombre, emoji] of Object.entries(emojis)) {
+    if (frutaLower.includes(nombre) || nombre.includes(frutaLower)) {
+      return emoji;
+    }
+  }
+  
+  // Emoji por defecto
+  return '🍎';
 }
 
 // 🔥 FUNCIÓN PRINCIPAL PARA MOSTRAR RECOGIDAS CON MÚLTIPLES FRUTAS
