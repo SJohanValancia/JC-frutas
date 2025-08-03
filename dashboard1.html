@@ -874,7 +874,7 @@ function renderFincaRapido(finca) {
   div.addEventListener('mousedown', (e) => {
     pressTimer = setTimeout(() => {
       mostrarQuickNoteModal(finca);
-    }, 3000); // 3 segundos
+    }, 1000); // 3 segundos
   });
   
   div.addEventListener('mouseup', () => {
@@ -1628,8 +1628,7 @@ function verLiquidacionesFinca(fincaId, fincaNombre, fincaPropietario) {
 
     // Event listeners para el modal de notas
     document.getElementById('quickNoteCancel').addEventListener('click', () => {
-      document.getElementById('quickNoteModal').class.classList.remove('active');
-    });
+      document.getElementById('quickNoteModal').classList.remove('active');    });
 
     document.getElementById('quickNoteSave').addEventListener('click', guardarNotaFinca);
 

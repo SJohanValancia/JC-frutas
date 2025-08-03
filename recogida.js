@@ -8,9 +8,42 @@ const usuarioAlias = params.get("usuarioAlias");
 const modo = params.get("modo");
 const idRecogida = params.get("idRecogida");
 
-if (modo !== "editar") {
-  localStorage.removeItem("pesas_recogida");
+// 🔥 FUNCIÓN PARA CONFIGURAR LA INFORMACIÓN DE LA FINCA Y PROPIETARIO
+function configurarInformacionFinca() {
+  console.log("🏠 Configurando información de la finca...");
+  console.log("📋 Datos recibidos:", {
+    fincaId,
+    fincaNombre,
+    propietario,
+    usuario
+  });
+
+  // Configurar nombre de la finca
+  if (fincaInput && fincaNombre) {
+    fincaInput.value = decodeURIComponent(fincaNombre);
+    fincaInput.readOnly = true;
+    console.log("✅ Nombre de finca configurado:", decodeURIComponent(fincaNombre));
+  }
+
+  // 🔥 CONFIGURAR NOMBRE DEL PROPIETARIO (ESTA ES LA CORRECCIÓN PRINCIPAL)
+  if (propietarioInput && propietario) {
+    const nombrePropietario = decodeURIComponent(propietario);
+    propietarioInput.value = nombrePropietario;
+    propietarioInput.readOnly = true;
+    console.log("✅ Nombre de propietario configurado:", nombrePropietario);
+  } else {
+    console.warn("⚠️ No se pudo configurar el propietario:", {
+      propietarioInputExists: !!propietarioInput,
+      propietarioValue: propietario
+    });
+  }
+
+  // Configurar fecha si no está en modo edición
+  if (!modo || modo !== "editar") {
+    configurarCampoFecha();
+  }
 }
+
 
 // Elementos del DOM - con verificación de existencia
 const fechaInput = document.getElementById("fecha");
@@ -26,6 +59,57 @@ let sessionData = {};
 let isSubusuario = false;
 let tipoUsuarioVerificado = null;
 let preciosDisponibles = [];
+
+
+function verificarElementosDOM() {
+  console.log("🔍 Verificando elementos del DOM...");
+  
+  const elementos = {
+    fechaInput: document.getElementById("fecha"),
+    fincaInput: document.getElementById("finca"),
+    propietarioInput: document.getElementById("propietario"),
+    frutaSelect: document.getElementById("frutaSelect"),
+    calidadSelect: document.getElementById("calidadSelect"),
+    precioExtraInput: document.getElementById("precioExtra"),
+    precioPorKiloInput: document.getElementById("precioPorKilo")
+  };
+
+  // Actualizar referencias globales
+  Object.assign(window, elementos);
+
+  // Verificar cuáles elementos existen
+  Object.entries(elementos).forEach(([nombre, elemento]) => {
+    if (elemento) {
+      console.log(`✅ ${nombre} encontrado`);
+    } else {
+      console.warn(`⚠️ ${nombre} NO encontrado`);
+    }
+  });
+
+  return elementos;
+}
+
+// 🔥 FUNCIÓN PARA MOSTRAR UN RESUMEN EN CONSOLA DE LA CONFIGURACIÓN
+function mostrarResumenConfiguracion() {
+  console.log("=== RESUMEN DE CONFIGURACIÓN ===");
+  console.log("🏠 Finca:", fincaNombre ? decodeURIComponent(fincaNombre) : "No especificada");
+  console.log("👤 Propietario:", propietario ? decodeURIComponent(propietario) : "No especificado");
+  console.log("🆔 ID Finca:", fincaId || "No especificado");
+  console.log("👨‍💼 Usuario:", usuario || "No especificado");
+  console.log("🏷️ Modo:", modo || "nuevo");
+
+  // Verificar si los campos del DOM tienen los valores correctos
+  const fincaInput = document.getElementById("finca");
+  const propietarioInput = document.getElementById("propietario");
+  
+  if (fincaInput) {
+    console.log("🏠 Campo finca en DOM:", fincaInput.value);
+  }
+  
+  if (propietarioInput) {
+    console.log("👤 Campo propietario en DOM:", propietarioInput.value);
+  }
+}
 
 // 🔥 CONFIGURACIÓN MEJORADA DEL CAMPO FECHA - CON HORA LOCAL DE COLOMBIA
 function configurarCampoFecha() {
@@ -704,65 +788,69 @@ Total Pesas: ${pesas.length}
   return contenidoRecibo;
 }
 
-// 🔥 EVENT LISTENERS CON VERIFICACIÓN DE EXISTENCIA
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("🚀 DOM cargado - Configurando para mantener frutas individuales...");
+  console.log("🚀 DOM cargado - Iniciando configuración completa...");
 
-  // 🔥 CONFIGURAR CAMPO FECHA PRIMERO
-  configurarCampoFecha();
-
-  // Configurar interfaz según tipo de usuario
-  await configurarInterfazSegunTipoUsuario();
-  
-  // Configurar botón de guardar
-  configurarBotonGuardar();
-  
-  // Configurar botón de volver
-  const btnVolver = document.getElementById("btnVolverDashboard");
-  if (btnVolver) {
-    btnVolver.addEventListener("click", () => {
-      window.history.back();
-    });
-    console.log("✅ Botón volver configurado");
-  } else {
-    console.warn("⚠️ Botón 'btnVolverDashboard' no encontrado");
-  }
-  
-  // Configurar botón de enviar recibo
-  const enviarReciboBtn = document.getElementById("enviarReciboBtn");
-  if (enviarReciboBtn) {
-    enviarReciboBtn.addEventListener("click", () => {
-      const contenidoRecibo = generarReciboSegunTipoUsuario();
-      
-      console.log("📄 Recibo con frutas individuales generado:", contenidoRecibo);
-      
-      navigator.clipboard.writeText(contenidoRecibo).then(() => {
-        mostrarAnimacionExito("📋 Recibo copiado (frutas individuales)");
-      }).catch(() => {
-        alert("No se pudo copiar el recibo. Contenido:\n\n" + contenidoRecibo);
-      });
-    });
-    console.log("✅ Botón enviar recibo configurado");
-  } else {
-    console.warn("⚠️ Botón 'enviarReciboBtn' no encontrado");
-  }
-  
-  console.log("✅ Event listeners configurados para frutas individuales");
-
-  // Cargar frutas y datos de edición
   try {
-    const frutasCargadas = await cargarFrutas();
-    console.log("🍎 Frutas cargadas exitosamente:", frutasCargadas.length);
+    // 1. Verificar elementos del DOM
+    verificarElementosDOM();
 
+    // 2. 🔥 CONFIGURAR INFORMACIÓN DE FINCA Y PROPIETARIO (NUEVA FUNCIÓN)
+    configurarInformacionFinca();
+
+    // 3. Configurar campo fecha
+    configurarCampoFecha();
+
+    // 4. Configurar interfaz según tipo de usuario
+    await configurarInterfazSegunTipoUsuario();
+    
+    // 5. Configurar botón de guardar
+    configurarBotonGuardar();
+    
+    // 6. Configurar otros botones
+    const btnVolver = document.getElementById("btnVolverDashboard");
+    if (btnVolver) {
+      btnVolver.addEventListener("click", () => {
+        window.history.back();
+      });
+      console.log("✅ Botón volver configurado");
+    }
+    
+    const enviarReciboBtn = document.getElementById("enviarReciboBtn");
+    if (enviarReciboBtn) {
+      enviarReciboBtn.addEventListener("click", () => {
+        const contenidoRecibo = generarReciboSegunTipoUsuario();
+        console.log("📄 Recibo generado:", contenidoRecibo);
+        
+        navigator.clipboard.writeText(contenidoRecibo).then(() => {
+          mostrarAnimacionExito("📋 Recibo copiado");
+        }).catch(() => {
+          alert("No se pudo copiar el recibo. Contenido:\n\n" + contenidoRecibo);
+        });
+      });
+      console.log("✅ Botón enviar recibo configurado");
+    }
+
+    // 7. Cargar frutas y datos
+    console.log("🍎 Cargando frutas...");
+    const frutasCargadas = await cargarFrutas();
+    console.log("✅ Frutas cargadas:", frutasCargadas.length);
+
+    // 8. Si estamos en modo edición, cargar datos existentes
     if (modo === "editar" && idRecogida) {
-      console.log("✏️ Modo edición - cargando datos manteniendo frutas individuales...");
-      
+      console.log("✏️ Modo edición - cargando datos existentes...");
       await verificarTipoUsuario();
       await cargarRecogidaExistente(idRecogida);
-      
-      console.log("✅ Datos de edición cargados respetando frutas individuales");
+      console.log("✅ Datos de edición cargados");
     }
+
+    // 9. 🔥 MOSTRAR RESUMEN FINAL
+    mostrarResumenConfiguracion();
+
+    console.log("🎉 Configuración completa terminada");
+
   } catch (error) {
-    console.error("❌ Error en la carga inicial:", error);
+    console.error("❌ Error en la configuración inicial:", error);
+    alert("Error al inicializar la página: " + error.message);
   }
 });
