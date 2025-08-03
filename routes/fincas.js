@@ -52,21 +52,82 @@ router.post("/agregar", async (req, res) => {
 
     console.log("✅ Finca creada:", finca);
 
-    // 2️⃣ Verificamos si ya tiene precios propios
+    // 2️⃣ Verificar si ya tiene precios propios
     const preciosExistentes = await PrecioFruta.findOne({ fincaId: finca._id });
 
-// En lugar de copiar precios automáticamente:
-if (!preciosExistentes) {
-  // Crear registro de precios vacío en lugar de copiar
-  const preciosVacios = new PrecioFruta({
-    fincaId: finca._id,
-    frutas: [], // Array vacío en lugar de copiar
-    usuario: usuario,
-    adminAlias: adminAliasParaGuardar
-  });
-  await preciosVacios.save();
-  console.log("✅ Registro de precios vacío creado para nueva finca");
-}
+    if (!preciosExistentes) {
+      console.log("🔍 Buscando primera finca del usuario para copiar precios...");
+      
+      // 🔥 BUSCAR LA PRIMERA FINCA QUE EL USUARIO CREÓ (ordenada por fecha más antigua)
+      const primeraFincaUsuario = await Finca.findOne({
+        $or: [
+          { usuario: usuario },
+          { adminAlias: adminAliasParaGuardar }
+        ],
+        _id: { $ne: finca._id } // Excluir la finca recién creada
+      }).sort({ fecha: 1 }); // Ordenar por fecha más antigua (primera creada)
+
+      if (primeraFincaUsuario) {
+        console.log(`✅ Primera finca del usuario encontrada: ${primeraFincaUsuario.nombre} (${primeraFincaUsuario._id})`);
+        
+        // 🔍 Buscar los precios de la primera finca del usuario
+        const preciosPrimeraFinca = await PrecioFruta.findOne({ 
+          fincaId: primeraFincaUsuario._id 
+        });
+
+        if (preciosPrimeraFinca && preciosPrimeraFinca.frutas && preciosPrimeraFinca.frutas.length > 0) {
+          console.log(`📋 Copiando ${preciosPrimeraFinca.frutas.length} frutas de la primera finca del usuario`);
+          
+          // 🔥 CREAR COPIA COMPLETA DE LAS FRUTAS (sin los _id para evitar duplicados)
+          const frutasCopiadas = preciosPrimeraFinca.frutas.map(fruta => ({
+            nombre: fruta.nombre,
+            precios: {
+              primera: fruta.precios.primera,
+              segunda: fruta.precios.segunda,
+              tercera: fruta.precios.tercera
+            }
+          }));
+
+          // Crear registro de precios con las frutas copiadas
+          const preciosNuevaFinca = new PrecioFruta({
+            fincaId: finca._id,
+            frutas: frutasCopiadas,
+            usuario: usuario,
+            adminAlias: adminAliasParaGuardar
+          });
+          
+          await preciosNuevaFinca.save();
+          
+          console.log(`✅ Precios copiados exitosamente: ${frutasCopiadas.length} frutas`);
+          console.log("📊 Frutas copiadas:", frutasCopiadas.map(f => `${f.nombre} (P:$${f.precios.primera}, S:$${f.precios.segunda}, T:$${f.precios.tercera})`));
+          
+        } else {
+          console.log("ℹ️ La primera finca del usuario no tiene precios configurados, creando registro vacío");
+          
+          // Crear registro de precios vacío
+          const preciosVacios = new PrecioFruta({
+            fincaId: finca._id,
+            frutas: [],
+            usuario: usuario,
+            adminAlias: adminAliasParaGuardar
+          });
+          await preciosVacios.save();
+        }
+      } else {
+        console.log("ℹ️ Esta es la primera finca del usuario, creando registro de precios vacío");
+        
+        // Crear registro de precios vacío para la primera finca
+        const preciosVacios = new PrecioFruta({
+          fincaId: finca._id,
+          frutas: [],
+          usuario: usuario,
+          adminAlias: adminAliasParaGuardar
+        });
+        await preciosVacios.save();
+      }
+    } else {
+      console.log("ℹ️ La finca ya tiene precios configurados, no se copiarán precios");
+    }
 
     res.status(200).json(finca);
   } catch (err) {
@@ -85,8 +146,6 @@ router.get("/listar", async (req, res) => {
     res.status(500).send("Error al obtener fincas");
   }
 });
-
-
 
 // 🔧 ENDPOINT CORREGIDO: Listar fincas de un administrador
 router.get("/por-admin/:adminAlias", async (req, res) => {
