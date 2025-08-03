@@ -451,6 +451,94 @@
     fechaFinInput.addEventListener('change', verificarFechas);
 }
 
+function extraerFechaSimple(fechaString) {
+    if (!fechaString || fechaString === 'Sin fecha') {
+        console.log('⚠️ Fecha vacía o sin fecha');
+        return null;
+    }
+    
+    try {
+        // Si ya está en formato YYYY-MM-DD
+        if (typeof fechaString === 'string' && fechaString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            console.log(`✅ Fecha ya en formato correcto: ${fechaString}`);
+            return fechaString;
+        }
+        
+        // Si tiene la T (formato ISO como "2025-08-03T00:00:00.000Z")
+        if (typeof fechaString === 'string' && fechaString.includes('T') && fechaString.includes('-')) {
+            const fechaSolo = fechaString.split('T')[0];
+            console.log(`✅ Fecha extraída de ISO: ${fechaString} → ${fechaSolo}`);
+            return fechaSolo;
+        }
+        
+        // 🔥 CASO PRINCIPAL: Fechas como "Sun Aug 03 2025 00:00:00 GMT+0000"
+        // Crear objeto Date y extraer en UTC para evitar problemas de zona horaria
+        const fechaObj = new Date(fechaString);
+        if (!isNaN(fechaObj.getTime())) {
+            const año = fechaObj.getUTCFullYear();
+            const mes = String(fechaObj.getUTCMonth() + 1).padStart(2, '0');
+            const dia = String(fechaObj.getUTCDate()).padStart(2, '0');
+            const fechaFormateada = `${año}-${mes}-${dia}`;
+            console.log(`✅ Fecha convertida de GMT: ${fechaString} → ${fechaFormateada}`);
+            return fechaFormateada;
+        }
+        
+        console.error(`❌ No se pudo procesar la fecha: ${fechaString}`);
+        return null;
+        
+    } catch (error) {
+        console.error(`❌ Error al procesar fecha "${fechaString}":`, error);
+        return null;
+    }
+}
+
+function fechaAYYYYMMDD(fecha) {
+    if (!fecha) return null;
+    
+    try {
+        const d = new Date(fecha);
+        if (isNaN(d.getTime())) return null;
+        
+        // Usar UTC para evitar problemas de zona horaria
+        const año = d.getUTCFullYear();
+        const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dia = String(d.getUTCDate()).padStart(2, '0');
+        
+        return `${año}-${mes}-${dia}`;
+    } catch (error) {
+        console.error('Error procesando fecha:', fecha, error);
+        return null;
+    }
+}
+
+function extraerFechaRobusta(fechaString) {
+    if (!fechaString || fechaString === 'Sin fecha') {
+        return null;
+    }
+    
+    try {
+        // Siempre crear objeto Date y extraer componentes UTC
+        const fechaObj = new Date(fechaString);
+        
+        if (isNaN(fechaObj.getTime())) {
+            console.error(`❌ Fecha inválida: ${fechaString}`);
+            return null;
+        }
+        
+        const año = fechaObj.getUTCFullYear();
+        const mes = String(fechaObj.getUTCMonth() + 1).padStart(2, '0');
+        const dia = String(fechaObj.getUTCDate()).padStart(2, '0');
+        const fechaFormateada = `${año}-${mes}-${dia}`;
+        
+        console.log(`🔄 Conversión: "${fechaString}" → "${fechaFormateada}"`);
+        return fechaFormateada;
+        
+    } catch (error) {
+        console.error(`❌ Error al procesar fecha "${fechaString}":`, error);
+        return null;
+    }
+}
+
 // Función para liquidar todas las recogidas en el intervalo seleccionado
 async function liquidarIntervaloFechas() {
     const fechaInicio = document.getElementById('fechaInicio').value;
@@ -541,43 +629,24 @@ async function liquidarIntervaloFechas() {
     }
 }
 
-        // 🔥 FUNCIÓN PARA FORMATEAR fechas CORRECTAMENTE - CORREGIDA
-        function formatearFechaLocal(fechaString) {
-            if (!fechaString) return 'Sin fecha';
-            
-            // Si la fecha viene en formato ISO (YYYY-MM-DD), la parseamos directamente
-            // sin que JavaScript aplique conversiones de zona horaria
-            const partes = fechaString.split('T')[0].split('-');
-            if (partes.length === 3) {
-                const año = parseInt(partes[0]);
-                const mes = parseInt(partes[1]) - 1; // JavaScript usa meses base 0
-                const dia = parseInt(partes[2]);
-                
-                const fecha = new Date(año, mes, dia);
-                return fecha.toLocaleDateString('es-ES');
-            }
-            
-            // Fallback para otros formatos
-            return new Date(fechaString).toLocaleDateString('es-ES');
-        }
-
-        // 🔥 FUNCIÓN PARA FORMATEAR FECHA SIN ZONA HORARIA - NUEVA
-        function formatearFechaSinZonaHoraria(fechaString) {
-            if (!fechaString) return 'Sin fecha';
-            
-            // Extraer solo la parte de fecha (YYYY-MM-DD)
-            const fechaSolo = fechaString.split('T')[0];
-            const [año, mes, dia] = fechaSolo.split('-');
-            
-            // Crear fecha usando los componentes directamente
-            const fecha = new Date(parseInt(año), parseInt(mes) - 1, parseInt(dia));
-            
-            return fecha.toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        }
+function formatearFecha(fecha) {
+    if (!fecha) return "Sin fecha";
+    
+    try {
+        const d = new Date(fecha);
+        if (isNaN(d.getTime())) return "Fecha inválida";
+        
+        // Usar UTC y formatear como DD/MM/YYYY
+        const dia = String(d.getUTCDate()).padStart(2, '0');
+        const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const año = d.getUTCFullYear();
+        
+        return `${dia}/${mes}/${año}`;
+    } catch (error) {
+        console.error("Error formateando fecha:", fecha, error);
+        return "Fecha inválida";
+    }
+}
 
         // 🔥 FUNCIÓN PARA COMPARAR FECHAS SIN PROBLEMAS DE ZONA HORARIA
         function compararFechas(fechaRecogida, fechaComparacion) {
@@ -651,53 +720,136 @@ async function liquidarIntervaloFechas() {
         }
 
         // Cargar todas las recogidas de la finca
-        async function cargarRecogidas() {
-            try {
-                document.getElementById('loadingIndicator').style.display = 'block';
-                document.getElementById('noDataMessage').style.display = 'none';
+function filtrarRecogidas() {
+    const fechaInicio = document.getElementById('fechaInicio').value;
+    const fechaFin = document.getElementById('fechaFin').value;
 
-                const response = await fetch(`https://jc-frutas.onrender.com/recogidas/por-finca/${fincaId}`);
-                if (!response.ok) throw new Error('Error al cargar recogidas');
+    console.log('🔍 FILTRO INICIADO');
+    console.log(`📅 Fecha inicio: "${fechaInicio}"`);
+    console.log(`📅 Fecha fin: "${fechaFin}"`);
 
-                todasLasRecogidas = await response.json();
-                console.log('Recogidas cargadas:', todasLasRecogidas.length);
-
-                // Aplicar filtro inicial
-                filtrarRecogidas();
-
-            } catch (error) {
-                console.error('Error cargando recogidas:', error);
-                document.getElementById('loadingIndicator').innerHTML = '❌ Error al cargar recogidas';
-            }
+    recogidasFiltradas = todasLasRecogidas.filter(recogida => {
+        // Excluir liquidadas SIEMPRE
+        if (recogida.estadoLiquidacion === 'liquidada') {
+            return false;
         }
-
-        // Filtrar recogidas por fecha - CORREGIDA - SOLO ACTIVAS
-        function filtrarRecogidas() {
-            const fechaInicio = document.getElementById('fechaInicio').value;
-            const fechaFin = document.getElementById('fechaFin').value;
-
-            recogidasFiltradas = todasLasRecogidas.filter(recogida => {
-                if (!recogida.fecha) return false;
-                
-                // 🔥 FILTRAR SOLO RECOGIDAS ACTIVAS (sin liquidar)
-                const estaLiquidada = recogida.estadoLiquidacion === 'liquidada';
-                if (estaLiquidada) return false;
-                
-                // Extraer solo la parte de fecha sin hora
-                const fechaRecogidaSolo = recogida.fecha.split('T')[0];
-                
-                // Comparar directamente las fechas en formato YYYY-MM-DD
-                const cumpleFechaInicio = !fechaInicio || fechaRecogidaSolo >= fechaInicio;
-                const cumpleFechaFin = !fechaFin || fechaRecogidaSolo <= fechaFin;
-                
-                return cumpleFechaInicio && cumpleFechaFin;
-            });
-
-            console.log('Recogidas activas filtradas:', recogidasFiltradas.length);
-            mostrarRecogidas();
+        
+        // Si no hay filtros de fecha, incluir todas las activas
+        if (!fechaInicio && !fechaFin) {
+            return true;
         }
+        
+        // Convertir fecha de la recogida
+        const fechaRecogida = fechaAYYYYMMDD(recogida.fecha);
+        
+        console.log(`📦 Recogida ${recogida._id}:`);
+        console.log(`   📅 Original: "${recogida.fecha}"`);
+        console.log(`   📅 Convertida: "${fechaRecogida}"`);
+        
+        if (!fechaRecogida) {
+            console.log(`   ❌ Sin fecha válida - excluida`);
+            return false;
+        }
+        
+        // Aplicar filtros
+        let cumple = true;
+        
+        if (fechaInicio) {
+            cumple = cumple && (fechaRecogida >= fechaInicio);
+            console.log(`   🔍 >= ${fechaInicio}? ${fechaRecogida >= fechaInicio}`);
+        }
+        
+        if (fechaFin) {
+            cumple = cumple && (fechaRecogida <= fechaFin);
+            console.log(`   🔍 <= ${fechaFin}? ${fechaRecogida <= fechaFin}`);
+        }
+        
+        console.log(`   ${cumple ? '✅ INCLUIDA' : '❌ EXCLUIDA'}`);
+        return cumple;
+    });
 
-        // Mostrar recogidas filtradas
+    console.log(`📊 Resultado: ${recogidasFiltradas.length}/${todasLasRecogidas.length} recogidas`);
+    mostrarRecogidas();
+}
+
+
+// 🔥 FUNCIÓN ADICIONAL PARA DEBUG: Verificar estado de recogidas
+function verificarEstadoRecogidas() {
+    console.log('🔍 VERIFICANDO ESTADO DE TODAS LAS RECOGIDAS:');
+    
+    todasLasRecogidas.forEach((recogida, index) => {
+        const estado = recogida.estadoLiquidacion;
+        const fecha = recogida.fecha ? recogida.fecha.split('T')[0] : 'Sin fecha';
+        const totalKilos = recogida.totalKilos || 0;
+        const valor = recogida.valorPagar || 0;
+        
+        console.log(`📦 Recogida ${index + 1}:`);
+        console.log(`   🆔 ID: ${recogida._id}`);
+        console.log(`   📅 Fecha: ${fecha}`);
+        console.log(`   ⚖️ Kilos: ${totalKilos}`);
+        console.log(`   💰 Valor: ${valor}`);
+        console.log(`   🏷️ Estado: ${estado || 'SIN ESTADO (ACTIVA)'}`);
+        console.log(`   ✅ ¿Es activa?: ${!estado || estado !== 'liquidada' ? 'SÍ' : 'NO'}`);
+        console.log('   ---');
+    });
+}
+
+// 🔥 FUNCIÓN CORREGIDA: Cargar todas las recogidas de la finca
+async function cargarRecogidas() {
+    try {
+        document.getElementById('loadingIndicator').style.display = 'block';
+        document.getElementById('noDataMessage').style.display = 'none';
+
+        console.log('🔄 Cargando recogidas para finca:', fincaId);
+        
+        const response = await fetch(`https://jc-frutas.onrender.com/recogidas/por-finca/${fincaId}`);
+        if (!response.ok) throw new Error('Error al cargar recogidas');
+
+        todasLasRecogidas = await response.json();
+        console.log('📥 Recogidas cargadas del servidor:', todasLasRecogidas.length);
+
+        // 🔥 DEBUG INMEDIATO: Ver las primeras 3 recogidas
+        console.log('🔍 ===== PRIMERAS 3 RECOGIDAS PARA DEBUG =====');
+        todasLasRecogidas.slice(0, 3).forEach((recogida, index) => {
+            console.log(`📦 Recogida ${index + 1}:`);
+            console.log(`   🆔 ID: ${recogida._id}`);
+            console.log(`   📅 Fecha RAW: ${recogida.fecha}`);
+            console.log(`   📅 Tipo fecha: ${typeof recogida.fecha}`);
+            console.log(`   🏷️ Estado liquidación: ${recogida.estadoLiquidacion || 'UNDEFINED (ACTIVA)'}`);
+            console.log(`   ⚖️ Kilos: ${recogida.totalKilos}`);
+            console.log('   ---');
+        });
+        console.log('===============================================');
+
+        // Verificar estados de liquidación
+        const estadisticas = {
+            total: todasLasRecogidas.length,
+            liquidadas: todasLasRecogidas.filter(r => r.estadoLiquidacion === 'liquidada').length,
+            pendientes: todasLasRecogidas.filter(r => r.estadoLiquidacion === 'pendiente').length,
+            sinEstado: todasLasRecogidas.filter(r => !r.estadoLiquidacion).length,
+            conFecha: todasLasRecogidas.filter(r => r.fecha).length,
+            sinFecha: todasLasRecogidas.filter(r => !r.fecha).length
+        };
+
+        console.log('📊 ESTADÍSTICAS DE RECOGIDAS:');
+        console.log(`   📦 Total: ${estadisticas.total}`);
+        console.log(`   ✅ Liquidadas: ${estadisticas.liquidadas}`);
+        console.log(`   ⏳ Pendientes: ${estadisticas.pendientes}`);
+        console.log(`   🆘 Sin estado (activas): ${estadisticas.sinEstado}`);
+        console.log(`   📅 Con fecha: ${estadisticas.conFecha}`);
+        console.log(`   ❌ Sin fecha: ${estadisticas.sinFecha}`);
+
+        // Aplicar filtro inicial
+        filtrarRecogidas();
+
+    } catch (error) {
+        console.error('❌ Error cargando recogidas:', error);
+        document.getElementById('loadingIndicator').innerHTML = '❌ Error al cargar recogidas';
+    }
+}
+
+
+// Mostrar recogidas filtradas
         function mostrarRecogidas() {
             document.getElementById('loadingIndicator').style.display = 'none';
 
@@ -868,85 +1020,82 @@ async function liquidarIntervaloFechas() {
         }
 
         // Crear tarjeta de recogida - MODIFICADA PARA LIQUIDACIÓN AUTOMÁTICA
-        function crearTarjetaRecogida(recogida, numero) {
-            const div = document.createElement('div');
-            div.className = 'recogida-card';
+function crearTarjetaRecogida(recogida, numero) {
+    const div = document.createElement('div');
+    div.className = 'recogida-card';
 
-            // Usar la nueva función para formatear fecha sin zona horaria
-            const fecha = formatearFechaSinZonaHoraria(recogida.fecha);
-            const totalPesas = recogida.pesas ? recogida.pesas.length : 0;
+    // 🔥 USAR LA MISMA FUNCIÓN DE FORMATEO QUE EN HISTORIAL
+    const fecha = formatearFecha(recogida.fecha);
+    const totalPesas = recogida.pesas ? recogida.pesas.length : 0;
 
-            // Determinar estado de liquidación
-            const estadoLiquidacion = recogida.estadoLiquidacion;
-            let badgeEstado = '';
-            let mostrarBotonLiquidar = !estadoLiquidacion || estadoLiquidacion === 'pendiente'; // Mostrar si no tiene estado o está pendiente
+    // Determinar estado de liquidación
+    const estadoLiquidacion = recogida.estadoLiquidacion;
+    let badgeEstado = '';
+    let mostrarBotonLiquidar = !estadoLiquidacion || estadoLiquidacion === 'pendiente';
 
-            if (estadoLiquidacion) {
-                const colores = {
-                    'pendiente': 'background: #ffc107; color: #000;',
-                    'liquidada': 'background: #28a745; color: white;',
-                    'cancelada': 'background: #dc3545; color: white;'
-                };
-                const textos = {
-                    'pendiente': '⏳ Pendiente',
-                    'liquidada': '✅ Liquidada',
-                    'cancelada': '❌ Cancelada'
-                };
-                
-                badgeEstado = `<span style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; ${colores[estadoLiquidacion]}">${textos[estadoLiquidacion]}</span>`;
-            }
+    if (estadoLiquidacion) {
+        const colores = {
+            'pendiente': 'background: #ffc107; color: #000;',
+            'liquidada': 'background: #28a745; color: white;',
+            'cancelada': 'background: #dc3545; color: white;'
+        };
+        const textos = {
+            'pendiente': '⏳ Pendiente',
+            'liquidada': '✅ Liquidada',
+            'cancelada': '❌ Cancelada'
+        };
+        
+        badgeEstado = `<span style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; ${colores[estadoLiquidacion]}">${textos[estadoLiquidacion]}</span>`;
+    }
 
-            div.innerHTML = `
-                <div class="recogida-header">
-                    <div class="recogida-fecha">📅 ${fecha} - Recogida #${numero}</div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        ${badgeEstado}
-                        <div style="font-size: 14px; color: #6c757d;">👤 ${recogida.alias || recogida.usuario}</div>
-                    </div>
-                </div>
-                
-                <div class="recogida-info">
-                    <div class="info-item">
-                        <strong>${recogida.fruta || 'N/A'}</strong>
-                        <span>Fruta Principal</span>
-                    </div>
+    div.innerHTML = `
+        <div class="recogida-header">
+            <div class="recogida-fecha">📅 ${fecha} - Recogida #${numero}</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                ${badgeEstado}
+                <div style="font-size: 14px; color: #6c757d;">👤 ${recogida.alias || recogida.usuario}</div>
+            </div>
+        </div>
+        
+        <div class="recogida-info">
+            <div class="info-item">
+                <strong>${recogida.fruta || 'N/A'}</strong>
+                <span>Fruta Principal</span>
+            </div>
 
-                    <div class="info-item">
-                        <strong>${recogida.totalKilos || 0} kg</strong>
-                        <span>Total Kilos</span>
-                    </div>
-                    ${!isSubusuario ? `
-                    <div class="info-item">
-                        <strong>${(recogida.valorPagar || 0).toLocaleString()}</strong>
-                        <span>Valor Total</span>
-                    </div>
-                    ` : ''}
-                    <div class="info-item">
-                        <strong>${totalPesas}</strong>
-                        <span>Pesas</span>
-                    </div>
-                </div>
-                
+            <div class="info-item">
+                <strong>${recogida.totalKilos || 0} kg</strong>
+                <span>Total Kilos</span>
+            </div>
+            ${!isSubusuario ? `
+            <div class="info-item">
+                <strong>${(recogida.valorPagar || 0).toLocaleString()}</strong>
+                <span>Valor Total</span>
+            </div>
+            ` : ''}
+            <div class="info-item">
+                <strong>${totalPesas}</strong>
+                <span>Pesas</span>
+            </div>
+        </div>
 
+        ${mostrarBotonLiquidar ? `
+        <button class="btn-liquidar" onclick="liquidarRecogidaAutomatica('${recogida._id}')">
+            💰 LIQUIDAR AHORA
+        </button>
+        ` : estadoLiquidacion === 'liquidada' ? `
+        <div style="text-align: center; padding: 15px; background: #d4edda; border-radius: 10px; margin-top: 15px;">
+            <strong style="color: #155724;">✅ RECOGIDA LIQUIDADA</strong>
+            <div style="font-size: 12px; color: #155724; margin-top: 5px;">
+                ${recogida.fechaLiquidacion ? `Liquidada el ${formatearFecha(recogida.fechaLiquidacion)}` : ''}
+                ${recogida.usuarioLiquida ? ` por ${recogida.usuarioLiquida}` : ''}
+            </div>
+        </div>
+        ` : ''}
+    `;
 
-                ${mostrarBotonLiquidar ? `
-                <button class="btn-liquidar" onclick="liquidarRecogidaAutomatica('${recogida._id}')">
-                    💰 LIQUIDAR AHORA
-                </button>
-                ` : estadoLiquidacion === 'liquidada' ? `
-                <div style="text-align: center; padding: 15px; background: #d4edda; border-radius: 10px; margin-top: 15px;">
-                    <strong style="color: #155724;">✅ RECOGIDA LIQUIDADA</strong>
-                    <div style="font-size: 12px; color: #155724; margin-top: 5px;">
-                        ${recogida.fechaLiquidacion ? `Liquidada el ${formatearFechaSinZonaHoraria(recogida.fechaLiquidacion)}` : ''}
-                        ${recogida.usuarioLiquida ? ` por ${recogida.usuarioLiquida}` : ''}
-                    </div>
-                </div>
-                ` : ''}
-            `;
-
-            return div;
-        }
-
+    return div;
+}
         // Limpiar filtros
         function limpiarFiltros() {
             document.getElementById('fechaInicio').value = '';
