@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       await apiFetch("/auth/register", "POST", body);
       alert("Registro exitoso");
-      window.location.href = "login.html";
+      window.location.href = "index.html";
     } catch (err) {
       alert("Error en el registro: " + err.message);
     }
