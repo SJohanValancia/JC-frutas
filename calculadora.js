@@ -502,22 +502,12 @@ function getPesas() {
       const pesas = JSON.parse(pesasString);
       console.log("📦 Pesas recuperadas de localStorage:", pesas.length);
       return pesas;
+    } else {
+      console.log("📦 No se encontraron pesas en el localStorage.");
+      return [];
     }
-    
-    // Si no hay pesas principales, intentar recuperar del backup
-    const backupString = localStorage.getItem(STORAGE_KEY_BACKUP);
-    if (backupString) {
-      const pesasBackup = JSON.parse(backupString);
-      console.log("🔄 Recuperando pesas desde backup:", pesasBackup.length);
-      // Restaurar las pesas principales desde el backup
-      savePesas(pesasBackup);
-      return pesasBackup;
-    }
-    
-    console.log("📦 No hay pesas guardadas, iniciando con array vacío");
-    return [];
   } catch (error) {
-    console.error("❌ Error al recuperar pesas:", error);
+    console.error("❌ Error al recuperar las pesas:", error);
     return [];
   }
 }
@@ -767,28 +757,22 @@ function eliminarPesa(index) {
 }
 // 🔥 AUTO-GUARDADO PERIÓDICO
 function iniciarAutoGuardado() {
+  // Guardar inmediatamente al iniciar
+  const pesas = getPesas();
+  if (pesas.length > 0) {
+    savePesas(pesas);
+  }
+
+  // Configurar intervalo de guardado
   setInterval(() => {
     const pesas = getPesas();
     if (pesas.length > 0) {
-      // Crear backup silencioso cada 30 segundos
+      // Crear backup con timestamp
       const timestampKey = `pesas_autosave_${Date.now()}`;
       localStorage.setItem(timestampKey, JSON.stringify(pesas));
       
-      // Limpiar autoguardados antiguos (mantener solo el último)
-      const todasLasClaves = Object.keys(localStorage);
-      const clavesAutoguardado = todasLasClaves
-        .filter(key => key.startsWith('pesas_autosave_'))
-        .sort((a, b) => {
-          const timestampA = parseInt(a.split('_')[2]);
-          const timestampB = parseInt(b.split('_')[2]);
-          return timestampB - timestampA;
-        });
-      
-      if (clavesAutoguardado.length > 1) {
-        clavesAutoguardado.slice(1).forEach(key => {
-          localStorage.removeItem(key);
-        });
-      }
+      // Guardar en la clave principal
+      savePesas(pesas);
       
       console.log("💾 Auto-guardado realizado");
     }
@@ -1083,18 +1067,25 @@ function borrarNumero() {
 }
 
 function limpiarTodo() {
-  if (confirm("¿Está seguro de limpiar todas las pesas? Esta acción no se puede deshacer.")) {
-    inputPeso.value = "";
-    localStorage.removeItem(STORAGE_KEY_PESAS);
-    editandoIndex = null;
-    
-    // 🔥 AGREGAR ESTAS LÍNEAS:
-    filtroActivo = "todos";  // Limpiar filtro activo
-    valorFiltroActivo = "";  // Limpiar valor de filtro
-    
-    renderPesas();
-    mostrarNotificacion("🧹 Todas las pesas han sido eliminadas", "success");
+  // AÑADIR VALIDACIÓN EXTRA
+  if (!confirm("¿Está seguro de limpiar todas las pesas? Esta acción no se puede deshacer.")) {
+    return; // Salir si el usuario cancela
   }
+  
+  if (!confirm("⚠️ CONFIRMACIÓN FINAL: Se eliminarán TODAS las pesas permanentemente. ¿Continuar?")) {
+    return; // Segunda confirmación
+  }
+  
+  inputPeso.value = "";
+  localStorage.removeItem(STORAGE_KEY_PESAS);
+  localStorage.removeItem(STORAGE_KEY_BACKUP); // También limpiar backup
+  editandoIndex = null;
+  
+  filtroActivo = "todos";
+  valorFiltroActivo = "";
+  
+  renderPesas();
+  mostrarNotificacion("🧹 Todas las pesas han sido eliminadas", "success");
 }
 
 function editarPesa(index) {
@@ -1127,9 +1118,36 @@ document.addEventListener("DOMContentLoaded", () => {
 // 🔥 FUNCIÓN SIMPLIFICADA: Solo generar página de totales con colores suaves
 let isSharingInProgress = false;
 
+// 🔥 FUNCIÓN MODIFICADA PARA VALIDAR INPUT ANTES DE ENVIAR
 async function enviarReciboWhatsApp() {
   if (isSharingInProgress) {
     console.log("Compartir ya está en curso, por favor espera.");
+    return;
+  }
+
+  // 🚨 NUEVA VALIDACIÓN: Verificar si hay datos en el input
+  const valorInput = inputPeso.value.trim();
+  if (valorInput && valorInput !== "") {
+    // Mostrar alerta personalizada con estilo
+    mostrarAlertaPersonalizada(
+      "⚠️ Aún hay un dato que no se ha registrado",
+      "Por favor dele al botón + en la calculadora para agregar el peso antes de enviar el recibo.",
+      "warning"
+    );
+    
+    // Resaltar el input para llamar la atención
+    resaltarInput();
+    return; // No continuar con el envío
+  }
+
+  // Verificar si hay pesas para enviar
+  const pesas = getPesas();
+  if (pesas.length === 0) {
+    mostrarAlertaPersonalizada(
+      "📦 No hay pesas para enviar",
+      "Agregue al menos una pesa antes de generar el recibo.",
+      "info"
+    );
     return;
   }
 
@@ -1141,12 +1159,6 @@ async function enviarReciboWhatsApp() {
   isSharingInProgress = true;
 
   try {
-    const pesas = getPesas();
-    if (pesas.length === 0) {
-      alert("No hay pesas para enviar");
-      return;
-    }
-
     // 🔥 PREPARAR DATOS DE LA FACTURA
     const finca = document.getElementById("finca")?.value || "Sin especificar";
     const propietario = document.getElementById("propietario")?.value || "Sin especificar";
@@ -1201,19 +1213,176 @@ async function enviarReciboWhatsApp() {
       files: [fileTotales],
     });
 
+    // ✅ Si el envío fue exitoso, limpiar el input por precaución
+    inputPeso.value = "";
+
   } catch (err) {
     console.error("Error al compartir:", err);
-    alert("Error al generar el resumen: " + err.message);
+    mostrarAlertaPersonalizada(
+      "❌ Error al generar el resumen",
+      err.message,
+      "error"
+    );
   } finally {
     isSharingInProgress = false;
   }
 }
 
-// 🔥 FUNCIÓN MEJORADA PARA CREAR PÁGINA DE TOTALES - PARA ADMIN MUESTRA PRECIO POR KILO
+// 🔥 NUEVA FUNCIÓN PARA MOSTRAR ALERTAS PERSONALIZADAS
+function mostrarAlertaPersonalizada(titulo, mensaje, tipo = "info") {
+  const alerta = document.createElement("div");
+  
+  const colores = {
+    info: {
+      bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      border: "#667eea"
+    },
+    success: {
+      bg: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+      border: "#11998e"
+    },
+    warning: {
+      bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+      border: "#f093fb"
+    },
+    error: {
+      bg: "linear-gradient(135deg, #fc466b 0%, #3f5efb 100%)",
+      border: "#fc466b"
+    }
+  };
+  
+  alerta.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: ${colores[tipo].bg};
+    color: white;
+    padding: 25px 30px;
+    border-radius: 20px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    z-index: 15000;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    backdrop-filter: blur(15px);
+    border: 2px solid ${colores[tipo].border};
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  `;
+  
+  alerta.innerHTML = `
+    <div style="font-size: 24px; margin-bottom: 15px; font-weight: bold;">
+      ${titulo}
+    </div>
+    <div style="font-size: 16px; line-height: 1.4; margin-bottom: 20px; opacity: 0.95;">
+      ${mensaje}
+    </div>
+    <button onclick="cerrarAlerta(this)" style="
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 25px;
+      padding: 10px 25px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'; this.style.transform='scale(1.05)'" 
+       onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'; this.style.transform='scale(1)'">
+      ✓ Entendido
+    </button>
+  `;
+  
+  // Crear overlay de fondo
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 14999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  `;
+  
+  document.body.appendChild(overlay);
+  document.body.appendChild(alerta);
+  
+  // Animación de entrada
+  setTimeout(() => {
+    overlay.style.opacity = "1";
+    alerta.style.opacity = "1";
+    alerta.style.transform = "translate(-50%, -50%) scale(1)";
+  }, 50);
+  
+  // Función para cerrar la alerta
+  window.cerrarAlerta = function(boton) {
+    const alertaElemento = boton.closest('div');
+    const overlayElemento = document.querySelector('div[style*="position: fixed"][style*="rgba(0, 0, 0, 0.6)"]');
+    
+    alertaElemento.style.transform = "translate(-50%, -50%) scale(0.8)";
+    alertaElemento.style.opacity = "0";
+    overlayElemento.style.opacity = "0";
+    
+    setTimeout(() => {
+      if (alertaElemento.parentNode) alertaElemento.parentNode.removeChild(alertaElemento);
+      if (overlayElemento.parentNode) overlayElemento.parentNode.removeChild(overlayElemento);
+    }, 400);
+  };
+  
+  // Cerrar al hacer clic en el overlay
+  overlay.addEventListener('click', () => {
+    window.cerrarAlerta(alerta.querySelector('button'));
+  });
+}
+
+// 🔥 FUNCIÓN PARA RESALTAR EL INPUT CON ANIMACIÓN
+function resaltarInput() {
+  if (!inputPeso) return;
+  
+  // Guardar estilo original
+  const estiloOriginal = inputPeso.style.cssText;
+  
+  // Aplicar resaltado con animación pulsante
+  inputPeso.style.cssText += `
+    border: 3px solid #ff4757 !important;
+    box-shadow: 0 0 20px rgba(255, 71, 87, 0.6) !important;
+    animation: pulseWarning 1s ease-in-out 3;
+    background: rgba(255, 71, 87, 0.1) !important;
+  `;
+  
+  // Agregar CSS para la animación si no existe
+  if (!document.getElementById('pulseWarningCSS')) {
+    const style = document.createElement('style');
+    style.id = 'pulseWarningCSS';
+    style.textContent = `
+      @keyframes pulseWarning {
+        0% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 71, 87, 0.6); }
+        50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 71, 87, 0.8); }
+        100% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 71, 87, 0.6); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // Enfocar el input
+  inputPeso.focus();
+  
+  // Restaurar estilo original después de 4 segundos
+  setTimeout(() => {
+    inputPeso.style.cssText = estiloOriginal;
+  }, 4000);
+}
+
+// 🔥 FUNCIÓN MEJORADA PARA CREAR PÁGINA DE TOTALES CON LETRAS MÁS GRANDES EN EL RESUMEN
 function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGeneral, finca, propietario, fecha) {
   const div = document.createElement("div");
   div.style.cssText = `
-    width: 1200px;
+    width: 5000px;
     min-height: 1000px;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     color: #2c3e50;
@@ -1246,14 +1415,14 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
 
   div.innerHTML = `
     <div style="text-align: center; margin-bottom: 30px;">
-      <h1 style="margin: 0; font-size: 36px; font-weight: bold; color: #34495e;">
+      <h1 style="margin: 0; font-size: 48px; font-weight: bold; color: #34495e;">
         📊 RESUMEN TOTAL
       </h1>
       <div style="width: 60px; height: 4px; background: linear-gradient(to right, #3498db, #2ecc71); margin: 15px auto; border-radius: 2px;"></div>
     </div>
 
-    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 15px; margin-bottom: 25px; backdrop-filter: blur(10px);">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 16px;">
+    <div style="background: rgba(255,255,255,0.15); padding: 25px; border-radius: 15px; margin-bottom: 30px; backdrop-filter: blur(10px);">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 20px;">
         <div><strong>🏠 Finca:</strong> ${finca}</div>
         <div><strong>👤 Propietario:</strong> ${propietario}</div>
         <div><strong>📅 Fecha:</strong> ${fecha}</div>
@@ -1261,17 +1430,17 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
       </div>
     </div>
 
-    <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; margin-bottom: 25px; backdrop-filter: blur(10px);">
-      <h3 style="margin: 0 0 25px 0; text-align: center; font-size: 20px;">📋 RESUMEN POR FRUTA Y CALIDAD</h3>
-      <div style="display: grid; gap: 15px;">
+    <div style="background: rgba(255,255,255,0.2); padding: 30px; border-radius: 15px; margin-bottom: 30px; backdrop-filter: blur(10px);">
+      <h3 style="margin: 0 0 30px 0; text-align: center; font-size: 32px; font-weight: bold;">📋 RESUMEN POR FRUTA Y CALIDAD</h3>
+      <div style="display: grid; gap: 20px;">
         ${Object.entries(resumenPorFruta).map(([clave, datos], index) => {
           return `
-          <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; color: #2c3e50; box-shadow: 0 5px 15px rgba(0,0,0,0.1); white-space: nowrap;">
-            <div style="font-weight: bold; color: #2c3e50; font-size: 18px; margin-right: 20px;">${datos.fruta} - ${datos.calidad}</div>
-            <div style="display: flex; align-items: center; gap: 30px;">
-              <span style="color: #2c3e50; font-weight: bold; font-size: 16px;">${datos.kilos} kg</span>
-              ${!isSubusuario ? `<span style="color: #e67e22; font-weight: bold; font-size: 16px;">${datos.precio.toLocaleString()} /kg</span>` : ''}
-              ${!isSubusuario ? `<span style="color: #27ae60; font-weight: bold; font-size: 18px;">${datos.valor.toLocaleString()}</span>` : ''}
+          <div style="background: rgba(255,255,255,0.15); padding: 35px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; color: #2c3e50; box-shadow: 0 8px 20px rgba(0,0,0,0.15); white-space: nowrap;">
+            <div style="font-weight: bold; color: #2c3e50; font-size: 40px; margin-right: 50px;">${datos.fruta} - ${datos.calidad}</div>
+            <div style="display: flex; align-items: center; gap: 60px;">
+              <span style="color: #2c3e50; font-weight: bold; font-size: 38px;">${datos.kilos} kg</span>
+              ${!isSubusuario ? `<span style="color: #e67e22; font-weight: bold; font-size: 34px;">$${datos.precio.toLocaleString()} /kg</span>` : ''}
+              ${!isSubusuario ? `<span style="color: #27ae60; font-weight: bold; font-size: 40px;">$${datos.valor.toLocaleString()}</span>` : ''}
             </div>
           </div>
         `}).join('')}
@@ -1279,26 +1448,26 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
     </div>
 
     ${!isSubusuario ? `
-    <div style="background: rgba(255,255,255,0.15); padding: 30px; border-radius: 15px; text-align: center; margin-top: 30px;">
-      <h2 style="margin: 0 0 20px 0; font-size: 28px; color: #2c3e50; font-weight: bold;">
+    <div style="background: rgba(255,255,255,0.15); padding: 35px; border-radius: 15px; text-align: center; margin-top: 30px;">
+      <h2 style="margin: 0 0 25px 0; font-size: 32px; color: #2c3e50; font-weight: bold;">
         💰 TOTAL GENERAL
       </h2>
-      <div style="font-size: 32px; font-weight: bold; color: #27ae60;">
-        ${totalValorGeneral.toLocaleString()}
+      <div style="font-size: 40px; font-weight: bold; color: #27ae60;">
+        $${totalValorGeneral.toLocaleString()}
       </div>
     </div>
     ` : `
-    <div style="background: rgba(255,255,255,0.15); padding: 30px; border-radius: 15px; text-align: center; margin-top: 30px;">
-      <h2 style="margin: 0 0 20px 0; font-size: 28px; color: #2c3e50; font-weight: bold;">
+    <div style="background: rgba(255,255,255,0.15); padding: 35px; border-radius: 15px; text-align: center; margin-top: 30px;">
+      <h2 style="margin: 0 0 25px 0; font-size: 32px; color: #2c3e50; font-weight: bold;">
         📊 TOTAL KILOS
       </h2>
-      <div style="font-size: 32px; font-weight: bold; color: #3498db;">
+      <div style="font-size: 40px; font-weight: bold; color: #3498db;">
         ${totalKilosGeneral} kg
       </div>
     </div>
     `}
 
-    <div style="position: absolute; bottom: 20px; right: 30px; font-size: 12px; color: #95a5a6;">
+    <div style="position: absolute; bottom: 20px; right: 30px; font-size: 16px; color: #95a5a6;">
       Generado: ${new Date().toLocaleString()}
     </div>
   `;
@@ -1306,11 +1475,12 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
   return div;
 }
 
+
 // 🔥 FUNCIÓN PARA CREAR PÁGINA INDIVIDUAL DE FACTURA - COLORES SUAVES
 function crearFactura(items, numeroPagina, totalPaginas, finca, propietario, fecha) {
   const div = document.createElement("div");
   div.style.cssText = `
-    width: 2500px;
+    width: 5000px
     min-height: 1000px;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     color: #2c3e50;
@@ -1388,7 +1558,7 @@ function crearFactura(items, numeroPagina, totalPaginas, finca, propietario, fec
 function crearPaginaTotales(todosLosItems, totalKilosGeneral, totalValorGeneral, numeroPagina, totalPaginas, finca, propietario, fecha) {
   const div = document.createElement("div");
   div.style.cssText = `
-    width: 2500px;
+    width: 5000px
     min-height: 1000px;
     background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     color: white;
@@ -1510,6 +1680,9 @@ async function cargarDatosRecogida(id) {
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 Calculadora cargada, configurando interfaz mejorada...");
   
+  // Marcar que estamos en una recarga para evitar limpieza
+  window.isRecarga = true;
+  
   await configurarInterfazCalculadora();
   await cargarPreciosFrutas();
   
@@ -1522,15 +1695,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     mostrarNotificacion(`📦 ${pesas.length} pesas recuperadas correctamente`, "success");
   }
   
-  // 🔥 AGREGAR ESTAS LÍNEAS PARA INICIALIZAR FILTROS:
+  // Inicializar filtros
   setTimeout(() => {
     crearSistemaFiltros();
     console.log("✅ Sistema de filtros inicializado");
   }, 500);
   
+  // Marcar que la recarga ha terminado
+  setTimeout(() => {
+    window.isRecarga = false;
+  }, 1000);
+  
   console.log("✅ Calculadora configurada completamente con persistencia mejorada");
-  console.log("🎯 Auto-guardado activado cada 30 segundos");
-  console.log("🔍 Sistema de filtros habilitado"); // Nueva línea de log
 });
 
 window.resetearFiltros = function() {

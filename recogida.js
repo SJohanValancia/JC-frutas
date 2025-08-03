@@ -8,6 +8,9 @@ const usuarioAlias = params.get("usuarioAlias");
 const modo = params.get("modo");
 const idRecogida = params.get("idRecogida");
 
+
+
+
 // 🔥 FUNCIÓN PARA CONFIGURAR LA INFORMACIÓN DE LA FINCA Y PROPIETARIO
 function configurarInformacionFinca() {
   console.log("🏠 Configurando información de la finca...");
@@ -334,11 +337,37 @@ function limpiarPesasCompleto() {
 async function guardarRecogida() {
   console.log("💾 Iniciando guardado de recogida MANTENIENDO frutas y calidades individuales...");
   
+  // 🚨 NUEVA VALIDACIÓN: Verificar si hay datos en el input antes de guardar
+  const valorInput = inputPeso ? inputPeso.value.trim() : "";
+  if (valorInput && valorInput !== "") {
+    // Mostrar alerta personalizada
+    mostrarAlertaPersonalizada(
+      "⚠️ Aún hay un dato que no se ha registrado",
+      "Por favor dele al botón + en la calculadora para agregar el peso antes de guardar la recogida.",
+      "warning"
+    );
+    
+    // Resaltar el input para llamar la atención
+    resaltarInput();
+    return; // No continuar con el guardado
+  }
+
   const pesas = getPesas();
   const totalKilos = pesas.reduce((sum, n) => sum + parseInt(n.kilos), 0);
 
   if (totalKilos === 0) {
-    alert("Debe agregar al menos una pesa para guardar la recogida");
+    mostrarAlertaPersonalizada(
+      "📦 No hay pesas para guardar",
+      "Debe agregar al menos una pesa para guardar la recogida.",
+      "info"
+    );
+    return;
+  }
+
+  // 🚨 NUEVA CONFIRMACIÓN: Preguntar si está seguro de guardar
+  const confirmacion = await mostrarConfirmacionGuardado(pesas.length, totalKilos);
+  if (!confirmacion) {
+    console.log("❌ Usuario canceló el guardado");
     return;
   }
 
@@ -346,7 +375,11 @@ async function guardarRecogida() {
   const pesasSinInfo = pesas.filter(pesa => !pesa.fruta || !pesa.calidad);
   if (pesasSinInfo.length > 0) {
     console.error("❌ Pesas sin información completa:", pesasSinInfo);
-    alert("Hay pesas sin información de fruta o calidad. Por favor revisa los datos.");
+    mostrarAlertaPersonalizada(
+      "❌ Información incompleta",
+      "Hay pesas sin información de fruta o calidad. Por favor revisa los datos.",
+      "error"
+    );
     return;
   }
 
@@ -356,13 +389,21 @@ async function guardarRecogida() {
     const fechaHoy = new Date().toISOString().split("T")[0];
     
     if (fechaSeleccionada > fechaHoy) {
-      alert("⚠️ No se puede guardar con una fecha futura. Por favor seleccione una fecha válida.");
+      mostrarAlertaPersonalizada(
+        "⚠️ Fecha inválida",
+        "No se puede guardar con una fecha futura. Por favor seleccione una fecha válida.",
+        "warning"
+      );
       fechaInput.focus();
       return;
     }
     
     if (!fechaSeleccionada) {
-      alert("⚠️ Por favor seleccione una fecha para la recogida.");
+      mostrarAlertaPersonalizada(
+        "⚠️ Fecha requerida",
+        "Por favor seleccione una fecha para la recogida.",
+        "warning"
+      );
       fechaInput.focus();
       return;
     }
@@ -376,7 +417,11 @@ async function guardarRecogida() {
 
   const currentUserAlias = await obtenerAliasUsuario();
   if (!currentUserAlias) {
-    alert("Error: No se pudo obtener el alias del usuario");
+    mostrarAlertaPersonalizada(
+      "❌ Error de usuario",
+      "No se pudo obtener el alias del usuario.",
+      "error"
+    );
     return;
   }
 
@@ -503,6 +548,11 @@ async function guardarRecogida() {
       mostrarAnimacionExito("✔ Recogida guardada (revisar limpieza)");
     }
     
+    // ✅ Limpiar el input después de guardar exitosamente
+    if (inputPeso) {
+      inputPeso.value = "";
+    }
+    
     setTimeout(() => {
       const pesasRestantes = localStorage.getItem("pesas_recogida");
       if (pesasRestantes) {
@@ -515,8 +565,122 @@ async function guardarRecogida() {
     
   } catch (err) {
     console.error("❌ Error al guardar recogida:", err);
-    alert("Error al guardar recogida: " + err.message);
+    mostrarAlertaPersonalizada(
+      "❌ Error al guardar",
+      "Error al guardar recogida: " + err.message,
+      "error"
+    );
   }
+}
+
+// 🔥 NUEVA FUNCIÓN PARA MOSTRAR CONFIRMACIÓN DE GUARDADO
+function mostrarConfirmacionGuardado(cantidadPesas, totalKilos) {
+  return new Promise((resolve) => {
+    const confirmacion = document.createElement("div");
+    
+    confirmacion.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 35px;
+      border-radius: 20px;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      z-index: 15000;
+      max-width: 450px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      backdrop-filter: blur(15px);
+      border: 2px solid #667eea;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    `;
+    
+    confirmacion.innerHTML = `
+      <div style="font-size: 32px; margin-bottom: 15px;">
+        💾
+      </div>
+      <div style="font-size: 24px; margin-bottom: 15px; font-weight: bold;">
+        ¿Está seguro de que ya quiere guardar la recogida?
+      </div>
+      <div style="font-size: 16px; line-height: 1.4; margin-bottom: 25px; opacity: 0.95; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+        📊 <strong>${cantidadPesas}</strong> pesas registradas<br>
+        ⚖️ <strong>${totalKilos}</strong> kilos en total
+      </div>
+      <div style="display: flex; gap: 15px; justify-content: center;">
+        <button onclick="confirmarGuardado(true)" style="
+          background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+          color: white;
+          border: none;
+          border-radius: 25px;
+          padding: 12px 25px;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          min-width: 120px;
+        " onmouseover="this.style.transform='scale(1.05)'" 
+           onmouseout="this.style.transform='scale(1)'">
+          ✅ Sí, Guardar
+        </button>
+        <button onclick="confirmarGuardado(false)" style="
+          background: linear-gradient(135deg, #fc466b 0%, #3f5efb 100%);
+          color: white;
+          border: none;
+          border-radius: 25px;
+          padding: 12px 25px;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          min-width: 120px;
+        " onmouseover="this.style.transform='scale(1.05)'" 
+           onmouseout="this.style.transform='scale(1)'">
+          ❌ Cancelar
+        </button>
+      </div>
+    `;
+    
+    // Crear overlay de fondo
+    const overlay = document.createElement("div");
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 14999;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(confirmacion);
+    
+    // Animación de entrada
+    setTimeout(() => {
+      overlay.style.opacity = "1";
+      confirmacion.style.opacity = "1";
+      confirmacion.style.transform = "translate(-50%, -50%) scale(1)";
+    }, 50);
+    
+    // Función global para manejar la confirmación
+    window.confirmarGuardado = function(decision) {
+      confirmacion.style.transform = "translate(-50%, -50%) scale(0.8)";
+      confirmacion.style.opacity = "0";
+      overlay.style.opacity = "0";
+      
+      setTimeout(() => {
+        if (confirmacion.parentNode) confirmacion.parentNode.removeChild(confirmacion);
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        delete window.confirmarGuardado; // Limpiar función global
+        resolve(decision);
+      }, 400);
+    };
+  });
 }
 
 // Resto de funciones (sin cambios críticos, solo mejoras menores)
@@ -525,15 +689,14 @@ function configurarBotonGuardar() {
   if (guardarBtn) {
     guardarBtn.removeEventListener("click", guardarRecogida);
     guardarBtn.addEventListener("click", async () => {
-      console.log("🚀 Iniciando guardado con mantención de frutas individuales");
+      console.log("🚀 Iniciando guardado con validaciones y confirmación");
       await guardarRecogida();
     });
-    console.log("✅ Botón guardar configurado correctamente");
+    console.log("✅ Botón guardar configurado correctamente con validaciones");
   } else {
     console.warn("⚠️ Botón 'guardarRecogida' no encontrado");
   }
 }
-
 // FUNCIÓN PARA CONFIGURAR INTERFAZ SEGÚN TIPO DE USUARIO
 async function configurarInterfazSegunTipoUsuario() {
   console.log("🎨 Configurando interfaz según tipo de usuario...");
@@ -630,7 +793,13 @@ async function cargarFrutas() {
 }
 
 function getPesas() {
-  return JSON.parse(localStorage.getItem("pesas_recogida") || "[]");
+  try {
+    const pesasString = localStorage.getItem(STORAGE_KEY_PESAS);
+    return pesasString ? JSON.parse(pesasString) : [];
+  } catch (error) {
+    console.error("Error al recuperar pesas:", error);
+    return [];
+  }
 }
 
 function mostrarAnimacionExito(mensaje) {
@@ -1114,19 +1283,32 @@ function configurarBotonesParaLimpieza() {
 }
 
 // 🔥 FUNCIÓN PARA VERIFICAR Y LIMPIAR DATOS RESIDUALES
+// 🔥 FUNCIÓN CORREGIDA PARA VERIFICAR Y LIMPIAR DATOS RESIDUALES
 function verificarYLimpiarDatosResiduales() {
   const clavesEdicion = [
-    "pesas_recogida",
+    // "pesas_recogida",  // ← COMENTADO: NO eliminar las pesas normales
     "recogidaEditando", 
     "datosRecogidaOriginal",
-    "editMode"
+    "pesasEditando",
+    "datosEdicion",
+    "recogidaTemp",
+    "editMode",
+    "recogidaId"
   ];
   
   const hayDatosResiduales = clavesEdicion.some(clave => localStorage.getItem(clave));
   
   if (hayDatosResiduales) {
     console.log("🧹 Detectados datos residuales de edición anterior - limpiando...");
-    limpiarDatosEdicion();
+    // Solo limpiar datos específicos de edición, NO las pesas normales
+    clavesEdicion.forEach(clave => {
+      if (localStorage.getItem(clave)) {
+        localStorage.removeItem(clave);
+        console.log(`🧹 Clave limpiada: ${clave}`);
+      }
+    });
+  } else {
+    console.log("✅ No hay datos residuales de edición");
   }
 }
 
@@ -1179,6 +1361,7 @@ window.addEventListener('load', function() {
     }
   }, 1000);
 });
+
 
 // 🔥 EXPORTAR FUNCIONES PARA USO MANUAL SI ES NECESARIO
 window.limpiarDatosEdicion = limpiarDatosEdicion;
