@@ -1105,63 +1105,81 @@ function actualizarStats() {
 }
 
 
+// 🔥 FUNCIÓN PARA CALCULAR ESTADÍSTICAS POR FRUTA CON CALIDADES AGRUPADAS
 function calcularEstadisticasPorFruta(recogidas) {
   const estadisticas = {};
 
   recogidas.forEach(recogida => {
+    // Procesar pesas si existen
     if (recogida.pesas && Array.isArray(recogida.pesas)) {
-      // Si tiene pesas detalladas, usar esos datos
       recogida.pesas.forEach(pesa => {
         const fruta = pesa.fruta || 'Sin especificar';
+        const calidad = pesa.calidad || 'primera';
+        const kilos = pesa.kilos || 0;
+        const valor = pesa.valor || 0;
         
         if (!estadisticas[fruta]) {
           estadisticas[fruta] = {
-            recogidas: 0,
+            recogidas: new Set(), // Usamos Set para contar recogidas únicas
             kilos: 0,
             valor: 0,
-            pesas: 0
+            pesas: 0,
+            calidades: {
+              primera: 0,
+              segunda: 0,
+              extra: 0
+            }
           };
         }
         
-        estadisticas[fruta].kilos += pesa.kilos || 0;
-        estadisticas[fruta].valor += pesa.valor || 0;
+        // Actualizar estadísticas
+        estadisticas[fruta].recogidas.add(recogida._id); // ID único de recogida
+        estadisticas[fruta].kilos += kilos;
+        estadisticas[fruta].valor += valor;
         estadisticas[fruta].pesas += 1;
+        estadisticas[fruta].calidades[calidad] += kilos;
       });
     } else {
-      // Si no tiene pesas detalladas, usar datos de la recogida general
+      // Procesar recogida sin pesas detalladas
       const fruta = recogida.fruta || 'Sin especificar';
+      const calidad = recogida.calidad || 'primera';
+      const kilos = recogida.totalKilos || 0;
+      const valor = recogida.valorPagar || 0;
       
       if (!estadisticas[fruta]) {
         estadisticas[fruta] = {
-          recogidas: 0,
+          recogidas: new Set(),
           kilos: 0,
           valor: 0,
-          pesas: 0
+          pesas: 0,
+          calidades: {
+            primera: 0,
+            segunda: 0,
+            extra: 0
+          }
         };
       }
       
-      estadisticas[fruta].kilos += recogida.totalKilos || 0;
-      estadisticas[fruta].valor += recogida.valorPagar || 0;
+      estadisticas[fruta].recogidas.add(recogida._id);
+      estadisticas[fruta].kilos += kilos;
+      estadisticas[fruta].valor += valor;
       estadisticas[fruta].pesas += 1;
+      estadisticas[fruta].calidades[calidad] += kilos;
     }
   });
 
-  // Contar recogidas únicas por fruta
-  recogidas.forEach(recogida => {
-    const frutasRecogida = obtenerFrutasUnicas(recogida);
-    frutasRecogida.forEach(fruta => {
-      if (estadisticas[fruta]) {
-        estadisticas[fruta].recogidas += 1;
-      }
-    });
+  // Convertir Sets de recogidas a números
+  Object.keys(estadisticas).forEach(fruta => {
+    estadisticas[fruta].recogidas = estadisticas[fruta].recogidas.size;
   });
 
   return estadisticas;
 }
 
+// 🔥 FUNCIÓN PARA GENERAR HTML DE ESTADÍSTICAS AGRUPADAS POR FRUTA
 function generarHTMLEstadisticasFrutas(estadisticas) {
   const frutasOrdenadas = Object.entries(estadisticas)
-    .sort(([,a], [,b]) => b.kilos - a.kilos); // Ordenar por kilos descendente
+    .sort(([,a], [,b]) => b.kilos - a.kilos);
 
   if (frutasOrdenadas.length === 0) {
     return '';
@@ -1171,45 +1189,82 @@ function generarHTMLEstadisticasFrutas(estadisticas) {
     <div style="grid-column: 1/-1; margin-top: 20px;">
       <div style="background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px; box-shadow: var(--shadow);">
         <h3 style="text-align: center; color: var(--primary-color); margin-bottom: 20px; font-size: 1.3em;">
-          🍎 Estadísticas por Fruta
+          🍎 Estadísticas Consolidadas por Fruta
         </h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
   `;
 
   frutasOrdenadas.forEach(([fruta, stats]) => {
-    const promedioKilosPorRecogida = stats.recogidas > 0 ? (stats.kilos / stats.recogidas).toFixed(1) : 0;
-    
+    const porcentajePrimera = stats.kilos > 0 ? (stats.calidades.primera / stats.kilos * 100).toFixed(1) : 0;
+    const porcentajeSegunda = stats.kilos > 0 ? (stats.calidades.segunda / stats.kilos * 100).toFixed(1) : 0;
+    const porcentajeExtra = stats.kilos > 0 ? (stats.calidades.extra / stats.kilos * 100).toFixed(1) : 0;
+    const promedioKilos = stats.recogidas > 0 ? (stats.kilos / stats.recogidas).toFixed(1) : 0;
+
     frutasHTML += `
-      <div style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 18px; text-align: center; border-left: 4px solid var(--success-color);">
-        <div style="font-size: 1.5em; margin-bottom: 8px;">${obtenerEmojifruta(fruta)}</div>
-        <div style="font-weight: 700; color: var(--primary-color); margin-bottom: 12px; font-size: 1.1em;">${fruta}</div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85em;">
+      <div style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; border-left: 4px solid var(--success-color);">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+          <div style="font-size: 2em;">${obtenerEmojifruta(fruta)}</div>
           <div>
-            <div style="color: var(--text-secondary); margin-bottom: 2px;">Recogidas</div>
-            <div style="font-weight: 600; color: var(--text-primary);">${stats.recogidas}</div>
-          </div>
-          <div>
-            <div style="color: var(--text-secondary); margin-bottom: 2px;">Pesas</div>
-            <div style="font-weight: 600; color: var(--text-primary);">${stats.pesas}</div>
+            <div style="font-weight: 700; font-size: 1.2em; color: var(--primary-color);">${fruta}</div>
+            <div style="font-size: 0.9em; color: var(--text-secondary);">${stats.recogidas} recogidas</div>
           </div>
         </div>
         
-        <div style="margin: 12px 0; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-          <div style="color: var(--text-secondary); font-size: 0.8em; margin-bottom: 4px;">Total Kilos</div>
-          <div style="font-size: 1.3em; font-weight: 700; color: var(--success-color);">${stats.kilos.toFixed(1)} kg</div>
+        <!-- RESUMEN PRINCIPAL -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+          <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px;">
+            <div style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 5px;">Total Kilos</div>
+            <div style="font-size: 1.4em; font-weight: 700; color: var(--success-color);">${stats.kilos.toFixed(1)}</div>
+          </div>
+          
+          <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px;">
+            <div style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 5px;">Promedio</div>
+            <div style="font-size: 1.2em; font-weight: 700;">${promedioKilos} kg/rec</div>
+          </div>
         </div>
         
+        <!-- DESGLOSE POR CALIDAD -->
+        <div style="margin-bottom: 15px;">
+          <div style="font-size: 0.9em; color: var(--text-secondary); margin-bottom: 8px; text-align: center;">
+            Distribución por Calidad
+          </div>
+          
+          <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px;">
+            <!-- Primera -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <div>
+                <span class="calidad-badge calidad-primera" style="margin-right: 8px;">Primera</span>
+                <span style="font-size: 0.8em; color: var(--text-secondary);">${porcentajePrimera}%</span>
+              </div>
+              <div style="font-weight: 600;">${stats.calidades.primera.toFixed(1)} kg</div>
+            </div>
+            
+            <!-- Segunda -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <div>
+                <span class="calidad-badge calidad-segunda" style="margin-right: 8px;">Segunda</span>
+                <span style="font-size: 0.8em; color: var(--text-secondary);">${porcentajeSegunda}%</span>
+              </div>
+              <div style="font-weight: 600;">${stats.calidades.segunda.toFixed(1)} kg</div>
+            </div>
+            
+            <!-- Extra -->
+            <div style="display: flex; justify-content: space-between;">
+              <div>
+                <span class="calidad-badge calidad-extra" style="margin-right: 8px;">Extra</span>
+                <span style="font-size: 0.8em; color: var(--text-secondary);">${porcentajeExtra}%</span>
+              </div>
+              <div style="font-weight: 600;">${stats.calidades.extra.toFixed(1)} kg</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- VALOR TOTAL (solo para admin) -->
         ${!esSubusuario ? `
-        <div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-          <div style="color: var(--text-secondary); font-size: 0.8em; margin-bottom: 4px;">Total Valor</div>
-          <div style="font-size: 1.1em; font-weight: 700; color: var(--warning-color);">${stats.valor.toLocaleString()}</div>
+        
+          </div>
         </div>
         ` : ''}
-        
-        <div style="margin-top: 8px; font-size: 0.8em; color: var(--text-secondary);">
-          Promedio: ${promedioKilosPorRecogida} kg/recogida
-        </div>
       </div>
     `;
   });
@@ -1227,8 +1282,8 @@ function generarHTMLEstadisticasFrutas(estadisticas) {
 function obtenerEmojifruta(fruta) {
   const emojis = {
     'mango': '🥭',
-    'aguacate': '🥑',
-    'limón': '🍋',
+    'aguacate, papelillo, semil, choquete, polo': '🥑',
+    'limón, taiti, mandarin': '🍋',
     'naranja': '🍊',
     'mandarina': '🍊',
     'guayaba': '🍈',
@@ -1268,6 +1323,7 @@ function obtenerEmojifruta(fruta) {
 }
 
 // 🔥 FUNCIÓN PRINCIPAL PARA MOSTRAR RECOGIDAS CON MÚLTIPLES FRUTAS
+// 🔥 FUNCIÓN PRINCIPAL PARA MOSTRAR RECOGIDAS CON DESGLOSE DE CALIDADES
 function mostrarRecogidas() {
   const container = document.getElementById('recogidasContainer');
   
@@ -1285,14 +1341,42 @@ function mostrarRecogidas() {
     const usuarioMostrar = recogida.alias || recogida.usuario || 'Usuario';
     const avatarInitial = usuarioMostrar.charAt(0).toUpperCase();
 
-    // 🔥 OBTENER FRUTAS Y CALIDADES ÚNICAS
+    // 🔥 CALCULAR KILOS POR CALIDAD
+    const kilosPorCalidad = {
+      primera: 0,
+      segunda: 0,
+      extra: 0
+    };
+    
+    if (recogida.pesas && Array.isArray(recogida.pesas)) {
+      recogida.pesas.forEach(pesa => {
+        const calidad = pesa.calidad || 'primera';
+        kilosPorCalidad[calidad] += pesa.kilos || 0;
+      });
+    } else {
+      const calidad = recogida.calidad || 'primera';
+      kilosPorCalidad[calidad] = recogida.totalKilos || 0;
+    }
+    
+    // 🔥 GENERAR HTML PARA DESGLOSE DE CALIDADES
+    const desgloseCalidadesHTML = `
+      <div style="margin-top: 8px; font-size: 0.85em;">
+        <div>
+          <span class="calidad-badge calidad-primera" style="margin-right: 5px;">primera</span>
+          <span>${kilosPorCalidad.primera.toFixed(1)} kg</span>
+        </div>
+        <div style="margin-top: 4px;">
+          <span class="calidad-badge calidad-segunda" style="margin-right: 5px;">segunda</span>
+          <span>${kilosPorCalidad.segunda.toFixed(1)} kg</span>
+        </div>
+
+      </div>
+    `;
+
+    // Resto del código permanece igual...
     const frutasUnicas = obtenerFrutasUnicas(recogida);
     const calidadesUnicas = obtenerCalidadesUnicas(recogida);
-    
-    // 🔥 DETERMINAR SI ES RECOGIDA MÚLTIPLE
     const esMultiple = frutasUnicas.length > 1 || calidadesUnicas.length > 1;
-    
-    // 🔥 VERIFICAR SI ESTÁ LIQUIDADA
     const estaLiquidada = recogida.estadoLiquidacion === 'liquidada';
 
     // 🔥 GENERAR HTML PARA FRUTAS MÚLTIPLES
@@ -1308,30 +1392,6 @@ function mostrarRecogidas() {
       `<div class="calidades-container">
         ${calidadesUnicas.map(calidad => `<span class="calidad-badge calidad-${calidad}">${calidad}</span>`).join('')}
       </div>`;
-
-    // 🔥 GENERAR DETALLE DE PESAS CON FRUTAS INDIVIDUALES
-    const pesasHTML = recogida.pesas && recogida.pesas.length > 0 ? `
-      <div class="pesas-summary">
-        <div class="pesas-title">🧺 Detalle de Pesas (${recogida.pesas.length})</div>
-        <div class="pesas-grid">
-          ${recogida.pesas.map(pesa => `
-            <div class="pesa-item">
-              <div class="pesa-fruta">${pesa.fruta || 'N/A'}</div>
-              <div class="pesa-kilos">${pesa.kilos} kg</div>
-              <div class="pesa-calidad">${pesa.calidad || 'N/A'}</div>
-              ${!esSubusuario && pesa.valor ? `<div style="font-size: 0.8em; margin-top: 4px; color: var(--success-color);">${pesa.valor.toLocaleString()}</div>` : ''}
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    ` : '';
-
-    // 🔥 INFORMACIÓN ADICIONAL SI ESTÁ LIQUIDADA
-    const infoLiquidacion = estaLiquidada ? `
-      <div style="margin-top: 10px; font-size: 0.8em; color: var(--success-color); text-align: center;">
-        Liquidada el ${formatearFecha(recogida.fechaLiquidacion)} por ${recogida.usuarioLiquida || 'usuario'}
-      </div>
-    ` : '';
 
     return `
       <div class="recogida-card">
@@ -1365,6 +1425,7 @@ function mostrarRecogidas() {
             <div class="info-icon">⚖️</div>
             <div class="info-label">Total Kilos</div>
             <div class="info-value">${(recogida.totalKilos || 0).toFixed(1)} kg</div>
+            ${desgloseCalidadesHTML}
           </div>
 
           <div class="info-item">
@@ -1388,8 +1449,27 @@ function mostrarRecogidas() {
           ` : ''}
         </div>
 
-        ${pesasHTML}
-        ${infoLiquidacion}
+        ${recogida.pesas && recogida.pesas.length > 0 ? `
+          <div class="pesas-summary">
+            <div class="pesas-title">🧺 Detalle de Pesas (${recogida.pesas.length})</div>
+            <div class="pesas-grid">
+              ${recogida.pesas.map(pesa => `
+                <div class="pesa-item">
+                  <div class="pesa-fruta">${pesa.fruta || 'N/A'}</div>
+                  <div class="pesa-kilos">${pesa.kilos} kg</div>
+                  <div class="pesa-calidad">${pesa.calidad || 'N/A'}</div>
+                  ${!esSubusuario && pesa.valor ? `<div style="font-size: 0.8em; margin-top: 4px; color: var(--success-color);">${pesa.valor.toLocaleString()}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${estaLiquidada ? `
+          <div style="margin-top: 10px; font-size: 0.8em; color: var(--success-color); text-align: center;">
+            Liquidada el ${formatearFecha(recogida.fechaLiquidacion)} por ${recogida.usuarioLiquida || 'usuario'}
+          </div>
+        ` : ''}
 
         <div class="card-footer">
           <div class="usuario-info">
@@ -1412,7 +1492,7 @@ function mostrarRecogidas() {
 
   container.innerHTML = recogidasHTML;
 
-  // ✅ AGREGAR EVENT LISTENERS A LOS BOTONES DE EDITAR
+  // Event listeners para botones de editar
   document.querySelectorAll('.editar-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const recogidaId = e.target.getAttribute('data-id');
@@ -1423,15 +1503,35 @@ function mostrarRecogidas() {
         const usuario = urlParams.get('usuario') || params.get('usuario');
         
         const editarUrl = `recogida.html?modo=editar&idRecogida=${recogidaId}&fincaId=${fincaId}&usuario=${encodeURIComponent(usuario)}`;
-        
-        console.log('🔄 Redirigiendo a editar:', editarUrl);
         window.location.href = editarUrl;
-      } else {
-        console.error('❌ Faltan datos para editar: recogidaId =', recogidaId, 'fincaId =', fincaId);
-        alert('Error: No se pueden obtener los datos necesarios para editar esta recogida');
       }
     });
   });
+}
+// 🔥 FUNCIÓN PARA GENERAR HTML DE UNA FRUTA ÚNICA CON DETALLE DE CALIDADES
+function generarHTMLFrutaUnica(fruta, kilosPorCalidad) {
+  const totalKilos = Object.values(kilosPorCalidad).reduce((sum, kilos) => sum + kilos, 0);
+  
+  return `
+    <div>
+      <div class="info-value">${fruta}</div>
+      <div style="margin-top: 8px; font-size: 0.85em;">
+        <div>Total: ${totalKilos.toFixed(1)} kg</div>
+        ${generarDetalleCalidades(kilosPorCalidad)}
+      </div>
+    </div>
+  `;
+}
+
+// 🔥 FUNCIÓN PARA GENERAR DETALLE DE CALIDADES
+function generarDetalleCalidades(kilosPorCalidad) {
+  return Object.entries(kilosPorCalidad)
+    .map(([calidad, kilos]) => `
+      <div style="margin-top: 4px;">
+        <span class="calidad-badge calidad-${calidad}" style="margin-right: 5px;">${calidad}</span>
+        <span>${kilos.toFixed(1)} kg</span>
+      </div>
+    `).join('');
 }
 // 🔥 APLICAR FILTROS CORREGIDO - SIN MÁRGENES DE ERROR EN FECHAS
 function aplicarFiltros() {
