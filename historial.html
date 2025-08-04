@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <script src="jc-loader.js"></script>
@@ -192,6 +193,100 @@ background: rgba(128, 105, 105, 0.329);
       font-size: 1.2rem;
     }
 
+    /* 🔥 NUEVOS ESTILOS PARA DETALLES DE FRUTAS */
+    .frutas-detalles {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 15px;
+      margin: 15px 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .frutas-detalles-titulo {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .fruta-detalle-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid #28a745;
+    }
+
+    .fruta-detalle-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .fruta-detalle-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .fruta-detalle-nombre {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+
+    .fruta-detalle-calidad {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .fruta-detalle-kilos {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #28a745;
+      text-align: right;
+    }
+
+    /* Colores para calidades en detalles */
+    .calidad-detalle-extra { 
+      background: rgba(212, 237, 218, 0.3); 
+      color: #155724; 
+      border-color: #155724;
+    }
+    .calidad-detalle-primera { 
+      background: rgba(204, 229, 255, 0.3); 
+      color: #004085; 
+      border-color: #004085;
+    }
+    .calidad-detalle-segunda { 
+      background: rgba(255, 243, 205, 0.3); 
+      color: #856404; 
+      border-color: #856404;
+    }
+    .calidad-detalle-tercera { 
+      background: rgba(248, 215, 218, 0.3); 
+      color: #721c24; 
+      border-color: #721c24;
+    }
+
+    /* Actualizar colores de borde según calidad */
+    .fruta-detalle-item.extra { border-left-color: #155724; }
+    .fruta-detalle-item.primera { border-left-color: #004085; }
+    .fruta-detalle-item.segunda { border-left-color: #856404; }
+    .fruta-detalle-item.tercera { border-left-color: #721c24; }
+
     /* 🔥 NUEVOS ESTILOS PARA FRUTAS MÚLTIPLES */
     .frutas-multiple {
       display: flex;
@@ -265,6 +360,37 @@ background: rgba(128, 105, 105, 0.329);
       color: white;
       font-weight: bold;
       margin-right: 8px;
+    }
+
+    .botones-acciones {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .recibo-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      font-size: 0.9rem;
+    }
+
+    .recibo-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .recibo-btn:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
 
     .editar-btn {
@@ -361,6 +487,140 @@ background: rgba(128, 105, 105, 0.329);
       display: none;
     }
 
+    /* 🔥 NUEVOS ESTILOS PARA MODAL DE MÚLTIPLES RECIBOS */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+      background: linear-gradient(145deg, #667eea, #764ba2);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      color: white;
+    }
+
+    .modal-header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin: 0 0 10px 0;
+    }
+
+    .modal-subtitle {
+      opacity: 0.9;
+      font-size: 0.9rem;
+    }
+
+    .recibos-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .recibo-item {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+    }
+
+    .recibo-item:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .recibo-info {
+      flex: 1;
+    }
+
+    .recibo-titulo {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .recibo-descripcion {
+      font-size: 0.85rem;
+      opacity: 0.8;
+    }
+
+    .recibo-btn-individual {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.85rem;
+    }
+
+    .recibo-btn-individual:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .recibo-btn-individual:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .modal-btn {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      padding: 12px 25px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .modal-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .modal-btn.primary {
+      background: rgba(40, 167, 69, 0.8);
+      border-color: rgba(40, 167, 69, 1);
+    }
+
+    .modal-btn.primary:hover {
+      background: rgba(40, 167, 69, 1);
+    }
+
     /* Responsive para iPhone 12 Pro */
     @media (max-width: 428px) {
       .container {
@@ -404,38 +664,53 @@ background: rgba(128, 105, 105, 0.329);
         padding: 2px 6px;
       }
 
+      .fruta-detalle-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+      }
 
+      .fruta-detalle-kilos {
+        text-align: left;
+        font-size: 1.1rem;
+      }
+
+      .modal-content {
+        width: 95%;
+        padding: 20px;
+      }
+
+      .modal-footer {
+        flex-direction: column;
+      }
     }
 
-
     /* 🔥 ESTILOS PARA ETIQUETA DE LIQUIDACIÓN */
-.liquidada-badge {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background: linear-gradient(135deg, #28a745, #20c997);
-  color: white;
-  padding: 5px 12px;
-  border-radius: 15px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  z-index: 1;
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
-  animation: pulse 2s infinite;
-}
+    .liquidada-badge {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      padding: 5px 12px;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      z-index: 1;
+      box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+      animation: pulse 2s infinite;
+    }
 
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 <body>
 
     <button class="volver-btn" onclick="window.history.back()">← Volver</button>
-
 
   <div class="container">
     <div class="historial-header">
@@ -467,13 +742,13 @@ background: rgba(128, 105, 105, 0.329);
         </div>
 
         <div class="filtro-group">
-  <label class="filtro-label">📝 Estado</label>
-  <select id="filtroLiquidacion" class="filtro-input">
-    <option value="">Todas</option>
-    <option value="liquidada">Liquidadas</option>
-    <option value="activa">Activas</option>
-  </select>
-</div>
+          <label class="filtro-label">📝 Estado</label>
+          <select id="filtroLiquidacion" class="filtro-input">
+            <option value="">Todas</option>
+            <option value="liquidada">Liquidadas</option>
+            <option value="activa">Activas</option>
+          </select>
+        </div>
 
         <div class="filtro-group">
           <label class="filtro-label">👤 Usuario</label>
@@ -486,44 +761,66 @@ background: rgba(128, 105, 105, 0.329);
     <div id="listaRecogidas"></div>
   </div>
 
+  <!-- 🔥 MODAL PARA MÚLTIPLES RECIBOS -->
+  <div id="modalRecibos" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">📄 Generar Recibos</h3>
+        <p class="modal-subtitle">Esta recogida tiene muchas pesas. Puedes enviar todos los recibos de una vez o uno por uno.</p>
+      </div>
+      
+      <div class="recibos-list" id="listaRecibosModal">
+        <!-- Se llena dinámicamente -->
+      </div>
+      
+      <div class="modal-footer">
+        <button id="btnCerrarModal" class="modal-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { apiFetch } from "./api.js";
 
     const params = new URLSearchParams(window.location.search);
     const fincaId = params.get("id");
     const fincaNombre = params.get("finca");
-    const usuario = params.get("usuario"); // 🔥 OBTENER USUARIO DE URL
+    const usuario = params.get("usuario");
 
     const titulo = document.getElementById("titulo");
     const lista = document.getElementById("listaRecogidas");
     const statsResumen = document.getElementById("statsResumen");
     const filtrosActivos = document.getElementById("filtrosActivos");
+    const modalRecibos = document.getElementById("modalRecibos");
+    const listaRecibosModal = document.getElementById("listaRecibosModal");
+    const btnCerrarModal = document.getElementById("btnCerrarModal");
 
     
     const filtros = {
-  fecha: document.getElementById("filtroFecha"),
-  fruta: document.getElementById("filtroFruta"),
-  calidad: document.getElementById("filtroCalidad"),
-  usuario: document.getElementById("filtroUsuario"),
-  liquidacion: document.getElementById("filtroLiquidacion"), // Nuevo filtro
-};
+      fecha: document.getElementById("filtroFecha"),
+      fruta: document.getElementById("filtroFruta"),
+      calidad: document.getElementById("filtroCalidad"),
+      usuario: document.getElementById("filtroUsuario"),
+      liquidacion: document.getElementById("filtroLiquidacion"),
+    };
 
     titulo.textContent = `Historial de recogidas: ${fincaNombre}`;
 
     let todasLasRecogidas = [];
-    
-    // 🔥 VARIABLES PARA CONTROL DE USUARIO
     let sessionData = {};
     let isSubusuario = false;
     let tipoUsuarioVerificado = null;
     let esAdministradorViendo = false;
+
+    // Variables para el modal
+    let recibosGenerados = [];
+    let recogidaActual = null;
 
     // 🔥 FUNCIÓN PARA VERIFICAR TIPO DE USUARIO
     async function verificarTipoUsuario() {
       console.log("=== VERIFICANDO TIPO DE USUARIO EN HISTORIAL ===");
       
       try {
-        // 1. Primero intentar desde sessionStorage
         const storedData = sessionStorage.getItem('userData');
         console.log("📦 Datos en sessionStorage:", storedData);
         
@@ -534,7 +831,7 @@ background: rgba(128, 105, 105, 0.329);
           if (sessionData.tipo) {
             tipoUsuarioVerificado = sessionData.tipo;
             isSubusuario = sessionData.tipo === 2;
-            esAdministradorViendo = sessionData.tipo === 1; // Tipo 1 = Administrador
+            esAdministradorViendo = sessionData.tipo === 1;
             console.log("✅ Tipo desde sessionStorage:", tipoUsuarioVerificado, "Es subusuario:", isSubusuario, "Es admin viendo:", esAdministradorViendo);
             return isSubusuario;
           }
@@ -542,7 +839,6 @@ background: rgba(128, 105, 105, 0.329);
           console.log("⚠️ No hay datos en sessionStorage");
         }
         
-        // 2. Si no hay datos en sessionStorage, verificar desde el servidor
         if (usuario) {
           console.log("🔍 Consultando servidor para usuario:", usuario);
           
@@ -558,9 +854,8 @@ background: rgba(128, 105, 105, 0.329);
           
           tipoUsuarioVerificado = userData.tipo;
           isSubusuario = userData.tipo === 2;
-          esAdministradorViendo = userData.tipo === 1; // Tipo 1 = Administrador
+          esAdministradorViendo = userData.tipo === 1;
           
-          // Guardar en sessionStorage para futuras consultas
           sessionData = {
             tipo: userData.tipo,
             alias: userData.alias,
@@ -594,10 +889,8 @@ background: rgba(128, 105, 105, 0.329);
     async function configurarInterfazHistorial() {
       console.log("🎨 Configurando interfaz de historial según tipo de usuario...");
       
-      // Verificar tipo de usuario
       await verificarTipoUsuario();
       
-      // Determinar si debe ocultar precios
       const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
       
       console.log("🔍 Análisis de visibilidad en historial:");
@@ -619,7 +912,6 @@ background: rgba(128, 105, 105, 0.329);
         const recogidas = await apiFetch(`/recogidas/por-finca/${fincaId}`, "GET");
         todasLasRecogidas = recogidas;
         
-        // Configurar interfaz antes de mostrar datos
         await configurarInterfazHistorial();
         
         mostrarEstadisticas();
@@ -629,290 +921,639 @@ background: rgba(128, 105, 105, 0.329);
       }
     }
 
-function mostrarEstadisticas(recogidasFiltradas = todasLasRecogidas) {
-  const totalRecogidas = recogidasFiltradas.length;
-  const totalKilos = recogidasFiltradas.reduce((sum, r) => sum + r.totalKilos, 0);
-  const totalValor = recogidasFiltradas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
-  const promedioKilos = totalRecogidas > 0 ? (totalKilos / totalRecogidas).toFixed(1) : 0;
+    function mostrarEstadisticas(recogidasFiltradas = todasLasRecogidas) {
+      const totalRecogidas = recogidasFiltradas.length;
+      const totalKilos = recogidasFiltradas.reduce((sum, r) => sum + r.totalKilos, 0);
+      const totalValor = recogidasFiltradas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
 
-  // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
-  const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
+      const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
 
-  if (debeOcultarPrecios) {
-    // Para subusuarios: solo mostrar estadísticas sin dinero
-    statsResumen.innerHTML = `
-      <div class="stat-item">
-        <span class="stat-value">${totalRecogidas}</span>
-        <span class="stat-label">Recogidas</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value">${totalKilos.toLocaleString()}</span>
-        <span class="stat-label">Kg Total</span>
-      </div>
+      if (debeOcultarPrecios) {
+        statsResumen.innerHTML = `
+          <div class="stat-item">
+            <span class="stat-value">${totalRecogidas}</span>
+            <span class="stat-label">Recogidas</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${totalKilos.toLocaleString()}</span>
+            <span class="stat-label">Kg Total</span>
+          </div>
+        `;
+      } else {
+        statsResumen.innerHTML = `
+          <div class="stat-item">
+            <span class="stat-value">${totalRecogidas}</span>
+            <span class="stat-label">Recogidas</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${totalKilos.toLocaleString()}</span>
+            <span class="stat-label">Kg Total</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${totalValor.toLocaleString()}</span>
+            <span class="stat-label">Valor Total</span>
+          </div>
+        `;
+      }
+    }
 
-    `;
-  } else {
-    // Para administradores: mostrar todas las estadísticas
-    statsResumen.innerHTML = `
-      <div class="stat-item">
-        <span class="stat-value">${totalRecogidas}</span>
-        <span class="stat-label">Recogidas</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value">${totalKilos.toLocaleString()}</span>
-        <span class="stat-label">Kg Total</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value">$${totalValor.toLocaleString()}</span>
-        <span class="stat-label">Valor Total</span>
-      </div>
+    function mostrarFiltrosActivos() {
+      const activos = [];
+      
+      if (filtros.fecha.value) activos.push({tipo: 'fecha', valor: filtros.fecha.value, label: `📅 ${filtros.fecha.value}`});
+      if (filtros.fruta.value) activos.push({tipo: 'fruta', valor: filtros.fruta.value, label: `🍉 ${filtros.fruta.value}`});
+      if (filtros.calidad.value) activos.push({tipo: 'calidad', valor: filtros.calidad.value, label: `⭐ ${filtros.calidad.value}`});
+      if (filtros.usuario.value) activos.push({tipo: 'usuario', valor: filtros.usuario.value, label: `👤 ${filtros.usuario.value}`});
+      if (filtros.liquidacion.value) activos.push({tipo: 'liquidacion', valor: filtros.liquidacion.value, label: `📝 ${filtros.liquidacion.value === 'liquidada' ? 'Liquidadas' : 'Activas'}`});
 
-    `;
-  }
-}
-function mostrarFiltrosActivos() {
-  const activos = [];
-  
-  if (filtros.fecha.value) activos.push({tipo: 'fecha', valor: filtros.fecha.value, label: `📅 ${filtros.fecha.value}`});
-  if (filtros.fruta.value) activos.push({tipo: 'fruta', valor: filtros.fruta.value, label: `🍉 ${filtros.fruta.value}`});
-  if (filtros.calidad.value) activos.push({tipo: 'calidad', valor: filtros.calidad.value, label: `⭐ ${filtros.calidad.value}`});
-  if (filtros.usuario.value) activos.push({tipo: 'usuario', valor: filtros.usuario.value, label: `👤 ${filtros.usuario.value}`});
-  if (filtros.liquidacion.value) activos.push({tipo: 'liquidacion', valor: filtros.liquidacion.value, label: `📝 ${filtros.liquidacion.value === 'liquidada' ? 'Liquidadas' : 'Activas'}`});
+      filtrosActivos.innerHTML = activos.map(filtro => `
+        <div class="filtro-activo">
+          ${filtro.label}
+          <button class="limpiar-filtro" onclick="limpiarFiltro('${filtro.tipo}')">×</button>
+        </div>
+      `).join('');
+    }
 
-  filtrosActivos.innerHTML = activos.map(filtro => `
-    <div class="filtro-activo">
-      ${filtro.label}
-      <button class="limpiar-filtro" onclick="limpiarFiltro('${filtro.tipo}')">×</button>
-    </div>
-  `).join('');
-}
     window.limpiarFiltro = function(tipo) {
       filtros[tipo].value = '';
       aplicarFiltros();
     }
 
-function aplicarFiltros() {
-  const fecha = filtros.fecha.value;
-  const fruta = filtros.fruta.value.toLowerCase();
-  const calidad = filtros.calidad.value;
-  const usuario = filtros.usuario.value.toLowerCase();
-  const liquidacion = filtros.liquidacion.value;
+    function aplicarFiltros() {
+      const fecha = filtros.fecha.value;
+      const fruta = filtros.fruta.value.toLowerCase();
+      const calidad = filtros.calidad.value;
+      const usuario = filtros.usuario.value.toLowerCase();
+      const liquidacion = filtros.liquidacion.value;
 
-  const filtradas = todasLasRecogidas.filter(r => {
-    // 🔥 CORRECCIÓN DE FECHA: Manejo seguro de fechas
-    let coincideFecha = !fecha;
-    if (fecha && r.fecha) {
-      try {
-        const fechaRecogida = new Date(r.fecha).toISOString().split('T')[0];
-        coincideFecha = fechaRecogida === fecha;
-      } catch (error) {
-        console.error('Error al procesar fecha:', r.fecha);
-        coincideFecha = false;
-      }
-    }
-    
-    // 🔥 MEJORA EN FILTRO DE FRUTA: Buscar en todas las frutas de las pesas
-    let coincideFruta = !fruta;
-    if (fruta && r.pesas) {
-      const frutasRecogida = r.pesas.map(p => p.fruta || '').join(' ').toLowerCase();
-      coincideFruta = frutasRecogida.includes(fruta) || (r.fruta || '').toLowerCase().includes(fruta);
-    } else if (fruta) {
-      coincideFruta = (r.fruta || '').toLowerCase().includes(fruta);
-    }
-    
-    const coincideCalidad = !calidad || r.calidad === calidad;
-    const coincideUsuario = !usuario || (r.usuario || "").toLowerCase().includes(usuario);
-    
-    // 🔥 NUEVO FILTRO: Estado de liquidación
-    let coincideLiquidacion = true;
-    if (liquidacion === 'liquidada') {
-      coincideLiquidacion = r.estadoLiquidacion === 'liquidada';
-    } else if (liquidacion === 'activa') {
-      coincideLiquidacion = r.estadoLiquidacion !== 'liquidada';
-    }
-    
-    return coincideFecha && coincideFruta && coincideCalidad && coincideUsuario && coincideLiquidacion;
-  });
+      const filtradas = todasLasRecogidas.filter(r => {
+        let coincideFecha = !fecha;
+        if (fecha && r.fecha) {
+          try {
+            const fechaRecogida = new Date(r.fecha).toISOString().split('T')[0];
+            coincideFecha = fechaRecogida === fecha;
+          } catch (error) {
+            console.error('Error al procesar fecha:', r.fecha);
+            coincideFecha = false;
+          }
+        }
+        
+        let coincideFruta = !fruta;
+        if (fruta && r.pesas) {
+          const frutasRecogida = r.pesas.map(p => p.fruta || '').join(' ').toLowerCase();
+          coincideFruta = frutasRecogida.includes(fruta) || (r.fruta || '').toLowerCase().includes(fruta);
+        } else if (fruta) {
+          coincideFruta = (r.fruta || '').toLowerCase().includes(fruta);
+        }
+        
+        const coincideCalidad = !calidad || r.calidad === calidad;
+        const coincideUsuario = !usuario || (r.usuario || "").toLowerCase().includes(usuario);
+        
+        let coincideLiquidacion = true;
+        if (liquidacion === 'liquidada') {
+          coincideLiquidacion = r.estadoLiquidacion === 'liquidada';
+        } else if (liquidacion === 'activa') {
+          coincideLiquidacion = r.estadoLiquidacion !== 'liquidada';
+        }
+        
+        return coincideFecha && coincideFruta && coincideCalidad && coincideUsuario && coincideLiquidacion;
+      });
 
-  // 🔥 ACTUALIZAR ESTADÍSTICAS CON DATOS FILTRADOS
-  mostrarEstadisticas(filtradas);
-  mostrarFiltrosActivos();
-  mostrarRecogidas(filtradas);
-}
+      mostrarEstadisticas(filtradas);
+      mostrarFiltrosActivos();
+      mostrarRecogidas(filtradas);
+    }
 
-function obtenerIniciales(nombre) {
+    function obtenerIniciales(nombre) {
       if (!nombre) return "?";
       return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     }
 
-    // 🔥 FUNCIÓN CORREGIDA PARA FECHAS
-function formatearFecha(fecha) {
-  if (!fecha) return "No disponible";
-  
-  try {
-    // Si la fecha viene como string de tipo "2024-01-15" (formato YYYY-MM-DD)
-    if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = fecha.split('-');
-      return `${day}/${month}/${year}`;
+    // 🔥 NUEVA FUNCIÓN PARA MANEJAR RECIBOS (SOLUCIÓN AL PROBLEMA)
+    async function manejarRecibos(recogidaData) {
+      try {
+        console.log("📤 Iniciando manejo de recibos:", recogidaData);
+        
+        const totalPesas = recogidaData.pesas.length;
+        const pesasPorRecibo = 20;
+        const totalRecibos = Math.ceil(totalPesas / pesasPorRecibo);
+        
+        console.log(`📊 Total pesas: ${totalPesas}, Recibos necesarios: ${totalRecibos}`);
+        
+        if (totalRecibos === 1) {
+          // Un solo recibo: enviar directamente
+          await enviarReciboDirecto(recogidaData);
+        } else {
+          // Múltiples recibos: mostrar modal para elegir
+          await mostrarModalRecibos(recogidaData, totalRecibos);
+        }
+        
+      } catch (error) {
+        console.error("❌ Error al manejar recibos:", error);
+        alert("Error al procesar los recibos. Inténtalo de nuevo.");
+      }
     }
-    
-    // Si la fecha viene como ISO string o timestamp
-    const date = new Date(fecha);
-    
-    // 🔥 SOLUCIÓN: Usar getUTCDate, getUTCMonth, getUTCFullYear para evitar problemas de zona horaria
-    const dia = String(date.getUTCDate()).padStart(2, '0');
-    const mes = String(date.getUTCMonth() + 1).padStart(2, '0'); // getUTCMonth() devuelve 0-11
-    const año = date.getUTCFullYear();
-    
-    return `${dia}/${mes}/${año}`;
-  } catch (error) {
-    console.error("❌ Error al formatear fecha:", error, "Fecha recibida:", fecha);
-    return "Fecha inválida";
-  }
-}
 
-    // 🔥 FUNCIÓN PARA OBTENER FRUTAS ÚNICAS DE UNA RECOGIDA
-    function obtenerFrutasRecogida(recogida) {
-      if (!recogida.pesas || recogida.pesas.length === 0) {
-        return [recogida.fruta || 'Sin especificar'];
+    // 🔥 FUNCIÓN PARA ENVIAR UN SOLO RECIBO DIRECTAMENTE
+    async function enviarReciboDirecto(recogidaData) {
+      try {
+        const fechaFormateada = formatearFecha(recogidaData.fecha);
+        const recibo = await generarRecibo(recogidaData, recogidaData.pesas, 1, 1, fechaFormateada);
+        
+        const nombreArchivo = `recibo_${recogidaData.fincaNombre}_${fechaFormateada.replace(/\//g, '-')}.png`;
+        const file = new File([recibo], nombreArchivo, { type: "image/png" });
+        
+        await navigator.share({
+          title: `Recibo - ${recogidaData.fincaNombre}`,
+          text: `Recibo completo de ${recogidaData.pesas.length} pesas del ${fechaFormateada}`,
+          files: [file]
+        });
+        
+        console.log("✅ Recibo único enviado exitosamente");
+        
+      } catch (error) {
+        console.error("❌ Error al enviar recibo directo:", error);
+        throw error;
+      }
+    }
+
+    // 🔥 FUNCIÓN PARA MOSTRAR MODAL CON OPCIONES DE RECIBOS
+    async function mostrarModalRecibos(recogidaData, totalRecibos) {
+      try {
+        console.log("📋 Mostrando modal para múltiples recibos");
+        
+        recogidaActual = recogidaData;
+        recibosGenerados = [];
+        
+        // Generar todos los recibos de una vez
+        const fechaFormateada = formatearFecha(recogidaData.fecha);
+        const pesasPorRecibo = 20;
+        
+        for (let i = 0; i < totalRecibos; i++) {
+          const inicio = i * pesasPorRecibo;
+          const fin = Math.min(inicio + pesasPorRecibo, recogidaData.pesas.length);
+          const pesasRecibo = recogidaData.pesas.slice(inicio, fin);
+          
+          console.log(`🔄 Generando recibo ${i + 1}/${totalRecibos}...`);
+          
+          const recibo = await generarRecibo(recogidaData, pesasRecibo, i + 1, totalRecibos, fechaFormateada);
+          
+          recibosGenerados.push({
+            numero: i + 1,
+            total: totalRecibos,
+            blob: recibo,
+            pesas: pesasRecibo,
+            inicio: inicio + 1,
+            fin: fin,
+            nombreArchivo: `recibo_${i + 1}de${totalRecibos}_${recogidaData.fincaNombre}_${fechaFormateada.replace(/\//g, '-')}.png`
+          });
+        }
+        
+        // Mostrar modal con los recibos generados
+        mostrarModalConRecibos();
+        
+      } catch (error) {
+        console.error("❌ Error al generar recibos para modal:", error);
+        throw error;
+      }
+    }
+
+    // 🔥 FUNCIÓN PARA MOSTRAR EL MODAL CON LOS RECIBOS GENERADOS
+    function mostrarModalConRecibos() {
+      const totalKilosGeneral = recogidaActual.totalKilos;
+      
+      listaRecibosModal.innerHTML = recibosGenerados.map(recibo => `
+        <div class="recibo-item">
+          <div class="recibo-info">
+            <div class="recibo-titulo">📄 Recibo ${recibo.numero}/${recibo.total}</div>
+            <div class="recibo-descripcion">
+              Pesas ${recibo.inicio}-${recibo.fin} • ${recibo.pesas.length} pesas • ${recibo.pesas.reduce((sum, p) => sum + p.kilos, 0).toLocaleString()} kg
+            </div>
+          </div>
+          <button class="recibo-btn-individual" onclick="enviarReciboIndividual(${recibo.numero - 1})">
+            📤 Enviar
+          </button>
+        </div>
+      `).join('');
+      
+      modalRecibos.style.display = 'flex';
+    }
+
+    // 🔥 FUNCIÓN GLOBAL PARA ENVIAR RECIBO INDIVIDUAL
+    window.enviarReciboIndividual = async function(indice) {
+      try {
+        const recibo = recibosGenerados[indice];
+        const file = new File([recibo.blob], recibo.nombreArchivo, { type: "image/png" });
+        
+        await navigator.share({
+          title: `Recibo ${recibo.numero}/${recibo.total} - ${recogidaActual.fincaNombre}`,
+          text: `Recibo ${recibo.numero} de ${recibo.total} - ${recibo.pesas.length} pesas del ${formatearFecha(recogidaActual.fecha)}`,
+          files: [file]
+        });
+        
+        console.log(`✅ Recibo ${recibo.numero} enviado exitosamente`);
+        
+        // Deshabilitar el botón después de enviar
+        const boton = document.querySelector(`button[onclick="enviarReciboIndividual(${indice})"]`);
+        if (boton) {
+          boton.disabled = true;
+          boton.textContent = '✅ Enviado';
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error al enviar recibo ${indice + 1}:`, error);
+        alert(`Error al enviar el recibo ${indice + 1}`);
+      }
+    }
+
+    // 🔥 FUNCIÓN PARA GENERAR UN RECIBO (SIN ENVIARLO)
+    async function generarRecibo(recogidaData, pesasRecibo, numeroRecibo, totalRecibos, fechaFormateada) {
+      const divRecibo = document.createElement("div");
+      divRecibo.style.cssText = `
+        width: 8000px;
+        min-height: 1200px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        color: #2c3e50;
+        font-family: 'Arial', sans-serif;
+        padding: 50px;
+        margin: 0;
+        box-sizing: border-box;
+        position: relative;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      `;
+      
+      const listaIndividual = pesasRecibo.map((pesa, index) => ({
+        numero: (numeroRecibo - 1) * 20 + index + 1,
+        kilos: pesa.kilos,
+        fruta: pesa.fruta || 'Sin especificar',
+        calidad: pesa.calidad || 'Sin especificar',
+        precio: pesa.precio || 0
+      }));
+      
+      const columna1 = listaIndividual.slice(0, 10);
+      const columna2 = listaIndividual.slice(10, 20);
+      
+      const totalKilosRecibo = pesasRecibo.reduce((sum, p) => sum + p.kilos, 0);
+      const totalKilosGeneral = recogidaData.totalKilos;
+      const totalValorGeneral = recogidaData.valorPagar || 0;
+      
+      function crearColumnaHTML(pesas, titulo) {
+        if (pesas.length === 0) return '';
+        
+        return `
+          <div style="flex: 1; margin: 0 20px;">
+            <h3 style="text-align: center; font-size: 28px; margin-bottom: 20px; color: #34495e;">
+              ${titulo}
+            </h3>
+            <div style="display: grid; gap: 12px;">
+              ${pesas.map(pesa => `
+                <div style="background: rgba(255,255,255,0.25); padding: 18px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #3498db; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                  <div style="font-weight: bold; font-size: 26px; color: #2c3e50;">
+                    Pesa ${pesa.numero}
+                  </div>
+                  <div style="text-align: right; font-size: 24px;">
+                    <span style="font-weight: bold; color: #e67e22; font-size: 28px;">${pesa.kilos} kg</span>
+                    <br>
+                    <span style="font-size: 20px; color: #7f8c8d;">${pesa.fruta}</span>
+                    <br>
+                    <span style="color: ${getColorPorCalidad(pesa.calidad)}; font-weight: bold; font-size: 18px;">${pesa.calidad}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
       }
       
-      const frutasUnicas = [...new Set(recogida.pesas.map(p => p.fruta).filter(f => f))];
-      return frutasUnicas.length > 0 ? frutasUnicas : [recogida.fruta || 'Sin especificar'];
+      function getColorPorCalidad(calidad) {
+        const colores = {
+          'extra': '#27ae60',
+          'primera': '#3498db',
+          'segunda': '#f39c12',
+          'tercera': '#e74c3c',
+          'default': '#7f8c8d'
+        };
+        return colores[calidad?.toLowerCase()] || colores.default;
+      }
+      
+      divRecibo.innerHTML = `
+        <div style="text-align: center; margin-bottom: 40px;">
+          <h1 style="margin: 0; font-size: 56px; font-weight: bold; color: #34495e;">
+            📋 RECIBO DETALLADO ${totalRecibos > 1 ? `(${numeroRecibo}/${totalRecibos})` : ''}
+          </h1>
+          <div style="width: 80px; height: 6px; background: linear-gradient(to right, #3498db, #2ecc71); margin: 20px auto; border-radius: 3px;"></div>
+          <div style="font-size: 28px; margin-top: 15px; color: #34495e;">
+            ${fechaFormateada} • ${recogidaData.fincaNombre}
+          </div>
+          ${totalRecibos > 1 ? `
+            <div style="font-size: 22px; margin-top: 10px; color: #7f8c8d;">
+              Recibo ${numeroRecibo} de ${totalRecibos} • Pesas ${(numeroRecibo - 1) * 20 + 1} - ${(numeroRecibo - 1) * 20 + pesasRecibo.length}
+            </div>
+          ` : ''}
+        </div>
+
+        <div style="background: rgba(255,255,255,0.15); padding: 40px; border-radius: 20px; margin-bottom: 40px; backdrop-filter: blur(10px);">
+          <h2 style="margin: 0 0 30px 0; font-size: 40px; text-align: center; color: #2c3e50;">
+            🍎 PESAS DE ESTE RECIBO (${pesasRecibo.length})
+          </h2>
+          
+          <div style="display: flex; gap: 30px; justify-content: center;">
+            ${crearColumnaHTML(columna1, `Pesas ${(numeroRecibo - 1) * 20 + 1} - ${(numeroRecibo - 1) * 20 + Math.min(10, pesasRecibo.length)}`)}
+            ${columna2.length > 0 ? crearColumnaHTML(columna2, `Pesas ${(numeroRecibo - 1) * 20 + 11} - ${(numeroRecibo - 1) * 20 + pesasRecibo.length}`) : ''}
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 30px; margin-bottom: 30px;">
+          <div style="flex: 1; background: rgba(255,255,255,0.2); padding: 30px; border-radius: 15px; text-align: center; border: 3px solid #3498db;">
+            <h3 style="margin: 0 0 15px 0; font-size: 28px; color: #2c3e50;">
+              📊 TOTAL ESTE RECIBO
+            </h3>
+            <div style="font-size: 36px; font-weight: bold; color: #3498db;">
+              ${totalKilosRecibo.toLocaleString()} kg
+            </div>
+            <div style="font-size: 20px; color: #7f8c8d; margin-top: 8px;">
+              ${pesasRecibo.length} pesas
+            </div>
+          </div>
+
+          ${totalRecibos > 1 ? `
+            <div style="flex: 1; background: rgba(255,255,255,0.2); padding: 30px; border-radius: 15px; text-align: center; border: 3px solid #2ecc71;">
+              <h3 style="margin: 0 0 15px 0; font-size: 28px; color: #2c3e50;">
+                🌟 TOTAL GENERAL
+              </h3>
+              <div style="font-size: 36px; font-weight: bold; color: #2ecc71;">
+                ${totalKilosGeneral.toLocaleString()} kg
+              </div>
+              <div style="font-size: 20px; color: #7f8c8d; margin-top: 8px;">
+                ${recogidaData.pesas.length} pesas totales
+              </div>
+            </div>
+          ` : ''}
+
+          ${!isSubusuario && numeroRecibo === totalRecibos ? `
+            <div style="flex: 1; background: rgba(255,255,255,0.2); padding: 30px; border-radius: 15px; text-align: center; border: 3px solid #e67e22;">
+              <h3 style="margin: 0 0 15px 0; font-size: 28px; color: #2c3e50;">
+                💰 VALOR TOTAL
+              </h3>
+              <div style="font-size: 36px; font-weight: bold; color: #e67e22;">
+                ${totalValorGeneral.toLocaleString()}
+              </div>
+              <div style="font-size: 20px; color: #7f8c8d; margin-top: 8px;">
+                Precio final
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 20px; color: #7f8c8d; margin-top: 30px;">
+          <div>
+            Generado por: ${recogidaData.alias || recogidaData.usuario}
+          </div>
+          <div>
+            ${new Date().toLocaleString()}
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(divRecibo);
+      await document.fonts.ready;
+      
+      console.log(`📸 Capturando recibo ${numeroRecibo}...`);
+      
+      const canvas = await html2canvas(divRecibo, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        width: divRecibo.offsetWidth,
+        height: divRecibo.offsetHeight,
+        logging: false
+      });
+      
+      document.body.removeChild(divRecibo);
+      
+      return new Promise(resolve => canvas.toBlob(resolve, "image/png", 1.0));
     }
 
-function mostrarRecogidas(listaFiltrada) {
-  lista.innerHTML = "";
-  if (listaFiltrada.length === 0) {
-    lista.innerHTML = `
-      <div class="no-resultados">
-        <h3>🔍 No hay coincidencias</h3>
-        <p>Intenta ajustar los filtros para encontrar más resultados</p>
-      </div>
-    `;
-    return;
-  }
-
-  listaFiltrada.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-  // 🔥 NUEVA LÓGICA: Determinar si debe ocultar precios
-  const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
-
-  listaFiltrada.forEach(r => {
-    const card = document.createElement("div");
-    card.className = "recogida-card";
-    
-    const promedioKilo = r.pesas.length > 0 ? (r.totalKilos / r.pesas.length).toFixed(1) : 0;
-    const fechaFormateada = formatearFecha(r.fecha);
-    
-    // 🔥 OBTENER TODAS LAS FRUTAS DE LA RECOGIDA
-    const frutasRecogida = obtenerFrutasRecogida(r);
-    
-    // 🔥 VERIFICAR SI LA RECOGIDA ESTÁ LIQUIDADA
-    const estaLiquidada = r.estadoLiquidacion === 'liquidada';
-    
-    // 🔥 CREAR HTML PARA LA ETIQUETA DE LIQUIDACIÓN
-    const liquidadaBadge = estaLiquidada ? 
-      `<div class="liquidada-badge">✅ LIQUIDADA</div>` : '';
-    
-    // 🔥 CREAR HTML PARA MOSTRAR FRUTAS (UNA O MÚLTIPLES)
-    let frutasHTML = '';
-    if (frutasRecogida.length === 1) {
-      frutasHTML = `<span class="info-value fruta">${frutasRecogida[0]}</span>`;
-    } else {
-      frutasHTML = `
-        <div class="frutas-multiple">
-          ${frutasRecogida.map(fruta => `<span class="fruta-tag">${fruta}</span>`).join('')}
-        </div>
-      `;
+    // 🔥 FUNCIÓN CORREGIDA PARA FECHAS
+    function formatearFecha(fecha) {
+      if (!fecha) return "No disponible";
+      
+      try {
+        if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, day] = fecha.split('-');
+          return `${day}/${month}/${year}`;
+        }
+        
+        const date = new Date(fecha);
+        const dia = String(date.getUTCDate()).padStart(2, '0');
+        const mes = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const año = date.getUTCFullYear();
+        
+        return `${dia}/${mes}/${año}`;
+      } catch (error) {
+        console.error("❌ Error al formatear fecha:", error, "Fecha recibida:", fecha);
+        return "Fecha inválida";
+      }
     }
-    
-    // 🔥 CONDICIONAR CONTENIDO SEGÚN TIPO DE USUARIO
-    let metricsHTML = '';
-    let valorTotalHTML = '';
-    
-    if (debeOcultarPrecios) {
-      // Para subusuarios: solo mostrar pesas y promedio de kilos
-      metricsHTML = `
-        <div class="card-metrics">
-          <div class="metric-item">
-            <span class="metric-value">${r.pesas.length}</span>
-            <span class="metric-label">Pesas</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-value">${promedioKilo}</span>
-            <span class="metric-label">Kg/Pesa</span>
-          </div>
-        </div>
-      `;
-      valorTotalHTML = ''; // Sin valor total
-    } else {
-      // Para administradores: mostrar todo
-      const precioKilo = r.totalKilos > 0 && r.valorPagar ? (r.valorPagar / r.totalKilos).toFixed(0) : 0;
+
+    // 🔥 FUNCIÓN PARA AGRUPAR PESAS POR FRUTA Y CALIDAD
+    function agruparPesasPorFrutaYCalidad(pesas) {
+      const agrupadas = {};
       
-      metricsHTML = `
-        <div class="card-metrics">
-          <div class="metric-item">
-            <span class="metric-value">${r.pesas.length}</span>
-            <span class="metric-label">Pesas</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-value">${promedioKilo}</span>
-            <span class="metric-label">Kg/Pesa</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-value">${precioKilo}</span>
-            <span class="metric-label">$/Kg</span>
-          </div>
-        </div>
-      `;
+      pesas.forEach(pesa => {
+        const fruta = pesa.fruta || 'Sin especificar';
+        const calidad = pesa.calidad || 'sin calidad';
+        const key = `${fruta}-${calidad}`;
+        
+        if (!agrupadas[key]) {
+          agrupadas[key] = {
+            fruta: fruta,
+            calidad: calidad,
+            kilos: 0,
+            pesas: []
+          };
+        }
+        
+        agrupadas[key].kilos += pesa.kilos || 0;
+        agrupadas[key].pesas.push(pesa);
+      });
       
-      valorTotalHTML = `
-        <div class="info-group" style="margin-bottom: 15px;">
-          <span class="info-label">💰 Total a Pagar</span>
-          <span class="info-value valor">${(r.valorPagar || 0).toLocaleString()}</span>
-        </div>
-      `;
+      return Object.values(agrupadas);
     }
-    
-    card.innerHTML = `
-      ${liquidadaBadge}
-      <div class="card-header">
-        <div class="fecha-badge">${fechaFormateada}</div>
-        <div class="calidad-badge calidad-${r.calidad}">${r.calidad}</div>
-      </div>
-      
-      <div class="card-content">
-        <div class="info-group">
-          <span class="info-label">🍉 ${frutasRecogida.length > 1 ? 'Frutas' : 'Fruta'}</span>
-          ${frutasHTML}
-        </div>
-        <div class="info-group">
-          <span class="info-label">⚖️ Total Kilos</span>
-          <span class="info-value kilos">${r.totalKilos} kg</span>
-        </div>
-      </div>
 
-      ${metricsHTML}
-      ${valorTotalHTML}
+    function mostrarRecogidas(listaFiltrada) {
+      lista.innerHTML = "";
+      if (listaFiltrada.length === 0) {
+        lista.innerHTML = `
+          <div class="no-resultados">
+            <h3>🔍 No hay coincidencias</h3>
+            <p>Intenta ajustar los filtros para encontrar más resultados</p>
+          </div>
+        `;
+        return;
+      }
 
-      <div class="card-footer">
-        <div class="usuario-info">
-          <div class="usuario-avatar">${obtenerIniciales(r.alias || r.usuario)}</div>
-          <span>Recogida realizada por: ${r.alias || r.usuario || "Usuario no registrado"}</span>
-        </div>
-        <button class="editar-btn" data-id="${r._id}">✏️ Editar</button>
-      </div>
-    `;
+      listaFiltrada.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
-    card.querySelector(".editar-btn").addEventListener("click", () => {
-      // 🔥 PASAR USUARIO EN LA URL AL EDITAR
-      window.location.href = `recogida.html?modo=editar&idRecogida=${r._id}&fincaId=${r.fincaId}&usuario=${encodeURIComponent(usuario)}`;
+      const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
+
+      listaFiltrada.forEach(r => {
+        const card = document.createElement("div");
+        card.className = "recogida-card";
+        
+        const promedioKilo = r.pesas.length > 0 ? (r.totalKilos / r.pesas.length).toFixed(1) : 0;
+        const fechaFormateada = formatearFecha(r.fecha);
+        
+        const frutasAgrupadas = agruparPesasPorFrutaYCalidad(r.pesas || []);
+        
+        const estaLiquidada = r.estadoLiquidacion === 'liquidada';
+        
+        const liquidadaBadge = estaLiquidada ? 
+          `<div class="liquidada-badge">✅ LIQUIDADA</div>` : '';
+        
+        let frutasDetallesHTML = '';
+        if (frutasAgrupadas.length > 0) {
+          frutasDetallesHTML = `
+            <div class="frutas-detalles">
+              <div class="frutas-detalles-titulo">
+                🍎 Detalles por Fruta y Calidad
+              </div>
+              ${frutasAgrupadas.map(grupo => `
+                <div class="fruta-detalle-item ${grupo.calidad}">
+                  <div class="fruta-detalle-info">
+                    <div class="fruta-detalle-nombre">${grupo.fruta}</div>
+                    <div class="fruta-detalle-calidad calidad-detalle-${grupo.calidad}">
+                      ${grupo.calidad} (${grupo.pesas.length} pesa${grupo.pesas.length > 1 ? 's' : ''})
+                    </div>
+                  </div>
+                  <div class="fruta-detalle-kilos">${grupo.kilos.toLocaleString()} kg</div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+        
+        let metricsHTML = '';
+        let valorTotalHTML = '';
+        
+        if (debeOcultarPrecios) {
+          metricsHTML = `
+            <div class="card-metrics">
+              <div class="metric-item">
+                <span class="metric-value">${r.pesas.length}</span>
+                <span class="metric-label">Pesas</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-value">${promedioKilo}</span>
+                <span class="metric-label">Kg/Pesa</span>
+              </div>
+            </div>
+          `;
+          valorTotalHTML = '';
+        } else {
+          const precioKilo = r.totalKilos > 0 && r.valorPagar ? (r.valorPagar / r.totalKilos).toFixed(0) : 0;
+          
+          metricsHTML = `
+            <div class="card-metrics">
+              <div class="metric-item">
+                <span class="metric-value">${r.pesas.length}</span>
+                <span class="metric-label">Pesas</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-value">${promedioKilo}</span>
+                <span class="metric-label">Kg/Pesa</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-value">${precioKilo}</span>
+                <span class="metric-label">$/Kg</span>
+              </div>
+            </div>
+          `;
+          
+          valorTotalHTML = `
+            <div class="info-group" style="margin-bottom: 15px;">
+              <span class="info-label">💰 Total a Pagar</span>
+              <span class="info-value valor">${(r.valorPagar || 0).toLocaleString()}</span>
+            </div>
+          `;
+        }
+        
+        card.innerHTML = `
+          ${liquidadaBadge}
+          <div class="card-header">
+            <div class="fecha-badge">${fechaFormateada}</div>
+            <div class="calidad-badge calidad-${r.calidad}">${r.calidad}</div>
+          </div>
+          
+          <div class="card-content">
+            <div class="info-group">
+              <span class="info-label">⚖️ Total Kilos</span>
+              <span class="info-value kilos">${r.totalKilos} kg</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">📊 Variedades</span>
+              <span class="info-value">${frutasAgrupadas.length} tipo${frutasAgrupadas.length > 1 ? 's' : ''}</span>
+            </div>
+          </div>
+
+          ${frutasDetallesHTML}
+          ${metricsHTML}
+          ${valorTotalHTML}
+
+          <div class="card-footer">
+            <div class="usuario-info">
+              <div class="usuario-avatar">${obtenerIniciales(r.alias || r.usuario)}</div>
+              <span>Recogida realizada por: ${r.alias || r.usuario || "Usuario no registrado"}</span>
+            </div>
+            <div class="botones-acciones">
+              <button class="recibo-btn" data-recogida='${JSON.stringify({
+                _id: r._id,
+                fecha: r.fecha,
+                totalKilos: r.totalKilos,
+                valorPagar: r.valorPagar,
+                pesas: r.pesas,
+                usuario: r.usuario,
+                alias: r.alias,
+                calidad: r.calidad,
+                fincaNombre: fincaNombre
+              })}'>📄 Enviar Recibo</button>
+              <button class="editar-btn" data-id="${r._id}">✏️ Editar</button>
+            </div>
+          </div>
+        `;
+
+        // Evento para editar
+        card.querySelector(".editar-btn").addEventListener("click", () => {
+          window.location.href = `recogida.html?modo=editar&idRecogida=${r._id}&fincaId=${r.fincaId}&usuario=${encodeURIComponent(usuario)}`;
+        });
+
+        // 🔥 NUEVO EVENTO PARA MANEJAR RECIBOS
+        card.querySelector(".recibo-btn").addEventListener("click", (e) => {
+          const recogidaData = JSON.parse(e.currentTarget.getAttribute('data-recogida'));
+          manejarRecibos(recogidaData);
+        });
+
+        lista.appendChild(card);
+      });
+    }
+
+    // 🔥 EVENT LISTENERS PARA EL MODAL
+    btnCerrarModal.addEventListener("click", () => {
+      modalRecibos.style.display = 'none';
+      recibosGenerados = [];
+      recogidaActual = null;
     });
 
-    lista.appendChild(card);
-  });
-}
+    // Cerrar modal al hacer clic fuera
+    modalRecibos.addEventListener("click", (e) => {
+      if (e.target === modalRecibos) {
+        modalRecibos.style.display = 'none';
+        recibosGenerados = [];
+        recogidaActual = null;
+      }
+    });
+
     // Escuchar filtros
     Object.values(filtros).forEach(input => {
       input.addEventListener("input", aplicarFiltros);
