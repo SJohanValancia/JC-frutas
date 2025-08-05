@@ -540,6 +540,7 @@ function extraerFechaRobusta(fechaString) {
 }
 
 // Función para liquidar todas las recogidas en el intervalo seleccionado
+// Función corregida para liquidar todas las recogidas en el intervalo seleccionado
 async function liquidarIntervaloFechas() {
     const fechaInicio = document.getElementById('fechaInicio').value;
     const fechaFin = document.getElementById('fechaFin').value;
@@ -549,21 +550,47 @@ async function liquidarIntervaloFechas() {
         return;
     }
 
+    console.log('🔍 LIQUIDAR INTERVALO - Iniciando filtro');
+    console.log(`📅 Fecha inicio: "${fechaInicio}"`);
+    console.log(`📅 Fecha fin: "${fechaFin}"`);
+
     // Filtrar recogidas en el intervalo que no estén liquidadas
     const recogidasParaLiquidar = todasLasRecogidas.filter(recogida => {
-        if (!recogida.fecha) return false;
-        if (recogida.estadoLiquidacion === 'liquidada') return false;
+        // Excluir ya liquidadas
+        if (recogida.estadoLiquidacion === 'liquidada') {
+            console.log(`❌ Recogida ${recogida._id} ya liquidada - excluida`);
+            return false;
+        }
         
-        const fechaRecogidaSolo = recogida.fecha.split('T')[0];
-        return fechaRecogidaSolo >= fechaInicio && fechaRecogidaSolo <= fechaFin;
+        // Verificar fecha usando la misma función que el filtro principal
+        const fechaRecogida = fechaAYYYYMMDD(recogida.fecha);
+        
+        console.log(`📦 Recogida ${recogida._id}:`);
+        console.log(`   📅 Original: "${recogida.fecha}"`);
+        console.log(`   📅 Convertida: "${fechaRecogida}"`);
+        console.log(`   🏷️ Estado: ${recogida.estadoLiquidacion || 'SIN ESTADO (ACTIVA)'}`);
+        
+        if (!fechaRecogida) {
+            console.log(`   ❌ Sin fecha válida - excluida`);
+            return false;
+        }
+        
+        // Aplicar filtros de fecha
+        const cumple = fechaRecogida >= fechaInicio && fechaRecogida <= fechaFin;
+        console.log(`   🔍 En rango ${fechaInicio} - ${fechaFin}? ${cumple}`);
+        console.log(`   ${cumple ? '✅ INCLUIDA PARA LIQUIDAR' : '❌ FUERA DEL RANGO'}`);
+        
+        return cumple;
     });
 
+    console.log(`📊 Resultado filtro: ${recogidasParaLiquidar.length}/${todasLasRecogidas.length} recogidas para liquidar`);
+
     if (recogidasParaLiquidar.length === 0) {
-        mostrarNotificacion('ℹ️ No hay recogidas en el intervalo seleccionado', 'warning');
+        mostrarNotificacion('ℹ️ No hay recogidas activas en el intervalo seleccionado para liquidar', 'warning');
         return;
     }
 
-    if (!confirm(`¿Estás seguro que deseas liquidar TODAS las ${recogidasParaLiquidar.length} recogidas entre ${fechaInicio} y ${fechaFin}?`)) {
+    if (!confirm(`¿Estás seguro que deseas liquidar TODAS las ${recogidasParaLiquidar.length} recogidas activas entre ${fechaInicio} y ${fechaFin}?`)) {
         return;
     }
 
@@ -579,11 +606,15 @@ async function liquidarIntervaloFechas() {
         }
 
         const btnLiquidar = document.getElementById('btnLiquidarIntervalo');
-        btnLiquidar.disabled = true;
-        btnLiquidar.innerHTML = '⏳ Liquidando...';
+        if (btnLiquidar) {
+            btnLiquidar.disabled = true;
+            btnLiquidar.innerHTML = '⏳ Liquidando...';
+        }
 
         // Obtener solo los IDs de las recogidas a liquidar
         const recogidaIds = recogidasParaLiquidar.map(r => r._id);
+
+        console.log('🚀 Enviando solicitud de liquidación masiva para:', recogidaIds);
 
         // Llamar al endpoint para liquidación masiva
         const response = await fetch('https://jc-frutas.onrender.com/recogidas/liquidar-multiples', {
@@ -605,20 +636,22 @@ async function liquidarIntervaloFechas() {
         const result = await response.json();
 
         if (result.success) {
-            mostrarNotificacion(`✅ ${result.exitosas} recogidas liquidadas exitosamente`, 'success');
+            mostrarNotificacion(`✅ ${result.exitosas || recogidasParaLiquidar.length} recogidas liquidadas exitosamente`, 'success');
             
             // Recargar las recogidas para actualizar la vista
             await cargarRecogidas();
             
-            // Actualizar el botón
-            btnLiquidar.disabled = false;
-            btnLiquidar.innerHTML = '💰 Liquidar Intervalo';
+            // Restaurar botón
+            if (btnLiquidar) {
+                btnLiquidar.disabled = false;
+                btnLiquidar.innerHTML = '💰 Liquidar Intervalo';
+            }
         } else {
             throw new Error(result.message || 'Error al liquidar recogidas');
         }
 
     } catch (error) {
-        console.error('Error al liquidar intervalo:', error);
+        console.error('❌ Error al liquidar intervalo:', error);
         mostrarNotificacion(`❌ Error al liquidar intervalo: ${error.message}`, 'error');
         
         const btnLiquidar = document.getElementById('btnLiquidarIntervalo');
@@ -628,7 +661,6 @@ async function liquidarIntervaloFechas() {
         }
     }
 }
-
 function formatearFecha(fecha) {
     if (!fecha) return "Sin fecha";
     

@@ -1167,175 +1167,181 @@ background: rgba(128, 105, 105, 0.329);
     }
 
     // 🔥 FUNCIÓN PARA GENERAR UN RECIBO (SIN ENVIARLO)
-    async function generarRecibo(recogidaData, pesasRecibo, numeroRecibo, totalRecibos, fechaFormateada) {
-      const divRecibo = document.createElement("div");
-      divRecibo.style.cssText = `
-        width: 8000px;
-        min-height: 1200px;
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        color: #2c3e50;
-        font-family: 'Arial', sans-serif;
-        padding: 50px;
-        margin: 0;
-        box-sizing: border-box;
-        position: relative;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      `;
+// 🔥 FUNCIÓN PARA GENERAR UN RECIBO (MODIFICADA)
+async function generarRecibo(recogidaData, pesasRecibo, numeroRecibo, totalRecibos, fechaFormateada) {
+  const divRecibo = document.createElement("div");
+  divRecibo.style.cssText = `
+    width: 10000px;
+    min-height: 1200px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    color: #2c3e50;
+    font-family: 'Arial', sans-serif;
+    padding: 50px;
+    margin: 0;
+    box-sizing: border-box;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  `;
+  
+  const listaIndividual = pesasRecibo.map((pesa, index) => ({
+    numero: (numeroRecibo - 1) * 20 + index + 1,
+    kilos: pesa.kilos,
+    fruta: pesa.fruta || 'Sin especificar',
+    calidad: pesa.calidad || 'Sin especificar',
+    precio: pesa.precio || 0
+  }));
+  
+  const columna1 = listaIndividual.slice(0, 10);
+  const columna2 = listaIndividual.slice(10, 20);
+  
+  // 🔥 NUEVA FUNCIÓN PARA AGRUPAR POR FRUTA Y CALIDAD
+  function agruparPorFrutaYCalidad(pesas) {
+    const agrupado = {};
+    
+    pesas.forEach(pesa => {
+      const fruta = pesa.fruta || 'Sin especificar';
+      const calidad = pesa.calidad || 'Sin especificar';
+      const clave = `${fruta} - ${calidad}`;
       
-      const listaIndividual = pesasRecibo.map((pesa, index) => ({
-        numero: (numeroRecibo - 1) * 20 + index + 1,
-        kilos: pesa.kilos,
-        fruta: pesa.fruta || 'Sin especificar',
-        calidad: pesa.calidad || 'Sin especificar',
-        precio: pesa.precio || 0
-      }));
-      
-      const columna1 = listaIndividual.slice(0, 10);
-      const columna2 = listaIndividual.slice(10, 20);
-      
-      const totalKilosRecibo = pesasRecibo.reduce((sum, p) => sum + p.kilos, 0);
-      const totalKilosGeneral = recogidaData.totalKilos;
-      const totalValorGeneral = recogidaData.valorPagar || 0;
-      
-      function crearColumnaHTML(pesas, titulo) {
-        if (pesas.length === 0) return '';
-        
-        return `
-          <div style="flex: 1; margin: 0 20px;">
-            <h3 style="text-align: center; font-size: 28px; margin-bottom: 20px; color: #34495e;">
-              ${titulo}
-            </h3>
-            <div style="display: grid; gap: 12px;">
-              ${pesas.map(pesa => `
-                <div style="background: rgba(255,255,255,0.25); padding: 18px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #3498db; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                  <div style="font-weight: bold; font-size: 26px; color: #2c3e50;">
-                    Pesa ${pesa.numero}
-                  </div>
-                  <div style="text-align: right; font-size: 24px;">
-                    <span style="font-weight: bold; color: #e67e22; font-size: 28px;">${pesa.kilos} kg</span>
-                    <br>
-                    <span style="font-size: 20px; color: #7f8c8d;">${pesa.fruta}</span>
-                    <br>
-                    <span style="color: ${getColorPorCalidad(pesa.calidad)}; font-weight: bold; font-size: 18px;">${pesa.calidad}</span>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
+      if (!agrupado[clave]) {
+        agrupado[clave] = 0;
       }
-      
-      function getColorPorCalidad(calidad) {
-        const colores = {
-          'extra': '#27ae60',
-          'primera': '#3498db',
-          'segunda': '#f39c12',
-          'tercera': '#e74c3c',
-          'default': '#7f8c8d'
-        };
-        return colores[calidad?.toLowerCase()] || colores.default;
-      }
-      
-      divRecibo.innerHTML = `
-        <div style="text-align: center; margin-bottom: 40px;">
-          <h1 style="margin: 0; font-size: 56px; font-weight: bold; color: #34495e;">
-            📋 RECIBO DETALLADO ${totalRecibos > 1 ? `(${numeroRecibo}/${totalRecibos})` : ''}
-          </h1>
-          <div style="width: 80px; height: 6px; background: linear-gradient(to right, #3498db, #2ecc71); margin: 20px auto; border-radius: 3px;"></div>
-          <div style="font-size: 28px; margin-top: 15px; color: #34495e;">
-            ${fechaFormateada} • ${recogidaData.fincaNombre}
-          </div>
-          ${totalRecibos > 1 ? `
-            <div style="font-size: 22px; margin-top: 10px; color: #7f8c8d;">
-              Recibo ${numeroRecibo} de ${totalRecibos} • Pesas ${(numeroRecibo - 1) * 20 + 1} - ${(numeroRecibo - 1) * 20 + pesasRecibo.length}
-            </div>
-          ` : ''}
-        </div>
-
-        <div style="background: rgba(255,255,255,0.15); padding: 40px; border-radius: 20px; margin-bottom: 40px; backdrop-filter: blur(10px);">
-          <h2 style="margin: 0 0 30px 0; font-size: 40px; text-align: center; color: #2c3e50;">
-            🍎 PESAS DE ESTE RECIBO (${pesasRecibo.length})
-          </h2>
-          
-          <div style="display: flex; gap: 30px; justify-content: center;">
-            ${crearColumnaHTML(columna1, `Pesas ${(numeroRecibo - 1) * 20 + 1} - ${(numeroRecibo - 1) * 20 + Math.min(10, pesasRecibo.length)}`)}
-            ${columna2.length > 0 ? crearColumnaHTML(columna2, `Pesas ${(numeroRecibo - 1) * 20 + 11} - ${(numeroRecibo - 1) * 20 + pesasRecibo.length}`) : ''}
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 30px; margin-bottom: 30px;">
-          <div style="flex: 1; background: rgba(255,255,255,0.2); padding: 30px; border-radius: 15px; text-align: center; border: 3px solid #3498db;">
-            <h3 style="margin: 0 0 15px 0; font-size: 28px; color: #2c3e50;">
-              📊 TOTAL ESTE RECIBO
-            </h3>
-            <div style="font-size: 36px; font-weight: bold; color: #3498db;">
-              ${totalKilosRecibo.toLocaleString()} kg
-            </div>
-            <div style="font-size: 20px; color: #7f8c8d; margin-top: 8px;">
-              ${pesasRecibo.length} pesas
-            </div>
-          </div>
-
-          ${totalRecibos > 1 ? `
-            <div style="flex: 1; background: rgba(255,255,255,0.2); padding: 30px; border-radius: 15px; text-align: center; border: 3px solid #2ecc71;">
-              <h3 style="margin: 0 0 15px 0; font-size: 28px; color: #2c3e50;">
-                🌟 TOTAL GENERAL
-              </h3>
-              <div style="font-size: 36px; font-weight: bold; color: #2ecc71;">
-                ${totalKilosGeneral.toLocaleString()} kg
+      agrupado[clave] += pesa.kilos;
+    });
+    
+    return agrupado;
+  }
+  
+  // Agrupar todas las pesas de la recogida completa por fruta y calidad
+  const resumenFrutaCalidad = agruparPorFrutaYCalidad(recogidaData.pesas);
+  
+  function crearColumnaHTML(pesas, titulo) {
+    if (pesas.length === 0) return '';
+    
+    return `
+      <div style="flex: 1; margin: 0 20px;">
+        <h3 style="text-align: center; font-size: 28px; margin-bottom: 20px; color: #34495e;">
+          ${titulo}
+        </h3>
+        <div style="display: grid; gap: 12px;">
+          ${pesas.map(pesa => `
+            <div style="background: rgba(255,255,255,0.25); padding: 18px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #3498db; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <div style="font-weight: bold; font-size: 26px; color: #2c3e50;">
+                Pesa ${pesa.numero}
               </div>
-              <div style="font-size: 20px; color: #7f8c8d; margin-top: 8px;">
-                ${recogidaData.pesas.length} pesas totales
+              <div style="text-align: right; font-size: 24px;">
+                <span style="font-weight: bold; color: #e67e22; font-size: 28px;">${pesa.kilos} kg</span>
+                <br>
+                <span style="font-size: 20px; color: #7f8c8d;">${pesa.fruta}</span>
+                <br>
+                <span style="color: ${getColorPorCalidad(pesa.calidad)}; font-weight: bold; font-size: 18px;">${pesa.calidad}</span>
               </div>
             </div>
-          ` : ''}
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  function getColorPorCalidad(calidad) {
+    const colores = {
+      'extra': '#27ae60',
+      'primera': '#3498db',
+      'segunda': '#f39c12',
+      'tercera': '#e74c3c',
+      'default': '#7f8c8d'
+    };
+    return colores[calidad?.toLowerCase()] || colores.default;
+  }
 
-          ${!isSubusuario && numeroRecibo === totalRecibos ? `
-            <div style="flex: 1; background: rgba(255,255,255,0.2); padding: 30px; border-radius: 15px; text-align: center; border: 3px solid #e67e22;">
-              <h3 style="margin: 0 0 15px 0; font-size: 28px; color: #2c3e50;">
-                💰 VALOR TOTAL
-              </h3>
-              <div style="font-size: 36px; font-weight: bold; color: #e67e22;">
-                ${totalValorGeneral.toLocaleString()}
-              </div>
-              <div style="font-size: 20px; color: #7f8c8d; margin-top: 8px;">
-                Precio final
-              </div>
+  function getBackgroundPorCalidad(calidad) {
+    const fondos = {
+      'extra': 'rgba(39, 174, 96, 0.15)',
+      'primera': 'rgba(52, 152, 219, 0.15)',
+      'segunda': 'rgba(243, 156, 18, 0.15)',
+      'tercera': 'rgba(231, 76, 60, 0.15)',
+      'default': 'rgba(127, 140, 141, 0.15)'
+    };
+    return fondos[calidad?.toLowerCase()] || fondos.default;
+  }
+  
+  divRecibo.innerHTML = `
+    <div style="text-align: center; margin-bottom: 40px;">
+      <h1 style="margin: 0; font-size: 56px; font-weight: bold; color: #34495e;">
+        📋 RECIBO DETALLADO ${totalRecibos > 1 ? `(${numeroRecibo}/${totalRecibos})` : ''}
+      </h1>
+      <div style="width: 80px; height: 6px; background: linear-gradient(to right, #3498db, #2ecc71); margin: 20px auto; border-radius: 3px;"></div>
+      <div style="font-size: 28px; margin-top: 15px; color: #34495e;">
+        ${fechaFormateada} • ${recogidaData.fincaNombre}
+      </div>
+      ${totalRecibos > 1 ? `
+        <div style="font-size: 22px; margin-top: 10px; color: #7f8c8d;">
+          Recibo ${numeroRecibo} de ${totalRecibos} • Pesas ${(numeroRecibo - 1) * 20 + 1} - ${(numeroRecibo - 1) * 20 + pesasRecibo.length}
+        </div>
+      ` : ''}
+    </div>
+
+    <div style="background: rgba(255,255,255,0.15); padding: 40px; border-radius: 20px; margin-bottom: 40px; backdrop-filter: blur(10px);">
+      <h2 style="margin: 0 0 30px 0; font-size: 40px; text-align: center; color: #2c3e50;">
+        🍎 PESAS DE ESTE RECIBO (${pesasRecibo.length})
+      </h2>
+      
+      <div style="display: flex; gap: 30px; justify-content: center;">
+        ${crearColumnaHTML(columna1, `Pesas ${(numeroRecibo - 1) * 20 + 1} - ${(numeroRecibo - 1) * 20 + Math.min(10, pesasRecibo.length)}`)}
+        ${columna2.length > 0 ? crearColumnaHTML(columna2, `Pesas ${(numeroRecibo - 1) * 20 + 11} - ${(numeroRecibo - 1) * 20 + pesasRecibo.length}`) : ''}
+      </div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.2); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+      <h3 style="margin: 0 0 25px 0; font-size: 36px; text-align: center; color: #2c3e50;">
+        📊 RESUMEN POR FRUTA Y CALIDAD
+      </h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+        ${Object.entries(resumenFrutaCalidad).map(([frutaCalidad, kilos]) => `
+          <div style="background: rgba(255,255,255,0.3); padding: 20px; border-radius: 12px; text-align: center; border: 2px solid #3498db;">
+            <div style="font-size: 24px; font-weight: bold; color: #2c3e50; margin-bottom: 8px;">
+              ${frutaCalidad}
             </div>
-          ` : ''}
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 20px; color: #7f8c8d; margin-top: 30px;">
-          <div>
-            Generado por: ${recogidaData.alias || recogidaData.usuario}
+            <div style="font-size: 28px; font-weight: bold; color: #e67e22;">
+              ${kilos.toLocaleString()} kg
+            </div>
           </div>
-          <div>
-            ${new Date().toLocaleString()}
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(divRecibo);
-      await document.fonts.ready;
-      
-      console.log(`📸 Capturando recibo ${numeroRecibo}...`);
-      
-      const canvas = await html2canvas(divRecibo, {
-        scale: 2.5,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: '#ffffff',
-        width: divRecibo.offsetWidth,
-        height: divRecibo.offsetHeight,
-        logging: false
-      });
-      
-      document.body.removeChild(divRecibo);
-      
-      return new Promise(resolve => canvas.toBlob(resolve, "image/png", 1.0));
-    }
+        `).join('')}
+      </div>
+    </div>
 
-    // 🔥 FUNCIÓN CORREGIDA PARA FECHAS
+    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 20px; color: #7f8c8d; margin-top: 30px;">
+      <div>
+        Generado por: ${recogidaData.alias || recogidaData.usuario}
+      </div>
+      <div>
+        ${new Date().toLocaleString()}
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(divRecibo);
+  await document.fonts.ready;
+  
+  console.log(`📸 Capturando recibo ${numeroRecibo}...`);
+  
+  const canvas = await html2canvas(divRecibo, {
+    scale: 2.5,
+    useCORS: true,
+    allowTaint: false,
+    backgroundColor: '#ffffff',
+    width: divRecibo.offsetWidth,
+    height: divRecibo.offsetHeight,
+    logging: false
+  });
+  
+  document.body.removeChild(divRecibo);
+  
+  return new Promise(resolve => canvas.toBlob(resolve, "image/png", 1.0));
+}
+    
+
+// 🔥 FUNCIÓN CORREGIDA PARA FECHAS
     function formatearFecha(fecha) {
       if (!fecha) return "No disponible";
       
