@@ -988,26 +988,43 @@
         }
 
         // Formatear fecha local
-        function formatearFechaLocal(fechaString) {
-            if (!fechaString) return 'Sin fecha';
+// Función corregida para formatear fecha local (reemplazar en liquidacionmes.html)
+function formatearFechaLocal(fechaString) {
+    if (!fechaString) return 'Sin fecha';
+    
+    try {
+        // Si la fecha viene en formato ISO (2024-08-04T00:00:00.000Z)
+        if (fechaString.includes('T')) {
+            // Extraer solo la parte de la fecha (YYYY-MM-DD)
+            const fechaSolo = fechaString.split('T')[0];
+            const [año, mes, dia] = fechaSolo.split('-');
             
-            const partes = fechaString.split('T')[0].split('-');
-            if (partes.length === 3) {
-                const año = parseInt(partes[0]);
-                const mes = parseInt(partes[1]) - 1;
-                const dia = parseInt(partes[2]);
-                
-                const fecha = new Date(año, mes, dia);
-                return fecha.toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-            }
+            // Crear fecha local sin conversión de timezone
+            const fecha = new Date(parseInt(año), parseInt(mes) - 1, parseInt(dia));
             
-            return new Date(fechaString).toLocaleDateString('es-ES');
+            return fecha.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: 'America/Bogota' // Forzar timezone de Colombia
+            });
+        } else {
+            // Si viene en formato simple YYYY-MM-DD
+            const [año, mes, dia] = fechaString.split('-');
+            const fecha = new Date(parseInt(año), parseInt(mes) - 1, parseInt(dia));
+            
+            return fecha.toLocaleDateString('es-ES', {
+                year: 'numeric', 
+                month: 'long',
+                day: 'numeric',
+                timeZone: 'America/Bogota'
+            });
         }
-
+    } catch (error) {
+        console.error('Error formateando fecha:', fechaString, error);
+        return fechaString; // Devolver la fecha original si hay error
+    }
+}
         // Mostrar notificación
         function mostrarNotificacion(mensaje, tipo = 'success') {
             const notificacion = document.createElement('div');
