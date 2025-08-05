@@ -952,38 +952,114 @@ function obtenerCalidadesUnicas(recogida) {
 }
 
 // 🔥 FUNCIÓN PARA FORMATEAR FECHA CORRECTAMENTE - CORREGIDA PARA EVITAR PROBLEMA DE ZONA HORARIA
-function formatearFecha(fechaStr) {
-  try {
-    // Si la fecha viene en formato YYYY-MM-DD, la procesamos directamente
-    if (typeof fechaStr === 'string' && fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
-      const partes = fechaStr.split('T')[0].split('-'); // Tomar solo la parte de fecha
-      const año = partes[0];
-      const mes = partes[1];
-      const dia = partes[2];
-      return `${dia}/${mes}/${año}`;
+// 🔥 FUNCIÓN PARA FORMATEAR FECHA CORRECTAMENTE - VERSIÓN ROBUSTA COMO EN LIQUIDACIONMES
+function formatearFecha(fechaString) {
+    if (!fechaString) return 'Sin fecha';
+    
+    // Log para debug
+    console.log('🔍 Formateando fecha:', fechaString, typeof fechaString);
+    
+    try {
+        let fecha = null;
+        
+        // Caso 1: Ya es un objeto Date
+        if (fechaString instanceof Date) {
+            fecha = fechaString;
+        }
+        // Caso 2: String que parece un objeto Date serializado
+        else if (typeof fechaString === 'string' && (fechaString.includes('GMT') || fechaString.includes('UTC'))) {
+            // Crear fecha desde el string del objeto Date
+            fecha = new Date(fechaString);
+        }
+        // Caso 3: String con formato ISO (2024-08-04T00:00:00.000Z)
+        else if (typeof fechaString === 'string' && fechaString.includes('T')) {
+            const fechaSolo = fechaString.split('T')[0];
+            const partes = fechaSolo.split('-');
+            
+            if (partes.length === 3 && partes[0].length === 4) {
+                const año = parseInt(partes[0]);
+                const mes = parseInt(partes[1]) - 1;
+                const dia = parseInt(partes[2]);
+                
+                if (!isNaN(año) && !isNaN(mes) && !isNaN(dia) && 
+                    año > 1900 && año < 2100 && mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+                    fecha = new Date(año, mes, dia);
+                }
+            }
+        }
+        // Caso 4: String con formato simple (YYYY-MM-DD)
+        else if (typeof fechaString === 'string') {
+            const partes = fechaString.split('-');
+            
+            if (partes.length === 3 && partes[0].length === 4) {
+                const año = parseInt(partes[0]);
+                const mes = parseInt(partes[1]) - 1;
+                const dia = parseInt(partes[2]);
+                
+                if (!isNaN(año) && !isNaN(mes) && !isNaN(dia) && 
+                    año > 1900 && año < 2100 && mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+                    fecha = new Date(año, mes, dia);
+                }
+            } else {
+                // Último recurso: usar Date.parse()
+                fecha = new Date(fechaString);
+            }
+        }
+        
+        // Verificar si la fecha es válida
+        if (fecha && !isNaN(fecha.getTime())) {
+            // Para fechas UTC, usar los métodos UTC para evitar conversión de timezone
+            let fechaFormateada;
+            
+            if (fechaString.toString().includes('GMT+0000') || fechaString.toString().includes('UTC')) {
+                // Es una fecha UTC, extraer componentes usando UTC
+                const año = fecha.getUTCFullYear();
+                const mes = fecha.getUTCMonth();
+                const dia = fecha.getUTCDate();
+                
+                // Crear nueva fecha local con esos componentes
+                const fechaLocal = new Date(año, mes, dia);
+                
+                // Formatear manualmente para evitar problemas de timezone
+                const diaStr = String(fechaLocal.getDate()).padStart(2, '0');
+                const mesStr = String(fechaLocal.getMonth() + 1).padStart(2, '0');
+                const añoStr = fechaLocal.getFullYear();
+                
+                fechaFormateada = `${diaStr}/${mesStr}/${añoStr}`;
+            } else {
+                // Fecha normal - formatear manualmente para consistencia
+                const diaStr = String(fecha.getDate()).padStart(2, '0');
+                const mesStr = String(fecha.getMonth() + 1).padStart(2, '0');
+                const añoStr = fecha.getFullYear();
+                
+                fechaFormateada = `${diaStr}/${mesStr}/${añoStr}`;
+            }
+            
+            console.log('✅ Fecha formateada exitosamente:', fechaFormateada);
+            return fechaFormateada;
+        } else {
+            console.warn('⚠️ Fecha inválida después del procesamiento:', fechaString);
+            return `Fecha inválida: ${fechaString}`;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error formateando fecha:', fechaString, error);
+        return `Error en fecha: ${fechaString}`;
     }
-    
-    // Para otros formatos, crear fecha en hora local
-    const fecha = new Date(fechaStr + 'T00:00:00');
-    
-    // Verificar si la fecha es válida
-    if (isNaN(fecha.getTime())) {
-      console.warn("Fecha inválida:", fechaStr);
-      return "Fecha inválida";
-    }
-
-    // Obtener la fecha directamente sin problemas de zona horaria
-    const año = fecha.getFullYear();
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-    const dia = String(fecha.getDate()).padStart(2, '0');
-    
-    return `${dia}/${mes}/${año}`;
-  } catch (error) {
-    console.error("Error al formatear fecha:", error, "Fecha original:", fechaStr);
-    return "Error en fecha";
-  }
 }
 
+// 🔥 FUNCIÓN AUXILIAR PARA FORMATEAR FECHA ESPECIALMENTE PARA LIQUIDACIONES
+function formatearFechaLiquidacion(fechaString) {
+    if (!fechaString) return 'Sin fecha';
+    
+    try {
+        // Si es una fecha de liquidación, usar el mismo método robusto
+        return formatearFecha(fechaString);
+    } catch (error) {
+        console.error('❌ Error formateando fecha de liquidación:', fechaString, error);
+        return 'Fecha inválida';
+    }
+}
 // Cargar todas las recogidas
 async function cargarRecogidas() {
   try {

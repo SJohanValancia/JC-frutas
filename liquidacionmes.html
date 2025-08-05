@@ -389,6 +389,13 @@
     </style>
 </head>
 <body>
+
+        <div class="back-button">
+        <button class="btn btn-secondary" onclick="volverDashboard()">
+            ← Volver
+        </button>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>💰 Gestión de Liquidaciones</h1>
@@ -461,13 +468,9 @@
         </div>
     </div>
 
-    <div class="back-button">
-        <button class="btn btn-secondary" onclick="volverDashboard()">
-            ← Volver
-        </button>
-    </div>
 
-    <div class="summary-button">
+
+    <div style="display: none;" class="summary-button">
         <button class="btn btn-success" onclick="generarResumenGeneral()" id="btnResumen" style="display: none;">
             📊 Resumen General
         </button>
@@ -987,45 +990,102 @@
             });
         }
 
-        // Formatear fecha local
-// Función corregida para formatear fecha local (reemplazar en liquidacionmes.html)
-function formatearFechaLocal(fechaString) {
-    if (!fechaString) return 'Sin fecha';
-    
-    try {
-        // Si la fecha viene en formato ISO (2024-08-04T00:00:00.000Z)
-        if (fechaString.includes('T')) {
-            // Extraer solo la parte de la fecha (YYYY-MM-DD)
-            const fechaSolo = fechaString.split('T')[0];
-            const [año, mes, dia] = fechaSolo.split('-');
+// Formatear fecha local - CORREGIDO PARA OBJETOS DATE CON UTC
+        function formatearFechaLocal(fechaString) {
+            if (!fechaString) return 'Sin fecha';
             
-            // Crear fecha local sin conversión de timezone
-            const fecha = new Date(parseInt(año), parseInt(mes) - 1, parseInt(dia));
+            // Log para debug
+            console.log('🔍 Formateando fecha:', fechaString, typeof fechaString);
             
-            return fecha.toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                timeZone: 'America/Bogota' // Forzar timezone de Colombia
-            });
-        } else {
-            // Si viene en formato simple YYYY-MM-DD
-            const [año, mes, dia] = fechaString.split('-');
-            const fecha = new Date(parseInt(año), parseInt(mes) - 1, parseInt(dia));
-            
-            return fecha.toLocaleDateString('es-ES', {
-                year: 'numeric', 
-                month: 'long',
-                day: 'numeric',
-                timeZone: 'America/Bogota'
-            });
+            try {
+                let fecha = null;
+                
+                // Caso 1: Ya es un objeto Date
+                if (fechaString instanceof Date) {
+                    fecha = fechaString;
+                }
+                // Caso 2: String que parece un objeto Date serializado
+                else if (typeof fechaString === 'string' && (fechaString.includes('GMT') || fechaString.includes('UTC'))) {
+                    // Crear fecha desde el string del objeto Date
+                    fecha = new Date(fechaString);
+                }
+                // Caso 3: String con formato ISO (2024-08-04T00:00:00.000Z)
+                else if (typeof fechaString === 'string' && fechaString.includes('T')) {
+                    const fechaSolo = fechaString.split('T')[0];
+                    const partes = fechaSolo.split('-');
+                    
+                    if (partes.length === 3 && partes[0].length === 4) {
+                        const año = parseInt(partes[0]);
+                        const mes = parseInt(partes[1]) - 1;
+                        const dia = parseInt(partes[2]);
+                        
+                        if (!isNaN(año) && !isNaN(mes) && !isNaN(dia) && 
+                            año > 1900 && año < 2100 && mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+                            fecha = new Date(año, mes, dia);
+                        }
+                    }
+                }
+                // Caso 4: String con formato simple (YYYY-MM-DD)
+                else if (typeof fechaString === 'string') {
+                    const partes = fechaString.split('-');
+                    
+                    if (partes.length === 3 && partes[0].length === 4) {
+                        const año = parseInt(partes[0]);
+                        const mes = parseInt(partes[1]) - 1;
+                        const dia = parseInt(partes[2]);
+                        
+                        if (!isNaN(año) && !isNaN(mes) && !isNaN(dia) && 
+                            año > 1900 && año < 2100 && mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+                            fecha = new Date(año, mes, dia);
+                        }
+                    } else {
+                        // Último recurso: usar Date.parse()
+                        fecha = new Date(fechaString);
+                    }
+                }
+                
+                // Verificar si la fecha es válida
+                if (fecha && !isNaN(fecha.getTime())) {
+                    // Para fechas UTC, usar los métodos UTC para evitar conversión de timezone
+                    let fechaFormateada;
+                    
+                    if (fechaString.toString().includes('GMT+0000') || fechaString.toString().includes('UTC')) {
+                        // Es una fecha UTC, extraer componentes usando UTC
+                        const año = fecha.getUTCFullYear();
+                        const mes = fecha.getUTCMonth();
+                        const dia = fecha.getUTCDate();
+                        
+                        // Crear nueva fecha local con esos componentes
+                        const fechaLocal = new Date(año, mes, dia);
+                        
+                        fechaFormateada = fechaLocal.toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        });
+                    } else {
+                        // Fecha normal
+                        fechaFormateada = fecha.toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            timeZone: 'America/Bogota'
+                        });
+                    }
+                    
+                    console.log('✅ Fecha formateada exitosamente:', fechaFormateada);
+                    return fechaFormateada;
+                } else {
+                    console.warn('⚠️ Fecha inválida después del procesamiento:', fechaString);
+                    return `Fecha inválida: ${fechaString}`;
+                }
+                
+            } catch (error) {
+                console.error('❌ Error formateando fecha:', fechaString, error);
+                return `Error en fecha: ${fechaString}`;
+            }
         }
-    } catch (error) {
-        console.error('Error formateando fecha:', fechaString, error);
-        return fechaString; // Devolver la fecha original si hay error
-    }
-}
-        // Mostrar notificación
+// Mostrar notificación
         function mostrarNotificacion(mensaje, tipo = 'success') {
             const notificacion = document.createElement('div');
             const colores = {
