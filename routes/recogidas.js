@@ -875,39 +875,7 @@ router.post("/liquidar-multiples", async (req, res) => {
   }
 });
 
-// FUNCIÓN AUXILIAR PARA MANEJAR FECHAS EN COLOMBIA (Agregar al inicio de recogidas.js)
-function crearFechaColombia(fechaString) {
-  // Si la fecha viene en formato YYYY-MM-DD, crear fecha local
-  if (typeof fechaString === 'string' && fechaString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const [año, mes, dia] = fechaString.split('-');
-    // Crear fecha en hora local de Colombia (UTC-5)
-    const fecha = new Date(parseInt(año), parseInt(mes) - 1, parseInt(dia), 12, 0, 0); // Mediodía para evitar cambios de día
-    return fecha;
-  }
-  return new Date(fechaString);
-}
 
-// FUNCIÓN PARA OBTENER FECHA ACTUAL EN COLOMBIA
-function obtenerFechaActualColombia() {
-  const ahora = new Date();
-  const offsetColombia = -5 * 60 * 60 * 1000; // UTC-5
-  return new Date(ahora.getTime() + offsetColombia);
-}
-
-// MODIFICACIONES SUGERIDAS PARA LAS RUTAS:
-
-// En la ruta POST /nueva - Reemplazar la validación de fecha:
-const fechaRecogida = crearFechaColombia(fecha);
-const fechaRecogidaStr = fechaRecogida.toISOString().split('T')[0];
-
-// En la ruta PUT /cambiar-estado-liquidacion/:id - Usar fecha Colombia:
-if (estado === "liquidada") {
-  recogida.fechaLiquidacion = obtenerFechaActualColombia();
-  recogida.usuarioLiquida = usuario;
-}
-
-// En la ruta POST /marcar-liquidacion/:id - Usar fecha Colombia:
-recogida.fechaMarcadoLiquidacion = obtenerFechaActualColombia();
 
 
 module.exports = router;
