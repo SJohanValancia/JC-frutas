@@ -94,6 +94,37 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.post("/change-password", async (req, res) => {
+    const { username, oldPassword, newPassword } = req.body;
+
+    if (!username || !oldPassword || !newPassword) {
+        return res.status(400).send({ message: "Faltan campos obligatorios" });
+    }
+
+    try {
+        // Verificar si el usuario existe
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(404).send({ message: "Usuario no encontrado" });
+        }
+
+        // Verificar si la contraseña anterior es correcta
+        if (user.password !== oldPassword) {
+            return res.status(401).send({ message: "Contraseña anterior incorrecta" });
+        }
+
+        // Actualizar la contraseña
+        user.password = newPassword;
+        await user.save();
+
+        res.status(200).send({ message: "Contraseña actualizada correctamente" });
+    } catch (err) {
+        console.error("Error al cambiar la contraseña:", err);
+        res.status(500).send({ message: "Error al cambiar la contraseña" });
+    }
+});
+
+
 
 // Nuevo endpoint para obtener la información del administrador
 // Nuevo endpoint para obtener la información del administrador
