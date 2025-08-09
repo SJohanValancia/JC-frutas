@@ -3,6 +3,93 @@ import { apiFetch } from "./api.js";
 let currentUser = null;
 let adminUsers = [];
 
+// 🛡️ NUEVA FUNCIÓN: Verificar permisos de super admin
+function checkSuperAdminAccess() {
+    const userData = localStorage.getItem("userData");
+    
+    if (userData) {
+        try {
+            const user = JSON.parse(userData);
+            
+            console.log("🔍 Verificando permisos de usuario:", user);
+            
+            // Si es super admin (tipo 3), mostrar botón de registrar
+            if (user.tipo === 3) {
+                console.log("✅ Super admin detectado - Mostrando botón registrar");
+                const registerBtn = document.getElementById("registerBtn");
+                if (registerBtn) {
+                    registerBtn.style.display = "inline-block";
+                }
+            } else {
+                console.log("ℹ️ Usuario regular - Ocultando botón registrar");
+                const registerBtn = document.getElementById("registerBtn");
+                if (registerBtn) {
+                    registerBtn.style.display = "none";
+                }
+            }
+        } catch (e) {
+            console.log("❌ Error al parsear userData:", e);
+            const registerBtn = document.getElementById("registerBtn");
+            if (registerBtn) {
+                registerBtn.style.display = "none";
+            }
+        }
+    } else {
+        console.log("❌ No hay userData - Verificando por parámetros URL");
+        // Fallback: verificar si el usuario viene por parámetro URL
+        const { usuario } = getUrlParams();
+        if (usuario) {
+            // Hacer una llamada para verificar el tipo del usuario
+            verifyUserTypeFromServer(usuario);
+        } else {
+            const registerBtn = document.getElementById("registerBtn");
+            if (registerBtn) {
+                registerBtn.style.display = "none";
+            }
+        }
+    }
+}
+
+// 🔍 NUEVA FUNCIÓN: Verificar tipo de usuario desde el servidor
+async function verifyUserTypeFromServer(username) {
+    try {
+        console.log("🔍 Verificando tipo de usuario desde servidor:", username);
+        
+        // Usar el endpoint existente get-alias que también devuelve el tipo
+        const response = await apiFetch(`/auth/get-alias?usuario=${username}`, "GET");
+        
+        console.log("📊 Respuesta del servidor:", response);
+        
+        if (response.tipo === 3) {
+            console.log("✅ Super admin verificado desde servidor");
+            const registerBtn = document.getElementById("registerBtn");
+            if (registerBtn) {
+                registerBtn.style.display = "inline-block";
+            }
+            
+            // Guardar en localStorage para futuras verificaciones
+            const userData = {
+                usuario: response.username,
+                alias: response.alias,
+                tipo: response.tipo
+            };
+            localStorage.setItem("userData", JSON.stringify(userData));
+        } else {
+            console.log("ℹ️ Usuario no es super admin");
+            const registerBtn = document.getElementById("registerBtn");
+            if (registerBtn) {
+                registerBtn.style.display = "none";
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error al verificar tipo de usuario:", error);
+        const registerBtn = document.getElementById("registerBtn");
+        if (registerBtn) {
+            registerBtn.style.display = "none";
+        }
+    }
+}
+
 // Función para obtener parámetros de la URL
 function getUrlParams() {
     const params = new URLSearchParams(window.location.search);
@@ -70,6 +157,7 @@ function createUserCard(user) {
     const avatar = user.username ? user.username.charAt(0).toUpperCase() : 'U';
     const status = user.bloqueado ? 'Bloqueado' : 'Activo';
     const statusClass = user.bloqueado ? 'status-blocked' : 'status-active';
+    const passwordId = `password-${user._id}`;
     
     card.innerHTML = `
         <div class="user-header">
@@ -92,8 +180,13 @@ function createUserCard(user) {
             </div>
             <div class="detail-row">
                 <span class="detail-label">Contraseña:</span>
-                <input type="password" class="detail-value editable" value="${user.password || ''}" 
-                       data-field="password" data-user-id="${user._id}">
+                <div class="password-container">
+                    <input type="password" id="${passwordId}" class="detail-value editable password-input" 
+                           value="${user.password || ''}" data-field="password" data-user-id="${user._id}">
+                    <button type="button" class="password-toggle" onclick="togglePassword('${passwordId}')">
+                        👁️
+                    </button>
+                </div>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Tipo:</span>
@@ -195,7 +288,73 @@ async function unblockUser(userId) {
     }
 }
 
-// Función para inspeccionar usuario (obtiene información detallada del servidor)
+// Función para alternar visibilidad de contraseña
+function togglePassword(passwordId) {
+    const passwordInput = document.getElementById(passwordId);
+    const toggleBtn = passwordInput.nextElementSibling;
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = '🙈';
+    } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = '👁️';
+    }
+}
+
+// Función para filtrar usuarios por nombre
+function filterUsers(searchTerm) {
+    const userCards = document.querySelectorAll('.user-card');
+    const noResults = document.getElementById('noResultsMessage');
+    let visibleCount = 0;
+    
+    userCards.forEach(card => {
+        const username = card.querySelector('.user-info h3').textContent.toLowerCase();
+        const aliasElement = card.querySelector('.detail-value');
+        const alias = aliasElement ? aliasElement.textContent.toLowerCase() : '';
+        
+        const matchesSearch = username.includes(searchTerm.toLowerCase()) || 
+                             alias.includes(searchTerm.toLowerCase());
+        
+        if (matchesSearch || searchTerm === '') {
+            card.classList.remove('hidden');
+            visibleCount++;
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+    
+    // Mostrar mensaje si no hay resultados
+    if (visibleCount === 0 && searchTerm !== '') {
+        noResults.style.display = 'block';
+    } else {
+        noResults.style.display = 'none';
+    }
+}
+
+// Función para limpiar búsqueda
+function clearSearch() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.value = '';
+    filterUsers('');
+}
+
+// Configurar el buscador
+function setupSearch() {
+    const searchInput = document.getElementById('searchInput');
+    
+    searchInput.addEventListener('input', (e) => {
+        filterUsers(e.target.value);
+    });
+    
+    // También permitir búsqueda con Enter
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            filterUsers(e.target.value);
+        }
+    });
+}
+
 async function inspectUser(userId) {
     try {
         console.log("🔍 Inspeccionando usuario:", userId);
@@ -242,7 +401,7 @@ function logout() {
     if (confirm("¿Estás seguro de que quieres cerrar sesión?")) {
         localStorage.clear();
         sessionStorage.clear();
-        window.location.href = "login.html";
+        window.location.href = "index.html"; // Cambiado de login.html a index.html
     }
 }
 
@@ -252,9 +411,19 @@ window.blockUser = blockUser;
 window.unblockUser = unblockUser;
 window.inspectUser = inspectUser;
 window.logout = logout;
+window.togglePassword = togglePassword;
+window.clearSearch = clearSearch;
 
 // Inicializar cuando se carga la página
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("🚀 Inicializando dashboard3...");
+    
     showWelcomeMessage();
+    setupSearch();
     loadAdminUsers();
+    
+    // 🆕 NUEVA LÍNEA: Verificar permisos de super admin
+    checkSuperAdminAccess();
+    
+    console.log("✅ Dashboard3 inicializado correctamente");
 });

@@ -2,21 +2,22 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Registro</title>
+  <title>Registro - Solo Super Admin</title>
   <link rel="stylesheet" href="style.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="jc-loader.js"></script>
 </head>
 <body>
   <div class="container-account">
-    <h2>Registro de Usuario</h2>
+    <div class="register-header">
+      <h2>🛡️ Registro de Usuario</h2>
+      <p class="super-admin-notice">Solo accesible para Super Administrador</p>
+    </div>
 
     <form id="registerForm">
       <input type="text" id="registerName" placeholder="Nombre de usuario" required>
       <input type="password" id="registerPassword" placeholder="Contraseña" required>
-
       <input type="text" id="registerAlias" placeholder="Tu alias (único)" required />
-
 
       <select id="registerTipo" required>
         <option value="">Selecciona tipo</option>
@@ -30,9 +31,11 @@
       <button type="submit">Registrarse</button>
     </form>
 
-    <p>¿Ya tienes cuenta? <a href="index.html">Inicia sesión</a></p>
+    <div class="register-actions">
+      <a href="dashboard3.html" class="back-link">← Volver al Dashboard</a>
+    </div>
   </div>
 
-  <script type="module" src="register.js"></script>
+  <script type="module" src="register-protected.js"></script>
 </body>
 </html>
