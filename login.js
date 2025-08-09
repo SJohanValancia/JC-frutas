@@ -41,10 +41,15 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       const url = `dashboard1.html?usuario=${encodeURIComponent(res.usuario)}`;
       console.log("Redirigiendo a:", url);
       window.location.href = url;
-    } else {
-      // Subusuario - ✅ USAR res.admin.alias en lugar de res.admin.username
+    } else if (res.tipo === 2) {
+      // Subusuario
       const url = `dashboard2.html?usuario=${encodeURIComponent(res.usuario)}&admin=${encodeURIComponent(res.admin.alias)}`;
       console.log("Redirigiendo a:", url);
+      window.location.href = url;
+    } else if (res.tipo === 3) {
+      // Super Administrador
+      const url = `dashboard3.html?usuario=${encodeURIComponent(res.usuario)}`;
+      console.log("Redirigiendo a super admin dashboard:", url);
       window.location.href = url;
     }
   } catch (err) {

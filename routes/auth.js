@@ -42,7 +42,6 @@ router.post("/register", async (req, res) => {
 });
 
 // En la ruta de login
-// En la ruta de login (solo la parte relevante)
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -53,8 +52,6 @@ router.post("/login", async (req, res) => {
       console.log("❌ Usuario no encontrado");
       return res.status(401).send("Credenciales inválidas");
     }
-
-
 
     let datosAdmin = null;
 
@@ -124,10 +121,6 @@ router.post("/change-password", async (req, res) => {
     }
 });
 
-
-
-// Nuevo endpoint para obtener la información del administrador
-// Nuevo endpoint para obtener la información del administrador
 // Nuevo endpoint para obtener la información del administrador
 router.get("/get-admin-info", async (req, res) => {
   console.log("=== GET-ADMIN-INFO ENDPOINT ===");
@@ -187,11 +180,9 @@ router.get("/get-admin-info", async (req, res) => {
   }
 });
 
-
 router.get("/logout", (req, res) => {
   req.session.destroy(() => res.status(200).send("Sesión cerrada"));
 });
-
 
 router.get("/get-alias", async (req, res) => {
   try {
@@ -220,6 +211,154 @@ router.get("/get-alias", async (req, res) => {
   } catch (error) {
     console.error("❌ Error al obtener alias:", error);
     res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+// ========== NUEVOS ENDPOINTS PARA SUPER ADMINISTRADOR ==========
+
+// Obtener todos los usuarios administradores (tipo 1)
+router.get("/get-all-admins", async (req, res) => {
+  try {
+    console.log("🔍 Obteniendo todos los usuarios administradores...");
+    
+    const adminUsers = await User.find({ tipo: 1 }).sort({ username: 1 });
+    
+    console.log(`✅ Se encontraron ${adminUsers.length} administradores`);
+    
+    res.status(200).json(adminUsers);
+  } catch (error) {
+    console.error("❌ Error al obtener administradores:", error);
+    res.status(500).json({ error: "Error al obtener administradores" });
+  }
+});
+
+// Actualizar un usuario
+router.put("/update-user/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    console.log("📝 Actualizando usuario:", id);
+    console.log("📝 Datos a actualizar:", updates);
+    
+    const user = await User.findByIdAndUpdate(
+      id, 
+      updates, 
+      { new: true, runValidators: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    
+    console.log("✅ Usuario actualizado:", user);
+    res.status(200).json({ message: "Usuario actualizado correctamente", user });
+    
+  } catch (error) {
+    console.error("❌ Error al actualizar usuario:", error);
+    res.status(500).json({ error: "Error al actualizar usuario" });
+  }
+});
+
+// Bloquear usuario
+router.put("/block-user/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log("🚫 Bloqueando usuario:", id);
+    
+    const user = await User.findByIdAndUpdate(
+      id,
+      { bloqueado: true },
+      { new: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    
+    console.log("✅ Usuario bloqueado:", user.username);
+    res.status(200).json({ message: "Usuario bloqueado correctamente", user });
+    
+  } catch (error) {
+    console.error("❌ Error al bloquear usuario:", error);
+    res.status(500).json({ error: "Error al bloquear usuario" });
+  }
+});
+
+// Desbloquear usuario
+router.put("/unblock-user/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log("✅ Desbloqueando usuario:", id);
+    
+    const user = await User.findByIdAndUpdate(
+      id,
+      { bloqueado: false },
+      { new: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    
+    console.log("✅ Usuario desbloqueado:", user.username);
+    res.status(200).json({ message: "Usuario desbloqueado correctamente", user });
+    
+  } catch (error) {
+    console.error("❌ Error al desbloquear usuario:", error);
+    res.status(500).json({ error: "Error al desbloquear usuario" });
+  }
+});
+
+// Obtener información detallada de un usuario (para inspeccionar)
+router.get("/inspect-user/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log("🔍 Inspeccionando usuario:", id);
+    
+    const user = await User.findById(id);
+    
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    
+    // Si es subusuario, obtener también información del admin
+    let adminInfo = null;
+    if (user.tipo === 2 && user.aliasAdmin) {
+      adminInfo = await User.findOne({ alias: user.aliasAdmin }, {
+        username: 1,
+        alias: 1,
+        email: 1,
+        tipo: 1
+      });
+    }
+    
+    // Contar cuántos subusuarios tiene este admin (si es tipo 1)
+    let subusuariosCount = 0;
+    if (user.tipo === 1) {
+      subusuariosCount = await User.countDocuments({ 
+        aliasAdmin: user.alias,
+        tipo: 2 
+      });
+    }
+    
+    const inspection = {
+      ...user.toObject(),
+      adminInfo,
+      subusuariosCount,
+      fechaCreacion: user.createdAt || "No disponible",
+      ultimaActualizacion: user.updatedAt || "No disponible"
+    };
+    
+    console.log("✅ Inspección completa:", inspection);
+    res.status(200).json(inspection);
+    
+  } catch (error) {
+    console.error("❌ Error al inspeccionar usuario:", error);
+    res.status(500).json({ error: "Error al inspeccionar usuario" });
   }
 });
 
