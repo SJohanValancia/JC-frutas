@@ -1,3 +1,8 @@
+
+
+// ✅ IMPORTAR la función apiFetch
+import { apiFetch } from "./api.js";
+
 document.getElementById("changePasswordForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -16,22 +21,14 @@ document.getElementById("changePasswordForm").addEventListener("submit", async (
             newPassword,
         };
 
-        const response = await fetch("/auth/change-password", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (response.ok) {
-            alert("Contraseña actualizada correctamente.");
-            window.location.href = "index.html";  // Redirigir al login u otra página.
-        } else {
-            const data = await response.json();
-            alert(data.message || "Error al actualizar la contraseña.");
-        }
+        // ✅ USAR apiFetch en lugar de fetch directo
+        await apiFetch("/auth/change-password", "POST", body);
+        
+        alert("Contraseña actualizada correctamente.");
+        window.location.href = "index.html";
+        
     } catch (err) {
-        alert("Error en la solicitud: " + err.message);
+        console.error("Error en la solicitud:", err);
+        alert("Error al actualizar la contraseña: " + err.message);
     }
 });
