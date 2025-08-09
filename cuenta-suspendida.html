@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cuenta Suspendida</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 25%, #1f1f1f 50%, #0d1117 75%, #161b22 100%);
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      color: #e6edf3;
+      overflow-x: hidden;
+      position: relative;
+      padding: 20px 10px;
+    }
+    
+    /* Subtle grid pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 30px 30px;
+      pointer-events: none;
+      z-index: -1;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px 10px;
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .status-badge {
+      background: rgba(220, 53, 69, 0.1);
+      border: 1px solid rgba(220, 53, 69, 0.3);
+      color: #ff6b6b;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+      display: inline-block;
+      text-transform: uppercase;
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(220, 53, 69, 0.2); }
+      50% { box-shadow: 0 0 20px rgba(220, 53, 69, 0.4); }
+    }
+    
+    .title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.8rem, 6vw, 3rem);
+      font-weight: 700;
+      color: #f0f6fc;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    
+    .subtitle {
+      color: #7d8590;
+      font-size: clamp(1rem, 3vw, 1.1rem);
+      font-weight: 400;
+      margin-bottom: 30px;
+    }
+    
+    .user-info {
+      background: rgba(255, 167, 38, 0.1);
+      border: 1px solid rgba(255, 167, 38, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .user-info h3 {
+      color: #ffa726;
+      font-size: 1.2rem;
+      margin-bottom: 5px;
+    }
+    
+    .main-content {
+      background: rgba(13, 17, 23, 0.8);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(48, 54, 61, 0.8);
+      border-radius: 12px;
+      padding: 30px 20px;
+      margin: 20px 0;
+      width: 100%;
+      max-width: 600px;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .main-content::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    }
+    
+    .message-section {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .message-text {
+      color: #e6edf3;
+      font-size: clamp(1rem, 3vw, 1.1rem);
+      line-height: 1.7;
+      font-weight: 400;
+      margin-bottom: 20px;
+    }
+    
+    .highlight {
+      color: #ffa726;
+      font-weight: 600;
+      background: rgba(255, 167, 38, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    
+    .warning-text {
+      color: #ff6b6b;
+      font-weight: 500;
+      background: rgba(255, 107, 107, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    
+    .icon-container {
+      display: flex;
+      justify-content: center;
+      margin: 30px 0;
+    }
+    
+    .blocked-icon {
+      font-size: 4rem;
+      color: #ff6b6b;
+      animation: shake 2s ease-in-out infinite;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      75% { transform: translateX(2px); }
+    }
+    
+    .action-section {
+      margin-top: 30px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: center;
+    }
+    
+    .contact-button {
+      background: linear-gradient(145deg, #238636, #2ea043);
+      color: white;
+      border: none;
+      padding: 16px 32px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 25px rgba(35, 134, 54, 0.3);
+      text-decoration: none;
+      display: inline-block;
+      min-width: 250px;
+      text-align: center;
+    }
+    
+    .contact-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    .contact-button:hover::before {
+      left: 100%;
+    }
+    
+    .contact-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(35, 134, 54, 0.4);
+    }
+    
+    .login-button {
+      background: transparent;
+      color: #58a6ff;
+      border: 1px solid #58a6ff;
+      padding: 12px 24px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      min-width: 200px;
+      text-align: center;
+    }
+    
+    .login-button:hover {
+      background: rgba(88, 166, 255, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .footer-info {
+      margin-top: 30px;
+      padding: 20px;
+      background: rgba(48, 54, 61, 0.3);
+      border-radius: 8px;
+      border-left: 4px solid #ffa726;
+      width: 100%;
+      max-width: 600px;
+    }
+    
+    .footer-info p {
+      color: #7d8590;
+      font-size: 0.9rem;
+      margin: 0;
+      line-height: 1.6;
+    }
+    
+    .countdown {
+      background: rgba(255, 107, 107, 0.1);
+      border: 1px solid rgba(255, 107, 107, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    
+    .countdown-text {
+      color: #ff6b6b;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 5px;
+    }
+    
+    .countdown-note {
+      color: #7d8590;
+      font-size: 0.9rem;
+    }
+    
+    /* Responsivo para móviles */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px 5px;
+      }
+      
+      .container {
+        padding: 10px 5px;
+      }
+      
+      .main-content {
+        padding: 20px 15px;
+        margin: 10px 0;
+      }
+      
+      .title {
+        font-size: clamp(1.5rem, 8vw, 2.5rem);
+      }
+      
+      .contact-button,
+      .login-button {
+        width: 100%;
+        max-width: 280px;
+        padding: 14px 20px;
+      }
+      
+      .footer-info {
+        padding: 15px;
+      }
+      
+      .status-badge {
+        padding: 6px 16px;
+        font-size: 0.8rem;
+      }
+      
+      .blocked-icon {
+        font-size: 3rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .main-content {
+        padding: 15px 10px;
+      }
+      
+      .action-section {
+        gap: 12px;
+      }
+      
+      .contact-button,
+      .login-button {
+        padding: 12px 16px;
+        font-size: 0.9rem;
+      }
+      
+      .message-text {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="status-badge">🚫 Cuenta Suspendida</div>
+      <h1 class="title">Acceso Restringido</h1>
+      <p class="subtitle">Su cuenta requiere atención inmediata</p>
+    </div>
+    
+    <!-- Información del usuario -->
+    <div class="user-info" id="userInfo" style="display: none;">
+      <h3>Usuario: <span id="username"></span></h3>
+    </div>
+    
+    <div class="main-content">
+      <div class="icon-container">
+        <div class="blocked-icon">🔒</div>
+      </div>
+      
+      <div class="message-section">
+        <p class="message-text">
+          Su cuenta ha sido <span class="warning-text">suspendida temporalmente</span> debido a políticas de la plataforma o incumplimiento de términos.
+        </p>
+        
+        <p class="message-text">
+          Para reactivar su cuenta en <span class="highlight">JC</span>, es necesario que se comunique con nuestro equipo de soporte.
+        </p>
+        
+        <div class="countdown">
+          <div class="countdown-text">⏰ Acceso Bloqueado</div>
+          <div class="countdown-note">Contacte soporte para más información</div>
+        </div>
+        
+        <p class="message-text">
+          El acceso permanecerá <span class="warning-text">restringido</span> hasta que se resuelva la situación con el administrador.
+        </p>
+      </div>
+      
+      <div class="action-section">
+        <a href="https://wa.me/573128540908?text=Hola,%20mi%20cuenta%20ha%20sido%20suspendida%20y%20necesito%20ayuda%20para%20reactivarla.%20Usuario:%20[NOMBRE_USUARIO]" 
+           class="contact-button" id="whatsappLink">
+          📱 Contactar Soporte
+        </a>
+        
+        <a href="index.html" class="login-button">
+          ← Volver al Login
+        </a>
+      </div>
+    </div>
+    
+    <div class="footer-info">
+      <p>
+        <strong>⚠️ Importante:</strong> Esta suspensión es temporal. Nuestro equipo de soporte está disponible para ayudarlo a resolver cualquier inconveniente y reactivar su cuenta lo antes posible.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Obtener información del usuario desde la URL o localStorage
+    function getUserInfo() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const username = urlParams.get('usuario') || localStorage.getItem('blockedUser') || '';
+      
+      if (username) {
+        document.getElementById('username').textContent = username;
+        document.getElementById('userInfo').style.display = 'block';
+        
+        // Personalizar el enlace de WhatsApp con el nombre de usuario
+        const whatsappLink = document.getElementById('whatsappLink');
+        const currentHref = whatsappLink.href;
+        whatsappLink.href = currentHref.replace('[NOMBRE_USUARIO]', username);
+      }
+    }
+    
+    // Limpiar datos de sesión
+    function clearSessionData() {
+      localStorage.removeItem('userData');
+      localStorage.removeItem('userToken');
+      sessionStorage.clear();
+    }
+    
+    // Efecto de parpadeo para el ícono
+    function addBlinkEffect() {
+      const icon = document.querySelector('.blocked-icon');
+      setInterval(() => {
+        icon.style.opacity = icon.style.opacity === '0.5' ? '1' : '0.5';
+      }, 1500);
+    }
+    
+    // Ejecutar al cargar la página
+    document.addEventListener('DOMContentLoaded', () => {
+      getUserInfo();
+      clearSessionData();
+      addBlinkEffect();
+      
+      console.log('🚫 Página de cuenta suspendida cargada');
+    });
+    
+    // Prevenir el botón de retroceso
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () {
+        history.go(1);
+    };
+  </script>
+</body>
+</html>

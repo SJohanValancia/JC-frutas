@@ -41,16 +41,26 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// En la ruta de login
+// Agregar esta modificación a la ruta de login en tu auth.js
+
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
-  
   try {
     const user = await User.findOne({ username, password });
     if (!user) {
       console.log("❌ Usuario no encontrado");
       return res.status(401).send("Credenciales inválidas");
+    }
+
+    // 🚫 NUEVA VERIFICACIÓN: Comprobar si el usuario está bloqueado
+    if (user.bloqueado === true) {
+      console.log("🚫 Usuario bloqueado intentando iniciar sesión:", username);
+      return res.status(403).json({ 
+        error: "CUENTA_BLOQUEADA",
+        message: "Su cuenta ha sido suspendida. Contacte al administrador.",
+        username: username
+      });
     }
 
     let datosAdmin = null;
@@ -76,7 +86,7 @@ router.post("/login", async (req, res) => {
     const respuesta = {
       tipo: user.tipo,
       alias: user.alias,
-      usuario: user.username,  // ✅ Este es el campo clave
+      usuario: user.username,
       admin: datosAdmin,
     };
 
@@ -90,6 +100,7 @@ router.post("/login", async (req, res) => {
     res.status(500).send("Error en el login");
   }
 });
+
 
 router.post("/change-password", async (req, res) => {
     const { username, oldPassword, newPassword } = req.body;
@@ -184,6 +195,8 @@ router.get("/logout", (req, res) => {
   req.session.destroy(() => res.status(200).send("Sesión cerrada"));
 });
 
+// Reemplazar el endpoint get-alias en tu auth.js con este código actualizado
+
 router.get("/get-alias", async (req, res) => {
   try {
     const { usuario } = req.query;
@@ -192,7 +205,7 @@ router.get("/get-alias", async (req, res) => {
       return res.status(400).json({ error: "Parámetro usuario requerido" });
     }
 
-    console.log("🔍 Buscando alias para usuario:", usuario);
+    console.log("🔍 Buscando información para usuario:", usuario);
     
     const user = await User.findOne({ username: usuario });
     
@@ -201,15 +214,20 @@ router.get("/get-alias", async (req, res) => {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    console.log("✅ Alias encontrado:", user.alias);
+    console.log("✅ Usuario encontrado:", user.username, "- Bloqueado:", user.bloqueado);
+    
+    // Incluir información completa del usuario incluyendo estado de bloqueo
     res.status(200).json({ 
       alias: user.alias,
       username: user.username,
-      tipo: user.tipo 
+      tipo: user.tipo,
+      bloqueado: user.bloqueado || false, // Asegurar que siempre devuelva un boolean
+      email: user.email,
+      nombre: user.nombre
     });
     
   } catch (error) {
-    console.error("❌ Error al obtener alias:", error);
+    console.error("❌ Error al obtener información de usuario:", error);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 });
