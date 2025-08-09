@@ -43,6 +43,8 @@ router.post("/register", async (req, res) => {
 
 // Agregar esta modificación a la ruta de login en tu auth.js
 
+// Reemplaza tu endpoint de login actual con esta versión corregida
+
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -50,16 +52,19 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({ username, password });
     if (!user) {
       console.log("❌ Usuario no encontrado");
-      return res.status(401).send("Credenciales inválidas");
+      return res.status(401).json({ error: "CREDENCIALES_INVALIDAS", message: "Credenciales inválidas" });
     }
 
-    // 🚫 NUEVA VERIFICACIÓN: Comprobar si el usuario está bloqueado
+    // 🚫 VERIFICACIÓN CRÍTICA: Comprobar si el usuario está bloqueado
     if (user.bloqueado === true) {
       console.log("🚫 Usuario bloqueado intentando iniciar sesión:", username);
+      
+      // IMPORTANTE: Usar status 403 y estructura JSON consistente
       return res.status(403).json({ 
         error: "CUENTA_BLOQUEADA",
         message: "Su cuenta ha sido suspendida. Contacte al administrador.",
-        username: username
+        username: username,
+        blocked: true
       });
     }
 
@@ -86,7 +91,7 @@ router.post("/login", async (req, res) => {
     const respuesta = {
       tipo: user.tipo,
       alias: user.alias,
-      usuario: user.username,
+      usuario: user.username, // Asegurar que siempre se envíe el username
       admin: datosAdmin,
     };
 
@@ -97,10 +102,12 @@ router.post("/login", async (req, res) => {
     res.status(200).json(respuesta);
   } catch (err) {
     console.error("❌ Error en login:", err);
-    res.status(500).send("Error en el login");
+    res.status(500).json({ 
+      error: "ERROR_SERVIDOR", 
+      message: "Error interno del servidor" 
+    });
   }
 });
-
 
 router.post("/change-password", async (req, res) => {
     const { username, oldPassword, newPassword } = req.body;

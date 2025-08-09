@@ -5,61 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   localStorage.clear();
 });
 
-document.getElementById("loginForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const username = document.getElementById("loginUsername").value.trim();
-  const password = document.getElementById("loginPassword").value.trim();
-
-  try {
-    const res = await apiFetch("/auth/login", "POST", { username, password });
-    alert("Inicio de sesión exitoso");
-
-    // Limpiar localStorage antes de redirigir al dashboard
-    window.localStorage.clear();
-
-    // 🔍 DEBUG: Vamos a ver exactamente qué está devolviendo el servidor
-    console.log("=== RESPUESTA COMPLETA DEL SERVIDOR ===");
-    console.log(res);
-    console.log("Tipo:", res.tipo);
-    console.log("Usuario:", res.usuario);
-    console.log("Alias:", res.alias);
-    console.log("Admin:", res.admin);
-    console.log("=== FIN DEBUG ===");
-
-    // Verificar que res.usuario existe y no es undefined
-    if (!res.usuario || res.usuario === undefined || res.usuario === "undefined") {
-      console.error("❌ ERROR CRÍTICO: res.usuario es undefined o null");
-      console.error("❌ Esto indica un problema en el backend");
-      console.error("❌ Respuesta del servidor:", res);
-      alert("Error crítico: El servidor no devolvió el nombre de usuario. Revisa la consola del servidor.");
-      return;
-    }
-
-    if (res.tipo === 1) {
-      // Administrador
-      const url = `dashboard1.html?usuario=${encodeURIComponent(res.usuario)}`;
-      console.log("Redirigiendo a:", url);
-      window.location.href = url;
-    } else if (res.tipo === 2) {
-      // Subusuario
-      const url = `dashboard2.html?usuario=${encodeURIComponent(res.usuario)}&admin=${encodeURIComponent(res.admin.alias)}`;
-      console.log("Redirigiendo a:", url);
-      window.location.href = url;
-    } else if (res.tipo === 3) {
-      // Super Administrador
-      const url = `dashboard3.html?usuario=${encodeURIComponent(res.usuario)}`;
-      console.log("Redirigiendo a super admin dashboard:", url);
-      window.location.href = url;
-    }
-  } catch (err) {
-    console.error("Error completo:", err);
-    alert("Error al iniciar sesión: " + err.message);
-  }
-
-  // Agregar esta modificación a tu script de login existente
-
-// Función de login modificada para manejar usuarios bloqueados
+// Función principal para manejar el login
 async function handleLogin(username, password) {
     try {
         console.log("🔄 Intentando login para:", username);
@@ -80,25 +26,18 @@ async function handleLogin(username, password) {
     } catch (error) {
         console.error("❌ Error en login:", error);
         
-        // Verificar si el error es por cuenta bloqueada
-        if (error.message && error.message.includes('CUENTA_BLOQUEADA')) {
+        // Verificar si el error es por cuenta bloqueada usando el nuevo sistema
+        if (error.type === 'CUENTA_BLOQUEADA' || error.message === 'CUENTA_BLOQUEADA') {
             console.log("🚫 Usuario bloqueado detectado");
             handleBlockedUser(username, error);
             return;
         }
         
-        // Si es un error de respuesta JSON, intentar parsearlo
-        if (error.message.startsWith('{')) {
-            try {
-                const errorData = JSON.parse(error.message);
-                if (errorData.error === 'CUENTA_BLOQUEADA') {
-                    console.log("🚫 Usuario bloqueado detectado desde JSON");
-                    handleBlockedUser(username, errorData);
-                    return;
-                }
-            } catch (parseError) {
-                console.log("❌ Error parseando JSON de error");
-            }
+        // Verificar también por status 403
+        if (error.status === 403) {
+            console.log("🚫 Posible usuario bloqueado - Status 403");
+            handleBlockedUser(username, error);
+            return;
         }
         
         // Para otros errores, mostrar mensaje genérico
@@ -106,7 +45,7 @@ async function handleLogin(username, password) {
     }
 }
 
-// Nueva función para manejar usuarios bloqueados
+// Función para manejar usuarios bloqueados
 function handleBlockedUser(username, errorData) {
     console.log("🚫 Redirigiendo usuario bloqueado a página de suspensión");
     
@@ -116,6 +55,7 @@ function handleBlockedUser(username, errorData) {
     // Limpiar cualquier dato de sesión anterior
     localStorage.removeItem('userData');
     localStorage.removeItem('userToken');
+    sessionStorage.clear();
     
     // Mostrar mensaje de notificación
     alert("🚫 Su cuenta ha sido suspendida. Será redirigido a la página de información.");
@@ -126,14 +66,18 @@ function handleBlockedUser(username, errorData) {
     }, 1500);
 }
 
-// Función para redirigir usuarios según su tipo (mantener la existente)
+// Función para redirigir usuarios según su tipo
 function redirectUserByType(userData, username) {
+    // Limpiar localStorage antes de redirigir
+    localStorage.clear();
+    
     switch(userData.tipo) {
         case 1: // Administrador
-            window.location.href = `dashboard.html?usuario=${encodeURIComponent(username)}`;
+            window.location.href = `dashboard1.html?usuario=${encodeURIComponent(username)}`;
             break;
         case 2: // Subusuario
-            window.location.href = `dashboard2.html?usuario=${encodeURIComponent(username)}`;
+            const adminAlias = userData.admin ? userData.admin.alias : '';
+            window.location.href = `dashboard2.html?usuario=${encodeURIComponent(username)}&admin=${encodeURIComponent(adminAlias)}`;
             break;
         case 3: // Super Admin
             window.location.href = `dashboard3.html?usuario=${encodeURIComponent(username)}`;
@@ -145,11 +89,11 @@ function redirectUserByType(userData, username) {
     }
 }
 
-// Ejemplo de cómo integrar esto en tu formulario de login existente
+// Event listener para el formulario de login
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     
-    const username = document.getElementById("loginName").value.trim();
+    const username = document.getElementById("loginUsername").value.trim();
     const password = document.getElementById("loginPassword").value.trim();
     
     if (!username || !password) {
@@ -177,6 +121,3 @@ async function checkUserStatus(username) {
         return { blocked: false, user: null };
     }
 }
-
-});
-
