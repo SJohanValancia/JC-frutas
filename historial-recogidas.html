@@ -883,20 +883,373 @@ let recogidasFiltradas = [];
 let tipoUsuarioActual = 1;
 let esSubusuario = false;
 
-// 🔥 FUNCIÓN PARA CONVERTIR FECHA A FORMATO YYYY-MM-DD SIN MANIPULACIÓN DE ZONA HORARIA
+
+// 🔥 SOLUCIÓN DEFINITIVA - FUNCIÓN CORREGIDA PARA ZONA HORARIA
 function obtenerFechaSoloFecha(fechaStr) {
-  // Si la fecha ya viene en formato YYYY-MM-DD, la devolvemos tal como está
-  if (typeof fechaStr === 'string' && fechaStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return fechaStr;
-  }
+  if (!fechaStr) return null;
   
-  const fecha = new Date(fechaStr + 'T00:00:00'); // Forzar hora local
-  const año = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dia = String(fecha.getDate()).padStart(2, '0');
-  return `${año}-${mes}-${dia}`;
+  try {
+    let fecha = null;
+    
+    // Si ya es un objeto Date
+    if (fechaStr instanceof Date) {
+      fecha = fechaStr;
+    }
+    // Si es string con formato ISO (2025-08-05T00:00:00.000Z)
+    else if (typeof fechaStr === 'string' && fechaStr.includes('T')) {
+      fecha = new Date(fechaStr);
+    }
+    // Si es string simple (YYYY-MM-DD)
+    else if (typeof fechaStr === 'string') {
+      const partes = fechaStr.split('-');
+      if (partes.length === 3 && partes[0].length === 4) {
+        const año = parseInt(partes[0]);
+        const mes = parseInt(partes[1]) - 1;
+        const dia = parseInt(partes[2]);
+        fecha = new Date(año, mes, dia);
+      } else {
+        fecha = new Date(fechaStr);
+      }
+    }
+    
+    if (fecha && !isNaN(fecha.getTime())) {
+      // 🔥 CLAVE: Usar métodos UTC para evitar problemas de zona horaria
+      let año, mes, dia;
+      
+      // Si la fecha original es UTC (viene con GMT+0000), usar métodos UTC
+      if (fechaStr.toString().includes('GMT+0000') || fechaStr.toString().includes('UTC')) {
+        año = fecha.getUTCFullYear();
+        mes = fecha.getUTCMonth() + 1; // UTC months are 0-11, convert to 1-12
+        dia = fecha.getUTCDate();
+      } else {
+        // Si es fecha local, usar métodos normales
+        año = fecha.getFullYear();
+        mes = fecha.getMonth() + 1;
+        dia = fecha.getDate();
+      }
+      
+      // Formatear con padding de ceros
+      const mesStr = String(mes).padStart(2, '0');
+      const diaStr = String(dia).padStart(2, '0');
+      
+      const fechaSolo = `${año}-${mesStr}-${diaStr}`;
+      console.log(`🔄 Fecha procesada CORREGIDA: ${fechaStr} → ${fechaSolo}`);
+      return fechaSolo;
+    } else {
+      console.error('❌ Fecha inválida:', fechaStr);
+      return null;
+    }
+    
+  } catch (error) {
+    console.error('❌ Error procesando fecha:', error);
+    return null;
+  }
 }
 
+// 🔥 FUNCIÓN ALTERNATIVA MÁS SIMPLE Y ROBUSTA
+function obtenerFechaSoloFechaV2(fechaStr) {
+  if (!fechaStr) return null;
+  
+  try {
+    // Crear fecha y extraer componentes UTC para evitar zona horaria
+    const fecha = new Date(fechaStr);
+    
+    if (isNaN(fecha.getTime())) {
+      console.error('❌ Fecha inválida:', fechaStr);
+      return null;
+    }
+    
+    // 🔥 USAR SIEMPRE UTC PARA CONSISTENCIA
+    const año = fecha.getUTCFullYear();
+    const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getUTCDate()).padStart(2, '0');
+    
+    const fechaSolo = `${año}-${mes}-${dia}`;
+    console.log(`🔄 Fecha procesada UTC: ${fechaStr} → ${fechaSolo}`);
+    return fechaSolo;
+    
+  } catch (error) {
+    console.error('❌ Error procesando fecha:', error);
+    return null;
+  }
+}
+
+// 🔥 VERSIÓN FINAL RECOMENDADA - MÁS SIMPLE Y EFECTIVA
+function obtenerFechaSoloFechaFinal(fechaStr) {
+  if (!fechaStr) return null;
+  
+  try {
+    const fecha = new Date(fechaStr);
+    
+    if (isNaN(fecha.getTime())) {
+      return null;
+    }
+    
+    // Siempre usar UTC para evitar problemas de zona horaria
+    const fechaSolo = fecha.toISOString().split('T')[0];
+    console.log(`🔄 Fecha UTC: ${fechaStr} → ${fechaSolo}`);
+    return fechaSolo;
+    
+  } catch (error) {
+    console.error('❌ Error:', error);
+    return null;
+  }
+}
+
+
+// 🔥 FUNCIÓN DE FILTRADO CORREGIDA
+function aplicarFiltros() {
+  const textoBusqueda = document.getElementById('searchText').value.toLowerCase();
+  const filtroFruta = document.getElementById('filtroFruta').value;
+  const filtroCalidad = document.getElementById('filtroCalidad').value;
+  const filtroUsuario = document.getElementById('filtroUsuario').value;
+  const fechaDesde = document.getElementById('fechaDesde').value;
+  const fechaHasta = document.getElementById('fechaHasta').value;
+  const filtroLiquidacion = document.getElementById('filtroLiquidacion').value;
+
+  console.log("🔍 === INICIANDO FILTRADO INCLUSIVO ===");
+  console.log("📅 Filtros de fecha:");
+  console.log("   Fecha desde:", fechaDesde, "(INCLUIDA)");
+  console.log("   Fecha hasta:", fechaHasta, "(INCLUIDA)");
+  console.log("📊 Total recogidas antes del filtro:", todasLasRecogidas.length);
+
+  recogidasFiltradas = todasLasRecogidas.filter(recogida => {
+    // Filtro de texto
+    if (textoBusqueda) {
+      const frutasRecogida = obtenerFrutasUnicas(recogida).join(' ').toLowerCase();
+      const textoCompleto = `${recogida.finca || ''} ${recogida.propietario || ''} ${recogida.alias || ''} ${recogida.usuario || ''} ${frutasRecogida}`.toLowerCase();
+      if (!textoCompleto.includes(textoBusqueda)) {
+        return false;
+      }
+    }
+
+    // Filtro de fruta
+    if (filtroFruta) {
+      const frutasRecogida = obtenerFrutasUnicas(recogida);
+      if (!frutasRecogida.includes(filtroFruta)) {
+        return false;
+      }
+    }
+
+    // Filtro de calidad
+    if (filtroCalidad) {
+      const calidadesRecogida = obtenerCalidadesUnicas(recogida);
+      if (!calidadesRecogida.includes(filtroCalidad)) {
+        return false;
+      }
+    }
+
+    // Filtro de usuario
+    if (filtroUsuario) {
+      const usuarioRecogida = recogida.alias || recogida.usuario;
+      if (usuarioRecogida !== filtroUsuario) {
+        return false;
+      }
+    }
+
+    // Filtro de liquidación
+    if (filtroLiquidacion === 'liquidada') {
+      if (recogida.estadoLiquidacion !== 'liquidada') {
+        return false;
+      }
+    } else if (filtroLiquidacion === 'activa') {
+      if (recogida.estadoLiquidacion === 'liquidada') {
+        return false;
+      }
+    }
+
+    // 🔥 FILTRO DE FECHAS INCLUSIVO - CAMBIO CLAVE AQUÍ
+   // 🔥 FILTRO DE FECHAS INCLUSIVO - CAMBIO CLAVE AQUÍ
+ if (fechaDesde || fechaHasta) {
+      const fechaRecogidaStr = obtenerFechaSoloFecha(recogida.fecha);
+      
+      if (!fechaRecogidaStr) {
+        console.warn(`⚠️ No se pudo procesar fecha de recogida:`, recogida.fecha);
+        return false;
+      }
+
+      console.log(`📅 Verificando recogida ID ${recogida._id?.slice(-4)}: fecha=${fechaRecogidaStr}`);
+
+      // 🔥 CORRECCIÓN: Usar >= y <= para incluir las fechas límite
+      // Verificar límite inferior (desde) - INCLUSIVO
+      if (fechaDesde) {
+        if (fechaRecogidaStr < fechaDesde) { // CORRECTO: < para excluir fechas anteriores
+          console.log(`   ❌ Excluida: ${fechaRecogidaStr} es ANTERIOR a ${fechaDesde}`);
+          return false;
+        }
+      }
+      
+      // Verificar límite superior (hasta) - INCLUSIVO  
+      if (fechaHasta) {
+        if (fechaRecogidaStr > fechaHasta) { // CORRECTO: > para excluir fechas posteriores
+          console.log(`   ❌ Excluida: ${fechaRecogidaStr} es POSTERIOR a ${fechaHasta}`);
+          return false;
+        }
+      }
+
+      // 🔥 LOGGING MEJORADO PARA VERIFICAR INCLUSIÓN
+      let estadoInclusión = "✅ INCLUIDA";
+      let detalleRango = "";
+      
+      if (fechaDesde && fechaHasta) {
+        detalleRango = `está en el rango [${fechaDesde} → ${fechaHasta}]`;
+      } else if (fechaDesde) {
+        detalleRango = `es >= ${fechaDesde}`;
+      } else if (fechaHasta) {
+        detalleRango = `es <= ${fechaHasta}`;
+      }
+      
+      console.log(`   ${estadoInclusión}: ${fechaRecogidaStr} ${detalleRango}`);
+    }
+    
+    return true;
+  });
+
+  // Ordenar por fecha (más recientes primero)
+  recogidasFiltradas.sort((a, b) => {
+    const fechaA = obtenerFechaSoloFecha(a.fecha);
+    const fechaB = obtenerFechaSoloFecha(b.fecha);
+    
+    if (!fechaA || !fechaB) return 0;
+    
+    return fechaB.localeCompare(fechaA); // Orden descendente
+  });
+
+  console.log(`✅ FILTRADO INCLUSIVO COMPLETADO:`);
+  console.log(`   📊 Recogidas filtradas: ${recogidasFiltradas.length} de ${todasLasRecogidas.length}`);
+  
+  // 🔥 VERIFICACIÓN DE INCLUSIVIDAD - Muestra de fechas en resultados
+  if (fechaDesde || fechaHasta) {
+    console.log("📋 Verificación de inclusividad - Muestra de fechas en resultados:");
+    recogidasFiltradas.slice(0, 5).forEach((r, i) => {
+      const fechaStr = obtenerFechaSoloFecha(r.fecha);
+      console.log(`   ${i + 1}. ${fechaStr} - ${r.finca} - ID: ${r._id?.slice(-4)}`);
+    });
+
+    // 🔥 VERIFICACIÓN ESPECÍFICA DE FECHAS LÍMITE
+    if (fechaDesde) {
+      const recogidasFechaDesde = recogidasFiltradas.filter(r => obtenerFechaSoloFecha(r.fecha) === fechaDesde);
+      console.log(`🎯 Recogidas en fecha DESDE exacta (${fechaDesde}):`, recogidasFechaDesde.length);
+      if (recogidasFechaDesde.length > 0) {
+        recogidasFechaDesde.forEach(r => {
+          console.log(`   ✅ INCLUIDA: ${r.finca} - ${obtenerFechaSoloFecha(r.fecha)}`);
+        });
+      } else {
+        console.log(`   ℹ️ No hay recogidas exactamente en la fecha ${fechaDesde}`);
+      }
+    }
+
+    if (fechaHasta) {
+      const recogidasFechaHasta = recogidasFiltradas.filter(r => obtenerFechaSoloFecha(r.fecha) === fechaHasta);
+      console.log(`🎯 Recogidas en fecha HASTA exacta (${fechaHasta}):`, recogidasFechaHasta.length);
+      if (recogidasFechaHasta.length > 0) {
+        recogidasFechaHasta.forEach(r => {
+          console.log(`   ✅ INCLUIDA: ${r.finca} - ${obtenerFechaSoloFecha(r.fecha)}`);
+        });
+      } else {
+        console.log(`   ℹ️ No hay recogidas exactamente en la fecha ${fechaHasta}`);
+      }
+    }
+  }
+
+  // Actualizar información visual de fechas
+  actualizarInfoFechas(fechaDesde, fechaHasta);
+  actualizarStats();
+  mostrarRecogidas();
+}
+
+function debugProblemaFechas() {
+  console.log("🚨 === DEBUG PROBLEMA DE FECHAS ===");
+  
+  // Obtener rango de fechas de los inputs
+  const fechaDesde = document.getElementById('fechaDesde').value;
+  const fechaHasta = document.getElementById('fechaHasta').value;
+  
+  console.log(`📅 Filtros activos:`);
+  console.log(`   Desde: "${fechaDesde}"`);
+  console.log(`   Hasta: "${fechaHasta}"`);
+  
+  if (fechaDesde) {
+    console.log(`\n🔍 Buscando recogidas >= ${fechaDesde}:`);
+    todasLasRecogidas.forEach(recogida => {
+      const fechaRecogida = obtenerFechaSoloFecha(recogida.fecha);
+      const cumpleDesde = fechaRecogida >= fechaDesde;
+      const simbolo = cumpleDesde ? '✅' : '❌';
+      console.log(`   ${simbolo} ${fechaRecogida} | Finca: ${recogida.finca} | Cumple: ${cumpleDesde}`);
+    });
+  }
+  
+  if (fechaHasta) {
+    console.log(`\n🔍 Buscando recogidas <= ${fechaHasta}:`);
+    todasLasRecogidas.forEach(recogida => {
+      const fechaRecogida = obtenerFechaSoloFecha(recogida.fecha);
+      const cumpleHasta = fechaRecogida <= fechaHasta;
+      const simbolo = cumpleHasta ? '✅' : '❌';
+      console.log(`   ${simbolo} ${fechaRecogida} | Finca: ${recogida.finca} | Cumple: ${cumpleHasta}`);
+    });
+  }
+  
+  console.log(`\n📊 Resultados después del filtro: ${recogidasFiltradas.length} recogidas`);
+  recogidasFiltradas.forEach(recogida => {
+    const fechaRecogida = obtenerFechaSoloFecha(recogida.fecha);
+    console.log(`   📋 INCLUIDA: ${fechaRecogida} | ${recogida.finca}`);
+  });
+}
+
+// 🔥 FUNCIÓN DE DEBUG PARA VERIFICAR FECHAS
+function debugFechasCompleto() {
+  console.log("🔍 === ANÁLISIS COMPLETO DE FECHAS ===");
+  
+  console.log("📊 Todas las recogidas y sus fechas:");
+  todasLasRecogidas.forEach((recogida, i) => {
+    const fechaOriginal = recogida.fecha;
+    const fechaProcesada = obtenerFechaSoloFecha(fechaOriginal);
+    
+    console.log(`${i + 1}. ID: ${recogida._id?.slice(-4)} | Original: ${fechaOriginal} | Procesada: ${fechaProcesada} | Finca: ${recogida.finca}`);
+  });
+  
+  // Obtener rango completo de fechas
+  const fechasProcesadas = todasLasRecogidas
+    .map(r => obtenerFechaSoloFecha(r.fecha))
+    .filter(f => f !== null)
+    .sort();
+    
+  if (fechasProcesadas.length > 0) {
+    console.log(`📅 RANGO COMPLETO DE FECHAS DISPONIBLE:`);
+    console.log(`   Fecha más antigua: ${fechasProcesadas[0]}`);
+    console.log(`   Fecha más reciente: ${fechasProcesadas[fechasProcesadas.length - 1]}`);
+    console.log(`   Total fechas válidas: ${fechasProcesadas.length}`);
+    
+    // Mostrar distribución por mes
+    const distribucionMeses = {};
+    fechasProcesadas.forEach(fecha => {
+      const mesAño = fecha.substring(0, 7); // YYYY-MM
+      distribucionMeses[mesAño] = (distribucionMeses[mesAño] || 0) + 1;
+    });
+    
+    console.log("📈 Distribución por mes:");
+    Object.entries(distribucionMeses)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([mes, cantidad]) => {
+        console.log(`   ${mes}: ${cantidad} recogidas`);
+      });
+  }
+}
+// 🔥 PASO 4: Modificar el event listener para incluir debug
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('searchText').addEventListener('input', debounce(aplicarFiltros, 500));
+  document.getElementById('filtroFruta').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroCalidad').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroUsuario').addEventListener('change', aplicarFiltros);
+  document.getElementById('fechaDesde').addEventListener('change', aplicarFiltros);
+  document.getElementById('fechaHasta').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroLiquidacion').addEventListener('change', aplicarFiltros);
+  
+  cargarRecogidas().then(() => {
+    // Llamar función de debug después de cargar los datos (opcional)
+    // debugFechas();
+  });
+});
 // Obtener parámetros de URL
 const params = new URLSearchParams(window.location.search);
 const usuario = params.get("usuario") || "admin";
@@ -1609,104 +1962,6 @@ function generarDetalleCalidades(kilosPorCalidad) {
       </div>
     `).join('');
 }
-// 🔥 APLICAR FILTROS CORREGIDO - SIN MÁRGENES DE ERROR EN FECHAS
-function aplicarFiltros() {
-  const textoBusqueda = document.getElementById('searchText').value.toLowerCase();
-  const filtroFruta = document.getElementById('filtroFruta').value;
-  const filtroCalidad = document.getElementById('filtroCalidad').value;
-  const filtroUsuario = document.getElementById('filtroUsuario').value;
-  const fechaDesde = document.getElementById('fechaDesde').value;
-  const fechaHasta = document.getElementById('fechaHasta').value;
-  const filtroLiquidacion = document.getElementById('filtroLiquidacion').value; // Nuevo filtro
-
-  console.log("🔍 Aplicando filtros de fecha exactos:");
-  console.log("   📅 Fecha desde:", fechaDesde);
-  console.log("   📅 Fecha hasta:", fechaHasta);
-
-  recogidasFiltradas = todasLasRecogidas.filter(recogida => {
-    // Filtro de texto
-    if (textoBusqueda) {
-      const frutasRecogida = obtenerFrutasUnicas(recogida).join(' ').toLowerCase();
-      const textoCompleto = `${recogida.finca || ''} ${recogida.propietario || ''} ${recogida.alias || ''} ${recogida.usuario || ''} ${frutasRecogida}`.toLowerCase();
-      if (!textoCompleto.includes(textoBusqueda)) return false;
-    }
-
-    // Filtro de fruta
-    if (filtroFruta) {
-      const frutasRecogida = obtenerFrutasUnicas(recogida);
-      if (!frutasRecogida.includes(filtroFruta)) return false;
-    }
-
-    // Filtro de calidad
-    if (filtroCalidad) {
-      const calidadesRecogida = obtenerCalidadesUnicas(recogida);
-      if (!calidadesRecogida.includes(filtroCalidad)) return false;
-    }
-
-    // Filtro de usuario
-    if (filtroUsuario) {
-      const usuarioRecogida = recogida.alias || recogida.usuario;
-      if (usuarioRecogida !== filtroUsuario) return false;
-    }
-
-    // 🔥 NUEVO FILTRO: Estado de liquidación
-    if (filtroLiquidacion === 'liquidada') {
-      if (recogida.estadoLiquidacion !== 'liquidada') return false;
-    } else if (filtroLiquidacion === 'activa') {
-      if (recogida.estadoLiquidacion === 'liquidada') return false;
-    }
-
-    // 🔥 FILTRO DE FECHAS EXACTO - SIN MÁRGENES DE ERROR
-    if (fechaDesde || fechaHasta) {
-      // Obtener fecha de la recogida en formato YYYY-MM-DD
-      const fechaRecogidaStr = obtenerFechaSoloFecha(recogida.fecha);
-
-      // Verificar límite inferior (desde)
-      if (fechaDesde) {
-        if (fechaRecogidaStr < fechaDesde) {
-          console.log(`   ❌ Recogida ${recogida._id?.slice(-4)} excluida: ${fechaRecogidaStr} < ${fechaDesde}`);
-          return false;
-        }
-      }
-      
-      // Verificar límite superior (hasta)
-      if (fechaHasta) {
-        if (fechaRecogidaStr > fechaHasta) {
-          console.log(`   ❌ Recogida ${recogida._id?.slice(-4)} excluida: ${fechaRecogidaStr} > ${fechaHasta}`);
-          return false;
-        }
-      }
-
-      console.log(`   ✅ Recogida ${recogida._id?.slice(-4)} incluida: ${fechaRecogidaStr}`);
-    }
-
-    return true;
-  });
-
-  // Ordenar por fecha (más recientes primero)
-  recogidasFiltradas.sort((a, b) => new Date(b.fecha + 'T00:00:00') - new Date(a.fecha + 'T00:00:00'));
-
-  console.log(`✅ Filtrado completado: ${recogidasFiltradas.length} de ${todasLasRecogidas.length} recogidas`);
-
-  // Actualizar información visual de fechas
-  actualizarInfoFechas(fechaDesde, fechaHasta);
-
-  // Mostrar información del rango de fechas aplicado
-  if (fechaDesde || fechaHasta) {
-    let rangoInfo = "📅 Filtro de fechas aplicado: ";
-    if (fechaDesde && fechaHasta) {
-      rangoInfo += `desde ${fechaDesde} hasta ${fechaHasta}`;
-    } else if (fechaDesde) {
-      rangoInfo += `desde ${fechaDesde} en adelante`;
-    } else if (fechaHasta) {
-      rangoInfo += `hasta ${fechaHasta}`;
-    }
-    console.log(rangoInfo);
-  }
-
-  actualizarStats();
-  mostrarRecogidas();
-}
 // 🔥 FUNCIÓN PARA ACTUALIZAR INFORMACIÓN VISUAL DE FECHAS - CORREGIDA
 function actualizarInfoFechas(fechaDesde, fechaHasta) {
   const dateInfo = document.getElementById('dateInfo');
@@ -1714,11 +1969,11 @@ function actualizarInfoFechas(fechaDesde, fechaHasta) {
   if (fechaDesde || fechaHasta) {
     let texto = '';
     if (fechaDesde && fechaHasta) {
-      texto = `📅 ${fechaDesde} → ${fechaHasta}`;
+      texto = `📅 Rango: ${fechaDesde} ➜ ${fechaHasta} (inclusivo)`;
     } else if (fechaDesde) {
-      texto = `📅 Desde ${fechaDesde}`;
+      texto = `📅 Desde: ${fechaDesde} (incluido)`;
     } else if (fechaHasta) {
-      texto = `📅 Hasta ${fechaHasta}`;
+      texto = `📅 Hasta: ${fechaHasta} (incluido)`;
     }
     
     dateInfo.textContent = texto;
