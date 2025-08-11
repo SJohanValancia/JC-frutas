@@ -578,7 +578,7 @@ function crearBotonHistorialRecogidas() {
   button.className = 'historial-btn';
   button.innerHTML = '📊 Historial Completo';
   
-  // Estilos del botón
+  // Estilos del botón SIN EFECTOS DE HOVER/ACTIVE
   button.style.cssText = `
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
@@ -589,27 +589,15 @@ function crearBotonHistorialRecogidas() {
     cursor: pointer;
     font-size: 1rem;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    transition: all 0.3s ease;
     margin: 10px;
     min-width: 200px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    transition: none !important;
+    transform: none !important;
   `;
-
-  // Efectos hover
-  button.addEventListener('mouseenter', () => {
-    button.style.transform = 'translateY(-2px)';
-    button.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
-    button.style.background = 'linear-gradient(135deg, #5a6fd8, #6a4c93)';
-  });
-
-  button.addEventListener('mouseleave', () => {
-    button.style.transform = 'translateY(0)';
-    button.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
-    button.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
-  });
 
   // Funcionalidad del botón
   button.addEventListener('click', () => {
@@ -634,7 +622,6 @@ function crearBotonHistorialRecogidas() {
 
   return button;
 }
-
 // 🔥 FUNCIÓN PARA INSERTAR EL BOTÓN SIEMPRE ARRIBA Y FUERA DEL CONTAINER
 function insertarBotonHistorial() {
   const button = crearBotonHistorialRecogidas();
@@ -650,16 +637,21 @@ function insertarArribaFueraContainer(button) {
   const topContainer = document.createElement('div');
   topContainer.id = 'historial-top-container';
   topContainer.style.cssText = `
-    position: absolute;
-    top: -1px;
-    left: -2
-    
-    0px;
+    position: fixed;
+    top: 0;
+    left: 0;
     right: 0;
-
+    padding: 10px 20px;
+    display: flex;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 99999;
   `;
 
-  // Ajustar estilos del botón para la posición superior
+  // Ajustar estilos del botón para la posición superior - COMPLETAMENTE ESTÁTICO
   button.style.cssText = `
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
@@ -670,13 +662,35 @@ function insertarArribaFueraContainer(button) {
     cursor: pointer;
     font-size: 0.95rem;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     min-width: 180px;
+    transition: none !important;
+    transform: none !important;
   `;
+
+  // REMOVER TODOS LOS EFECTOS DE HOVER Y ACTIVE
+  button.addEventListener('mouseenter', (e) => {
+    e.preventDefault();
+    // No hacer nada en hover
+  });
+
+  button.addEventListener('mouseleave', (e) => {
+    e.preventDefault();
+    // No hacer nada al salir del hover
+  });
+
+  button.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    // No hacer nada al presionar
+  });
+
+  button.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    // No hacer nada al soltar
+  });
 
   // Agregar el botón al contenedor
   topContainer.appendChild(button);
@@ -687,9 +701,8 @@ function insertarArribaFueraContainer(button) {
   // Ajustar el body para que no se superponga con el botón fijo
   adjustBodyForFixedButton();
 
-  console.log('✅ Botón insertado arriba, fuera del container');
+  console.log('✅ Botón insertado arriba, fuera del container - COMPLETAMENTE ESTÁTICO');
 }
-
 // 🔥 AJUSTAR EL BODY PARA EL BOTÓN FIJO
 function adjustBodyForFixedButton() {
   // Agregar padding-top al body o al primer container
