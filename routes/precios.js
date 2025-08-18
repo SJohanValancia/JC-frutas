@@ -206,11 +206,15 @@ function calcularPrecioMasFrecuente(precios) {
 }
 
 // 🔥 RUTA CORREGIDA: PUT /precios/actualizar-global/:frutaId
+// 🔥 RUTA CORREGIDA: PUT /precios/actualizar-global/:frutaId
+// Actualiza precios en TODAS las fincas de TODOS los propietarios del usuario que inició sesión
 router.put("/actualizar-global/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
   const { precios, usuario, adminAlias } = req.body;
 
   console.log(`🌍 INICIANDO ACTUALIZACIÓN GLOBAL para fruta ${frutaId}`);
+  console.log(`👤 Usuario que inició sesión: ${usuario}`);
+  console.log(`🏢 Admin alias: ${adminAlias}`);
   
   // Validaciones
   if (!precios || !usuario) {
@@ -220,11 +224,7 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
   try {
     // 1. Primero encontrar la fruta para obtener su nombre
     const frutaOriginal = await PrecioFruta.findOne({
-      "frutas._id": frutaId,
-      $or: [
-        { usuario: adminAlias || usuario },
-        { adminAlias: adminAlias || usuario }
-      ]
+      "frutas._id": frutaId
     });
 
     if (!frutaOriginal) {
@@ -236,25 +236,43 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
 
     console.log(`🔍 Nombre de fruta encontrado: "${nombreFruta}"`);
 
-    // 2. Buscar TODAS las fincas del usuario que tengan frutas con este NOMBRE (no _id)
-    const filtros = {
-      "frutas.nombre": { $regex: new RegExp(`^${nombreFruta}$`, 'i') }, // Búsqueda insensible a mayúsculas
+    // 2. 🔥 NUEVO: Buscar TODAS las fincas que pertenecen al usuario que inició sesión
+    // Esto incluye fincas donde el usuario aparece como "usuario" o como "adminAlias"
+    const usuarioSesion = adminAlias || usuario;
+    
+    const filtrosUsuario = {
       $or: [
-        { usuario: adminAlias || usuario },
-        { adminAlias: adminAlias || usuario }
+        { usuario: usuarioSesion },      // Fincas donde el usuario es el propietario directo
+        { adminAlias: usuarioSesion }    // Fincas donde el usuario es el admin
       ]
     };
 
-    const fincasConFruta = await PrecioFruta.find(filtros);
+    console.log(`🔍 Buscando TODAS las fincas del usuario: ${usuarioSesion}`);
+    const todasLasFincasDelUsuario = await PrecioFruta.find(filtrosUsuario);
     
-    console.log(`📊 Encontradas ${fincasConFruta.length} fincas con la fruta "${nombreFruta}"`);
+    console.log(`📊 Total de fincas del usuario encontradas: ${todasLasFincasDelUsuario.length}`);
 
-    // 3. Actualizar todas las coincidencias por NOMBRE
+    // 3. 🔥 FILTRAR: Solo las fincas que tienen la fruta específica
+    const fincasConLaFruta = todasLasFincasDelUsuario.filter(finca => 
+      finca.frutas.some(fruta => 
+        fruta.nombre.toLowerCase() === nombreFruta.toLowerCase()
+      )
+    );
+    
+    console.log(`🎯 Fincas que tienen la fruta "${nombreFruta}": ${fincasConLaFruta.length}`);
+
+    // 4. 🔥 MOSTRAR DETALLES de qué fincas se van a actualizar
+    fincasConLaFruta.forEach(finca => {
+      console.log(`📋 Finca a actualizar: ${finca.fincaId} - Usuario: ${finca.usuario} - AdminAlias: ${finca.adminAlias}`);
+    });
+
+    // 5. Actualizar todas las coincidencias
     let fincasActualizadas = 0;
     let frutasActualizadas = 0;
+    let propietariosActualizados = new Set(); // Para contar propietarios únicos
     const errores = [];
 
-    for (const finca of fincasConFruta) {
+    for (const finca of fincasConLaFruta) {
       try {
         let fincaActualizada = false;
         
@@ -270,7 +288,10 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
             frutasActualizadas++;
             fincaActualizada = true;
             
-            console.log(`✅ Actualizada fruta "${nombreFruta}" en finca ${finca.fincaId} (ID: ${finca.frutas[i]._id})`);
+            // Agregar el propietario al set (para contar únicos)
+            propietariosActualizados.add(finca.usuario || 'Sin propietario');
+            
+            console.log(`✅ Actualizada fruta "${nombreFruta}" en finca ${finca.fincaId} del propietario "${finca.usuario}" (ID fruta: ${finca.frutas[i]._id})`);
           }
         }
         
@@ -287,25 +308,33 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
         console.error(`❌ Error actualizando finca ${finca.fincaId}:`, fincaError);
         errores.push({
           fincaId: finca.fincaId,
+          propietario: finca.usuario,
           error: fincaError.message
         });
       }
     }
 
-    console.log(`🎉 ACTUALIZACIÓN COMPLETADA:`);
+    // 6. 🔥 LOGGING DETALLADO del resultado
+    console.log(`🎉 ACTUALIZACIÓN GLOBAL COMPLETADA:`);
+    console.log(`   - Usuario de sesión: ${usuarioSesion}`);
+    console.log(`   - Fruta actualizada: "${nombreFruta}"`);
     console.log(`   - Fincas actualizadas: ${fincasActualizadas}`);
     console.log(`   - Frutas actualizadas: ${frutasActualizadas}`);
+    console.log(`   - Propietarios afectados: ${propietariosActualizados.size} (${Array.from(propietariosActualizados).join(', ')})`);
     console.log(`   - Errores: ${errores.length}`);
 
-    // 4. Responder con el resultado
+    // 7. Responder con el resultado detallado
     const respuesta = {
       success: true,
-      message: `Precios actualizados en ${fincasActualizadas} finca(s)`,
+      message: `Precios de "${nombreFruta}" actualizados en ${fincasActualizadas} finca(s) de ${propietariosActualizados.size} propietario(s)`,
       fruta: nombreFruta,
       precios: precios,
       estadisticas: {
+        usuarioSesion: usuarioSesion,
         fincasActualizadas: fincasActualizadas,
         frutasActualizadas: frutasActualizadas,
+        propietariosAfectados: Array.from(propietariosActualizados),
+        totalPropietarios: propietariosActualizados.size,
         errores: errores.length
       }
     };
@@ -320,6 +349,92 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
   } catch (err) {
     console.error("❌ Error en actualización global:", err);
     res.status(500).json({ error: "Error al actualizar: " + err.message });
+  }
+});
+
+router.get("/debug-fincas-usuario", async (req, res) => {
+  const { usuario, adminAlias } = req.query;
+  
+  try {
+    const usuarioSesion = adminAlias || usuario;
+    
+    const filtros = {
+      $or: [
+        { usuario: usuarioSesion },
+        { adminAlias: usuarioSesion }
+      ]
+    };
+    
+    const fincas = await PrecioFruta.find(filtros);
+    
+    const resumen = fincas.map(finca => ({
+      fincaId: finca.fincaId,
+      propietario: finca.usuario,
+      adminAlias: finca.adminAlias,
+      totalFrutas: finca.frutas?.length || 0,
+      frutas: finca.frutas?.map(f => f.nombre) || [],
+      fecha: finca.fecha
+    }));
+    
+    res.status(200).json({
+      usuarioConsultado: usuarioSesion,
+      totalFincas: fincas.length,
+      fincas: resumen
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/debug-fruta-global/:nombreFruta", async (req, res) => {
+  const { nombreFruta } = req.params;
+  const { usuario, adminAlias } = req.query;
+  
+  try {
+    const usuarioSesion = adminAlias || usuario;
+    
+    // Buscar todas las fincas del usuario que tienen esta fruta
+    const fincasConFruta = await PrecioFruta.find({
+      $and: [
+        {
+          $or: [
+            { usuario: usuarioSesion },
+            { adminAlias: usuarioSesion }
+          ]
+        },
+        {
+          "frutas.nombre": { $regex: new RegExp(`^${nombreFruta}$`, 'i') }
+        }
+      ]
+    });
+    
+    const detalles = fincasConFruta.map(finca => {
+      const frutasCoincidentes = finca.frutas.filter(f => 
+        f.nombre.toLowerCase() === nombreFruta.toLowerCase()
+      );
+      
+      return {
+        fincaId: finca.fincaId,
+        propietario: finca.usuario,
+        adminAlias: finca.adminAlias,
+        frutasEncontradas: frutasCoincidentes.length,
+        precios: frutasCoincidentes.map(f => ({
+          id: f._id,
+          precios: f.precios
+        }))
+      };
+    });
+    
+    res.status(200).json({
+      fruta: nombreFruta,
+      usuarioSesion: usuarioSesion,
+      totalFincasConFruta: fincasConFruta.length,
+      detalles: detalles
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
