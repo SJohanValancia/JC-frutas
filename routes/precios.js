@@ -205,6 +205,7 @@ function calcularPrecioMasFrecuente(precios) {
   return precioMasFrecuente;
 }
 
+// 🔥 RUTA CORREGIDA: PUT /precios/actualizar-global/:frutaId
 router.put("/actualizar-global/:frutaId", async (req, res) => {
   const frutaId = req.params.frutaId;
   const { precios, usuario, adminAlias } = req.body;
@@ -233,9 +234,11 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
     const frutaEncontrada = frutaOriginal.frutas.find(f => f._id.toString() === frutaId);
     const nombreFruta = frutaEncontrada.nombre;
 
-    // 2. Buscar TODAS las fincas del usuario que tengan frutas con este nombre
+    console.log(`🔍 Nombre de fruta encontrado: "${nombreFruta}"`);
+
+    // 2. Buscar TODAS las fincas del usuario que tengan frutas con este NOMBRE (no _id)
     const filtros = {
-      "frutas.nombre": nombreFruta,
+      "frutas.nombre": { $regex: new RegExp(`^${nombreFruta}$`, 'i') }, // Búsqueda insensible a mayúsculas
       $or: [
         { usuario: adminAlias || usuario },
         { adminAlias: adminAlias || usuario }
@@ -244,43 +247,136 @@ router.put("/actualizar-global/:frutaId", async (req, res) => {
 
     const fincasConFruta = await PrecioFruta.find(filtros);
     
-    // 3. Actualizar todas las coincidencias
+    console.log(`📊 Encontradas ${fincasConFruta.length} fincas con la fruta "${nombreFruta}"`);
+
+    // 3. Actualizar todas las coincidencias por NOMBRE
     let fincasActualizadas = 0;
-    const bulkOps = [];
+    let frutasActualizadas = 0;
+    const errores = [];
 
-    fincasConFruta.forEach(finca => {
-      finca.frutas.forEach(fruta => {
-        if (fruta.nombre === nombreFruta) {
-          bulkOps.push({
-            updateOne: {
-              filter: { _id: finca._id, "frutas._id": fruta._id },
-              update: {
-                $set: {
-                  "frutas.$.precios": precios,
-                  fecha: new Date()
-                }
-              }
-            }
-          });
-          fincasActualizadas++;
+    for (const finca of fincasConFruta) {
+      try {
+        let fincaActualizada = false;
+        
+        // Buscar todas las frutas con el mismo nombre en esta finca
+        for (let i = 0; i < finca.frutas.length; i++) {
+          if (finca.frutas[i].nombre.toLowerCase() === nombreFruta.toLowerCase()) {
+            // Actualizar los precios de esta fruta
+            finca.frutas[i].precios = {
+              primera: precios.primera,
+              segunda: precios.segunda,
+              tercera: precios.tercera
+            };
+            frutasActualizadas++;
+            fincaActualizada = true;
+            
+            console.log(`✅ Actualizada fruta "${nombreFruta}" en finca ${finca.fincaId} (ID: ${finca.frutas[i]._id})`);
+          }
         }
-      });
-    });
-
-    if (bulkOps.length > 0) {
-      await PrecioFruta.bulkWrite(bulkOps);
+        
+        if (fincaActualizada) {
+          // Actualizar la fecha de la finca
+          finca.fecha = new Date();
+          await finca.save();
+          fincasActualizadas++;
+          
+          console.log(`💾 Finca ${finca.fincaId} guardada exitosamente`);
+        }
+        
+      } catch (fincaError) {
+        console.error(`❌ Error actualizando finca ${finca.fincaId}:`, fincaError);
+        errores.push({
+          fincaId: finca.fincaId,
+          error: fincaError.message
+        });
+      }
     }
 
-    res.status(200).json({
+    console.log(`🎉 ACTUALIZACIÓN COMPLETADA:`);
+    console.log(`   - Fincas actualizadas: ${fincasActualizadas}`);
+    console.log(`   - Frutas actualizadas: ${frutasActualizadas}`);
+    console.log(`   - Errores: ${errores.length}`);
+
+    // 4. Responder con el resultado
+    const respuesta = {
       success: true,
       message: `Precios actualizados en ${fincasActualizadas} finca(s)`,
       fruta: nombreFruta,
-      precios
-    });
+      precios: precios,
+      estadisticas: {
+        fincasActualizadas: fincasActualizadas,
+        frutasActualizadas: frutasActualizadas,
+        errores: errores.length
+      }
+    };
+
+    if (errores.length > 0) {
+      respuesta.errores = errores;
+      respuesta.message += ` (${errores.length} errores menores)`;
+    }
+
+    res.status(200).json(respuesta);
     
   } catch (err) {
     console.error("❌ Error en actualización global:", err);
     res.status(500).json({ error: "Error al actualizar: " + err.message });
+  }
+});
+
+// 🔥 NUEVA RUTA ADICIONAL: PUT /precios/actualizar-global-por-nombre
+// Esta ruta permite actualizar directamente por nombre de fruta
+router.put("/actualizar-global-por-nombre", async (req, res) => {
+  const { nombreFruta, precios, usuario, adminAlias } = req.body;
+
+  console.log(`🌍 ACTUALIZANDO POR NOMBRE: "${nombreFruta}"`);
+  
+  if (!nombreFruta || !precios || !usuario) {
+    return res.status(400).json({ error: "Datos incompletos" });
+  }
+
+  try {
+    // Buscar TODAS las fincas del usuario que tengan frutas con este nombre
+    const filtros = {
+      "frutas.nombre": { $regex: new RegExp(`^${nombreFruta}$`, 'i') },
+      $or: [
+        { usuario: adminAlias || usuario },
+        { adminAlias: adminAlias || usuario }
+      ]
+    };
+
+    const fincasConFruta = await PrecioFruta.find(filtros);
+    
+    let fincasActualizadas = 0;
+    let frutasActualizadas = 0;
+
+    for (const finca of fincasConFruta) {
+      let fincaActualizada = false;
+      
+      for (let i = 0; i < finca.frutas.length; i++) {
+        if (finca.frutas[i].nombre.toLowerCase() === nombreFruta.toLowerCase()) {
+          finca.frutas[i].precios = precios;
+          frutasActualizadas++;
+          fincaActualizada = true;
+        }
+      }
+      
+      if (fincaActualizada) {
+        finca.fecha = new Date();
+        await finca.save();
+        fincasActualizadas++;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Precios de "${nombreFruta}" actualizados en ${fincasActualizadas} finca(s)`,
+      fincasActualizadas,
+      frutasActualizadas
+    });
+    
+  } catch (err) {
+    console.error("❌ Error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
