@@ -754,7 +754,7 @@ async function guardarCambiosPrecios() {
         // 7. Mostrar mensaje de éxito (usando variables locales)
         alert(
             `✅ ¡Actualización completada!\n\n` +
-            `Precios de "${nombreFrutaActual}" actualizados en ${resultado.fincasActualizadas} finca(s).\n\n` +
+            `Precios de "${nombreFrutaActual}" actualizados en todas las fincas. Excepto en la primer finca que se creo, ya que de esta finca dependen los precios de las futuras fincas que vaya a crear, porfavor, actualice el precio de esta finca, desde el apartado de precios\n\n` +
             `💎 Primera: $${precioPrimera.toLocaleString()}\n` +
             `✨ Segunda: $${precioSegunda.toLocaleString()}\n` +
             `⭐ Tercera: $${precioTercera.toLocaleString()}`
