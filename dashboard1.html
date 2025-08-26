@@ -681,9 +681,9 @@
   <div class="menu-container">
     <button class="menu-toggle" id="menuToggle">
       <div class="menu-icon">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span>-</span>
+        <span>-</span>
+        <span>-</span>
       </div>
     </button>
     
@@ -709,8 +709,7 @@
   <div class="menu-overlay" id="menuOverlay"></div>
 
   <div class="container">
-    <h1 id="saludo">Bienvenido</h1>
-    <button id="btnAgregarFinca">➕ Agregar Finca</button>
+<p id="saludo" style="font-weight: bold; font-size: 24px;"></p>    <button id="btnAgregarFinca">➕ Agregar Finca</button>
     <input type="text" id="buscarFinca" placeholder="Buscar finca o propietario...">
     <div id="listaFincas"></div>
   </div>
@@ -987,6 +986,26 @@
         saludo.textContent = "Bienvenido (usuario no identificado)";
       }
     }
+
+
+    function mostrarSaludo() {
+  const ahora = new Date();
+  const hora = ahora.getHours();
+  let saludo = "";
+
+  if (hora >= 5 && hora < 12) {
+    saludo = "¡Buenos días!";
+  } else if (hora >= 12 && hora < 19) {
+    saludo = "¡Buenas tardes!";
+  } else {
+    saludo = "¡Buenas noches!";
+  }
+
+  document.getElementById("saludo").textContent = saludo;
+}
+
+// Mostrar el saludo al cargar la página
+mostrarSaludo();
 
     // OPTIMIZACIÓN: Cargar todas las recogidas de una vez
     async function cargarTodasLasRecogidas(fincaIds) {

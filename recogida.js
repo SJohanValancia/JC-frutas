@@ -780,7 +780,6 @@ async function cargarFrutas() {
         <option value="primera">Primera</option>
         <option value="segunda">Segunda</option>
         <option value="tercera">Tercera</option>
-        <option value="extra">Extra</option>
       `;
     }
 

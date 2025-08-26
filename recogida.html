@@ -72,7 +72,8 @@
     }
 
     .volver-btn {
-      transform: translateY(-75px);
+
+      top: -20px;
       position: absolute;
   background: linear-gradient(135deg, #6c757d, #495057);
   color: white;
@@ -82,12 +83,16 @@
   font-weight: 600;
   cursor: pointer;
   margin-top: 20px;
-  width: 100%;
+  width: 10%;
   font-size: 1rem;
   transition: all 0.3s ease;
 }
 
+.guardar{
 
+  padding: 30px;
+
+}
 
 
   </style>
@@ -115,13 +120,8 @@
 
     </select>
 
-    <!-- Campo de precio extra con etiqueta -->
-    <div class="precio-field">
-      <label for="precioExtra">Precio Extra (cuando aplique)</label>
-      <input id="precioExtra" type="number" placeholder="Precio extra" class="hidden" />
-    </div>
 
-    <button id="guardarRecogida">Guardar Recogida</button>
+    <button class="guardar" id="guardarRecogida">Guardar Recogida</button>
 
 
     <!-- Calculadora -->
