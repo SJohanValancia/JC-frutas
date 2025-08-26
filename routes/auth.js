@@ -4,7 +4,7 @@ const User = require("../models/User");
 
 
 router.post("/register", async (req, res) => {
-  const { username, password, tipo, alias, aliasAdmin } = req.body;
+  const { username, password, tipo, alias, aliasAdmin, enlazadoAAdmin } = req.body;
 
   if (!username || !password || !alias || !tipo) {
     return res.status(400).send("Faltan campos obligatorios");
@@ -18,10 +18,19 @@ router.post("/register", async (req, res) => {
 
     let adminAlias = null;
 
+    // Validación para subusuarios (tipo 2)
     if (tipo === 2) {
       if (!aliasAdmin) return res.status(400).send("Debes indicar el alias del administrador");
       const admin = await User.findOne({ alias: aliasAdmin, tipo: 1 });
       if (!admin) return res.status(400).send("Administrador no encontrado");
+      adminAlias = aliasAdmin;
+    }
+
+    // Validación para administradores enlazados (tipo 1 con enlazadoAAdmin = true)
+    if (tipo === 1 && enlazadoAAdmin) {
+      if (!aliasAdmin) return res.status(400).send("Debes indicar el alias del administrador al que enlazar");
+      const adminPrincipal = await User.findOne({ alias: aliasAdmin, tipo: 1 });
+      if (!adminPrincipal) return res.status(400).send("Administrador principal no encontrado");
       adminAlias = aliasAdmin;
     }
 
@@ -31,6 +40,7 @@ router.post("/register", async (req, res) => {
       tipo,
       alias,
       aliasAdmin: adminAlias,
+      enlazadoAAdmin: enlazadoAAdmin || false
     });
 
     await nuevo.save();
@@ -40,10 +50,6 @@ router.post("/register", async (req, res) => {
     res.status(500).send("Error al registrar");
   }
 });
-
-// Agregar esta modificación a la ruta de login en tu auth.js
-
-// Reemplaza tu endpoint de login actual con esta versión corregida
 
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
@@ -70,7 +76,8 @@ router.post("/login", async (req, res) => {
 
     let datosAdmin = null;
 
-    if (user.tipo === 2 && user.aliasAdmin) {
+    // Obtener información del admin para subusuarios (tipo 2) Y para admins enlazados (tipo 1)
+    if ((user.tipo === 2 || (user.tipo === 1 && user.enlazadoAAdmin)) && user.aliasAdmin) {
       const admin = await User.findOne({ alias: user.aliasAdmin });
       if (admin) {
         datosAdmin = {
@@ -91,7 +98,8 @@ router.post("/login", async (req, res) => {
     const respuesta = {
       tipo: user.tipo,
       alias: user.alias,
-      usuario: user.username, // Asegurar que siempre se envíe el username
+      usuario: user.username,
+      enlazadoAAdmin: user.enlazadoAAdmin || false, // Incluir esta información
       admin: datosAdmin,
     };
 
@@ -185,6 +193,7 @@ router.get("/get-admin-info", async (req, res) => {
       email: admin.email,
       tipo: admin.tipo,
       aliasAdmin: admin.aliasAdmin,
+      enlazadoAAdmin: admin.enlazadoAAdmin,
       fecha: admin.fecha,
       // Incluir cualquier otro campo que tenga el modelo User
       ...admin.toObject() // Esto incluye todos los campos
@@ -201,8 +210,6 @@ router.get("/get-admin-info", async (req, res) => {
 router.get("/logout", (req, res) => {
   req.session.destroy(() => res.status(200).send("Sesión cerrada"));
 });
-
-// Reemplazar el endpoint get-alias en tu auth.js con este código actualizado
 
 router.get("/get-alias", async (req, res) => {
   try {
@@ -223,12 +230,14 @@ router.get("/get-alias", async (req, res) => {
 
     console.log("✅ Usuario encontrado:", user.username, "- Bloqueado:", user.bloqueado);
     
-    // Incluir información completa del usuario incluyendo estado de bloqueo
+    // Incluir información completa del usuario incluyendo estado de bloqueo y enlace
     res.status(200).json({ 
       alias: user.alias,
       username: user.username,
       tipo: user.tipo,
-      bloqueado: user.bloqueado || false, // Asegurar que siempre devuelva un boolean
+      bloqueado: user.bloqueado || false,
+      enlazadoAAdmin: user.enlazadoAAdmin || false,
+      aliasAdmin: user.aliasAdmin,
       email: user.email,
       nombre: user.nombre
     });
@@ -257,14 +266,37 @@ router.get("/get-all-admins", async (req, res) => {
   }
 });
 
+// Nuevo endpoint: Obtener administradores disponibles para enlazar (que no estén enlazados a otros)
+router.get("/get-available-admins", async (req, res) => {
+  try {
+    console.log("🔍 Obteniendo administradores disponibles para enlazar...");
+    
+    // Obtener administradores que NO estén enlazados a otros (enlazadoAAdmin = false o no existe)
+    const availableAdmins = await User.find({ 
+      tipo: 1, 
+      $or: [
+        { enlazadoAAdmin: false },
+        { enlazadoAAdmin: { $exists: false } }
+      ]
+    }).sort({ username: 1 });
+    
+    console.log(`✅ Se encontraron ${availableAdmins.length} administradores disponibles`);
+    
+    res.status(200).json(availableAdmins);
+  } catch (error) {
+    console.error("❌ Error al obtener administradores disponibles:", error);
+    res.status(500).json({ error: "Error al obtener administradores disponibles" });
+  }
+});
+
 // Actualizar un usuario
 router.put("/update-user/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
     
-    console.log("📝 Actualizando usuario:", id);
-    console.log("📝 Datos a actualizar:", updates);
+    console.log("🔍 Actualizando usuario:", id);
+    console.log("🔍 Datos a actualizar:", updates);
     
     const user = await User.findByIdAndUpdate(
       id, 
@@ -350,14 +382,15 @@ router.get("/inspect-user/:id", async (req, res) => {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
     
-    // Si es subusuario, obtener también información del admin
+    // Si es subusuario o admin enlazado, obtener también información del admin
     let adminInfo = null;
-    if (user.tipo === 2 && user.aliasAdmin) {
+    if ((user.tipo === 2 || (user.tipo === 1 && user.enlazadoAAdmin)) && user.aliasAdmin) {
       adminInfo = await User.findOne({ alias: user.aliasAdmin }, {
         username: 1,
         alias: 1,
         email: 1,
-        tipo: 1
+        tipo: 1,
+        enlazadoAAdmin: 1
       });
     }
     
@@ -370,10 +403,21 @@ router.get("/inspect-user/:id", async (req, res) => {
       });
     }
     
+    // Contar cuántos admins enlazados tiene este admin (si es tipo 1)
+    let adminsEnlazadosCount = 0;
+    if (user.tipo === 1) {
+      adminsEnlazadosCount = await User.countDocuments({ 
+        aliasAdmin: user.alias,
+        tipo: 1,
+        enlazadoAAdmin: true 
+      });
+    }
+    
     const inspection = {
       ...user.toObject(),
       adminInfo,
       subusuariosCount,
+      adminsEnlazadosCount,
       fechaCreacion: user.createdAt || "No disponible",
       ultimaActualizacion: user.updatedAt || "No disponible"
     };

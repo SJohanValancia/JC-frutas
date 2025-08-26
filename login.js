@@ -73,15 +73,26 @@ function redirectUserByType(userData, username) {
     
     switch(userData.tipo) {
         case 1: // Administrador
-            window.location.href = `dashboard1.html?usuario=${encodeURIComponent(username)}`;
+            // Verificar si es un administrador enlazado
+            if (userData.enlazadoAAdmin && userData.admin) {
+                console.log("🔗 Admin enlazado detectado, redirigiendo con información del admin principal");
+                const adminAlias = userData.admin.alias;
+                window.location.href = `dashboard1.html?usuario=${encodeURIComponent(username)}&admin=${encodeURIComponent(adminAlias)}&enlazado=true`;
+            } else {
+                console.log("👑 Admin independiente, redirigiendo normalmente");
+                window.location.href = `dashboard1.html?usuario=${encodeURIComponent(username)}`;
+            }
             break;
+            
         case 2: // Subusuario
             const adminAlias = userData.admin ? userData.admin.alias : '';
             window.location.href = `dashboard2.html?usuario=${encodeURIComponent(username)}&admin=${encodeURIComponent(adminAlias)}`;
             break;
+            
         case 3: // Super Admin
             window.location.href = `dashboard3.html?usuario=${encodeURIComponent(username)}`;
             break;
+            
         default:
             console.error("❌ Tipo de usuario desconocido:", userData.tipo);
             alert("Error: Tipo de usuario no reconocido");
@@ -119,5 +130,22 @@ async function checkUserStatus(username) {
     } catch (error) {
         console.error("❌ Error verificando estado del usuario:", error);
         return { blocked: false, user: null };
+    }
+}
+
+// Función para obtener información completa del usuario (incluyendo si está enlazado)
+async function getUserCompleteInfo(username) {
+    try {
+        const response = await apiFetch(`/auth/get-alias?usuario=${username}`, "GET");
+        
+        console.log("📊 Información completa del usuario:", response);
+        
+        return {
+            success: true,
+            user: response
+        };
+    } catch (error) {
+        console.error("❌ Error obteniendo información del usuario:", error);
+        return { success: false, error: error.message };
     }
 }
