@@ -2,7 +2,7 @@ import { apiFetch } from "./api.js";
 
 // 🛡️ PROTECCIÓN: Verificar que solo super admin pueda acceder
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("🔐 Verificando permisos de super admin...");
+  console.log("🔍 Verificando permisos de super admin...");
   
   // Verificar si hay datos de usuario en localStorage
   const userData = localStorage.getItem("userData");
@@ -49,15 +49,61 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function initializeRegisterForm() {
   const tipoSelect = document.getElementById("registerTipo");
-  const aliasInput = document.getElementById("aliasAdmin");
+  const aliasAdminContainer = document.getElementById("aliasAdminContainer");
+  const aliasAdminInput = document.getElementById("aliasAdmin");
+  const enlazarAdminContainer = document.getElementById("enlazarAdminContainer");
+  const enlazarAdminCheckbox = document.getElementById("enlazarAdmin");
+  const adminSelectContainer = document.getElementById("adminSelectContainer");
+  const adminSelect = document.getElementById("adminSelect");
 
-  // Mostrar/ocultar campo de alias admin según tipo seleccionado
+  // Cargar administradores disponibles para enlazar
+  loadAvailableAdmins();
+
+  // Mostrar/ocultar campos según tipo seleccionado
   tipoSelect.addEventListener("change", () => {
-    if (tipoSelect.value === "2") {
-      aliasInput.classList.remove("hidden");
+    const selectedType = tipoSelect.value;
+    
+    if (selectedType === "2") {
+      // Subusuario - mostrar campo de alias admin
+      aliasAdminContainer.classList.remove("hidden");
+      enlazarAdminContainer.classList.add("hidden");
+      adminSelectContainer.classList.add("hidden");
+      
+      // Limpiar campos no utilizados
+      enlazarAdminCheckbox.checked = false;
+      adminSelect.value = "";
+    } else if (selectedType === "1") {
+      // Administrador - mostrar opción de enlazar
+      aliasAdminContainer.classList.add("hidden");
+      enlazarAdminContainer.classList.remove("hidden");
+      
+      // Limpiar campos no utilizados
+      aliasAdminInput.value = "";
+      
+      // Si ya está marcado el checkbox, mostrar el select
+      if (enlazarAdminCheckbox.checked) {
+        adminSelectContainer.classList.remove("hidden");
+      }
     } else {
-      aliasInput.classList.add("hidden");
-      aliasInput.value = "";
+      // Ningún tipo seleccionado - ocultar todo
+      aliasAdminContainer.classList.add("hidden");
+      enlazarAdminContainer.classList.add("hidden");
+      adminSelectContainer.classList.add("hidden");
+      
+      // Limpiar todos los campos
+      aliasAdminInput.value = "";
+      enlazarAdminCheckbox.checked = false;
+      adminSelect.value = "";
+    }
+  });
+
+  // Manejar checkbox de enlazar admin
+  enlazarAdminCheckbox.addEventListener("change", () => {
+    if (enlazarAdminCheckbox.checked) {
+      adminSelectContainer.classList.remove("hidden");
+    } else {
+      adminSelectContainer.classList.add("hidden");
+      adminSelect.value = "";
     }
   });
 
@@ -69,13 +115,42 @@ function initializeRegisterForm() {
     const password = document.getElementById("registerPassword").value.trim();
     const tipo = parseInt(tipoSelect.value);
     const alias = document.getElementById("registerAlias").value.trim();
-    const aliasAdmin = aliasInput.value.trim();
+    
+    // Determinar aliasAdmin según el tipo y configuración
+    let aliasAdmin = null;
+    let enlazadoAAdmin = false;
+    
+    if (tipo === 2) {
+      // Subusuario - usar el campo de alias admin tradicional
+      aliasAdmin = aliasAdminInput.value.trim();
+    } else if (tipo === 1 && enlazarAdminCheckbox.checked) {
+      // Admin enlazado - usar el select de admins
+      aliasAdmin = adminSelect.value;
+      enlazadoAAdmin = true;
+    }
 
-    console.log("📝 Intentando registrar:", { username, tipo, alias, aliasAdmin });
+    console.log("🔍 Intentando registrar:", { 
+      username, 
+      tipo, 
+      alias, 
+      aliasAdmin, 
+      enlazadoAAdmin 
+    });
 
     // Validaciones básicas
-    if (!username || !password || !alias || !tipo || (tipo === 2 && !aliasAdmin)) {
+    if (!username || !password || !alias || !tipo) {
       alert("⚠️ Completa todos los campos requeridos.");
+      return;
+    }
+
+    // Validaciones específicas según tipo
+    if (tipo === 2 && !aliasAdmin) {
+      alert("⚠️ Los subusuarios deben tener un administrador asignado.");
+      return;
+    }
+
+    if (tipo === 1 && enlazarAdminCheckbox.checked && !aliasAdmin) {
+      alert("⚠️ Si deseas enlazar el administrador, debes seleccionar uno.");
       return;
     }
 
@@ -101,7 +176,8 @@ function initializeRegisterForm() {
         password,
         tipo,
         alias,
-        aliasAdmin: tipo === 2 ? aliasAdmin : null,
+        aliasAdmin,
+        enlazadoAAdmin
       };
 
       console.log("🚀 Enviando solicitud de registro:", body);
@@ -113,7 +189,12 @@ function initializeRegisterForm() {
       
       // Limpiar formulario
       document.getElementById("registerForm").reset();
-      aliasInput.classList.add("hidden");
+      aliasAdminContainer.classList.add("hidden");
+      enlazarAdminContainer.classList.add("hidden");
+      adminSelectContainer.classList.add("hidden");
+      
+      // Recargar lista de admins disponibles
+      loadAvailableAdmins();
       
       // Opcional: Redirigir de vuelta al dashboard después de un registro exitoso
       setTimeout(() => {
@@ -127,11 +208,41 @@ function initializeRegisterForm() {
   });
 }
 
+// Función para cargar administradores disponibles para enlazar
+async function loadAvailableAdmins() {
+  try {
+    console.log("🔍 Cargando administradores disponibles...");
+    
+    const admins = await apiFetch("/auth/get-available-admins", "GET");
+    
+    const adminSelect = document.getElementById("adminSelect");
+    
+    // Limpiar opciones existentes
+    adminSelect.innerHTML = '<option value="">Selecciona un administrador...</option>';
+    
+    // Agregar opciones de administradores
+    admins.forEach(admin => {
+      const option = document.createElement("option");
+      option.value = admin.alias;
+      option.textContent = `${admin.username} (${admin.alias})`;
+      adminSelect.appendChild(option);
+    });
+    
+    console.log(`✅ Cargados ${admins.length} administradores disponibles`);
+    
+  } catch (error) {
+    console.error("❌ Error cargando administradores:", error);
+    
+    const adminSelect = document.getElementById("adminSelect");
+    adminSelect.innerHTML = '<option value="">Error cargando administradores...</option>';
+  }
+}
+
 // Función adicional de seguridad que se ejecuta periódicamente
 setInterval(() => {
   const userData = localStorage.getItem("userData");
   if (!userData) {
-    console.log("🔐 Sesión perdida - Redirigiendo");
+    console.log("🔍 Sesión perdida - Redirigiendo");
     window.location.href = "index.html";
     return;
   }
@@ -139,11 +250,11 @@ setInterval(() => {
   try {
     const user = JSON.parse(userData);
     if (user.tipo !== 3) {
-      console.log("🔐 Permisos cambiados - Redirigiendo");
+      console.log("🔍 Permisos cambiados - Redirigiendo");
       window.location.href = "index.html";
     }
   } catch (e) {
-    console.log("🔐 Datos corruptos - Redirigiendo");
+    console.log("🔍 Datos corruptos - Redirigiendo");
     localStorage.removeItem("userData");
     window.location.href = "index.html";
   }

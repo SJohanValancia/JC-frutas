@@ -68,25 +68,18 @@ function handleBlockedUser(username, errorData) {
 
 // Función para redirigir usuarios según su tipo
 function redirectUserByType(userData, username) {
-    // Limpiar localStorage antes de redirigir
+    // Limpiar localStorage antes de redirigir (pero mantener userData para la redirección)
+    const userDataToKeep = JSON.stringify(userData);
     localStorage.clear();
+    localStorage.setItem("userData", userDataToKeep);
     
     switch(userData.tipo) {
         case 1: // Administrador
-            // Verificar si es un administrador enlazado
-            if (userData.enlazadoAAdmin && userData.admin) {
-                console.log("🔗 Admin enlazado detectado, redirigiendo con información del admin principal");
-                const adminAlias = userData.admin.alias;
-                window.location.href = `dashboard1.html?usuario=${encodeURIComponent(username)}&admin=${encodeURIComponent(adminAlias)}&enlazado=true`;
-            } else {
-                console.log("👑 Admin independiente, redirigiendo normalmente");
-                window.location.href = `dashboard1.html?usuario=${encodeURIComponent(username)}`;
-            }
+            handleAdminRedirect(userData, username);
             break;
             
         case 2: // Subusuario
-            const adminAlias = userData.admin ? userData.admin.alias : '';
-            window.location.href = `dashboard2.html?usuario=${encodeURIComponent(username)}&admin=${encodeURIComponent(adminAlias)}`;
+            handleSubuserRedirect(userData, username);
             break;
             
         case 3: // Super Admin
@@ -97,6 +90,46 @@ function redirectUserByType(userData, username) {
             console.error("❌ Tipo de usuario desconocido:", userData.tipo);
             alert("Error: Tipo de usuario no reconocido");
             break;
+    }
+}
+
+// Función específica para manejar redirección de administradores
+function handleAdminRedirect(userData, username) {
+    // 🔥 NUEVA LÓGICA: Verificar si es un administrador enlazado
+    if (userData.enlazadoAAdmin === true && userData.admin) {
+        console.log("🔗 Admin enlazado detectado");
+        console.log("👤 Usuario:", username);
+        console.log("🎯 Enlazado a:", userData.admin.alias);
+        
+        const adminAlias = userData.admin.alias;
+        
+        // Crear URL con parámetros para admin enlazado
+        const url = `dashboard1.html?usuario=${encodeURIComponent(username)}&alias=${encodeURIComponent(adminAlias)}&enlazado=true&tipoEnlace=admin&adminEnlazado=${encodeURIComponent(userData.alias)}`;
+        
+        console.log("🚀 Redirigiendo admin enlazado a:", url);
+        window.location.href = url;
+        
+    } else {
+        console.log("👑 Admin independiente, redirigiendo normalmente");
+        window.location.href = `dashboard1.html?usuario=${encodeURIComponent(username)}&alias=${encodeURIComponent(userData.alias)}`;
+    }
+}
+
+// Función específica para manejar redirección de subusuarios
+function handleSubuserRedirect(userData, username) {
+    if (userData.admin && userData.admin.alias) {
+        const adminAlias = userData.admin.alias;
+        
+        console.log("👤 Subusuario:", username);
+        console.log("👨‍💼 Admin asignado:", adminAlias);
+        
+        const url = `dashboard2.html?usuario=${encodeURIComponent(username)}&admin=${encodeURIComponent(adminAlias)}&tipoEnlace=subusuario`;
+        
+        console.log("🚀 Redirigiendo subusuario a:", url);
+        window.location.href = url;
+    } else {
+        console.error("❌ Subusuario sin admin asignado");
+        alert("Error: Subusuario sin administrador asignado. Contacte al super administrador.");
     }
 }
 
@@ -148,4 +181,22 @@ async function getUserCompleteInfo(username) {
         console.error("❌ Error obteniendo información del usuario:", error);
         return { success: false, error: error.message };
     }
+}
+
+// Función de debugging para mostrar información de login (solo para desarrollo)
+function debugLoginInfo(userData, username) {
+    console.log("🔍 === DEBUG LOGIN INFO ===");
+    console.log("Usuario:", username);
+    console.log("Tipo:", userData.tipo);
+    console.log("Enlazado a admin:", userData.enlazadoAAdmin);
+    
+    if (userData.admin) {
+        console.log("Info del admin:", {
+            username: userData.admin.username,
+            alias: userData.admin.alias,
+            email: userData.admin.email
+        });
+    }
+    
+    console.log("🔍 === FIN DEBUG ===");
 }

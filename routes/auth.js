@@ -1,16 +1,25 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/User");
+const User = require("./models/User");
 
 
 router.post("/register", async (req, res) => {
   const { username, password, tipo, alias, aliasAdmin, enlazadoAAdmin } = req.body;
+
+  console.log("🔍 Datos recibidos en registro:", {
+    username,
+    tipo,
+    alias,
+    aliasAdmin,
+    enlazadoAAdmin
+  });
 
   if (!username || !password || !alias || !tipo) {
     return res.status(400).send("Faltan campos obligatorios");
   }
 
   try {
+    // Verificar que el alias sea único
     const existeAlias = await User.findOne({ alias });
     if (existeAlias) {
       return res.status(400).send("Ese alias ya está en uso");
@@ -20,34 +29,73 @@ router.post("/register", async (req, res) => {
 
     // Validación para subusuarios (tipo 2)
     if (tipo === 2) {
-      if (!aliasAdmin) return res.status(400).send("Debes indicar el alias del administrador");
+      if (!aliasAdmin) {
+        return res.status(400).send("Debes indicar el alias del administrador");
+      }
+      
       const admin = await User.findOne({ alias: aliasAdmin, tipo: 1 });
-      if (!admin) return res.status(400).send("Administrador no encontrado");
+      if (!admin) {
+        return res.status(400).send("Administrador no encontrado");
+      }
+      
+      console.log("✅ Subusuario enlazado al admin:", admin.alias);
       adminAlias = aliasAdmin;
     }
 
     // Validación para administradores enlazados (tipo 1 con enlazadoAAdmin = true)
-    if (tipo === 1 && enlazadoAAdmin) {
-      if (!aliasAdmin) return res.status(400).send("Debes indicar el alias del administrador al que enlazar");
+    if (tipo === 1 && enlazadoAAdmin === true) {
+      if (!aliasAdmin) {
+        return res.status(400).send("Debes indicar el alias del administrador al que enlazar");
+      }
+      
       const adminPrincipal = await User.findOne({ alias: aliasAdmin, tipo: 1 });
-      if (!adminPrincipal) return res.status(400).send("Administrador principal no encontrado");
+      if (!adminPrincipal) {
+        return res.status(400).send("Administrador principal no encontrado");
+      }
+      
+      // Verificar que el admin principal no esté ya enlazado a otro
+      if (adminPrincipal.enlazadoAAdmin === true) {
+        return res.status(400).send("No puedes enlazar a un administrador que ya está enlazado a otro");
+      }
+      
+      console.log("✅ Admin enlazado al admin principal:", adminPrincipal.alias);
       adminAlias = aliasAdmin;
     }
 
+    // Crear el nuevo usuario
     const nuevo = new User({
       username,
       password,
       tipo,
       alias,
       aliasAdmin: adminAlias,
-      enlazadoAAdmin: enlazadoAAdmin || false
+      enlazadoAAdmin: enlazadoAAdmin === true ? true : false,
+      bloqueado: false // Asegurar que inicie desbloqueado
     });
 
     await nuevo.save();
-    res.status(200).json({ mensaje: "Registrado correctamente" });
+    
+    console.log("✅ Usuario registrado exitosamente:", {
+      username: nuevo.username,
+      tipo: nuevo.tipo,
+      alias: nuevo.alias,
+      aliasAdmin: nuevo.aliasAdmin,
+      enlazadoAAdmin: nuevo.enlazadoAAdmin
+    });
+    
+    res.status(200).json({ 
+      mensaje: "Registrado correctamente",
+      usuario: {
+        username: nuevo.username,
+        tipo: nuevo.tipo,
+        alias: nuevo.alias,
+        enlazadoAAdmin: nuevo.enlazadoAAdmin
+      }
+    });
+    
   } catch (err) {
     console.error("Error en registro:", err);
-    res.status(500).send("Error al registrar");
+    res.status(500).send("Error al registrar: " + err.message);
   }
 });
 
@@ -65,7 +113,6 @@ router.post("/login", async (req, res) => {
     if (user.bloqueado === true) {
       console.log("🚫 Usuario bloqueado intentando iniciar sesión:", username);
       
-      // IMPORTANTE: Usar status 403 y estructura JSON consistente
       return res.status(403).json({ 
         error: "CUENTA_BLOQUEADA",
         message: "Su cuenta ha sido suspendida. Contacte al administrador.",
@@ -76,20 +123,22 @@ router.post("/login", async (req, res) => {
 
     let datosAdmin = null;
 
-    // Obtener información del admin para subusuarios (tipo 2) Y para admins enlazados (tipo 1)
-    if ((user.tipo === 2 || (user.tipo === 1 && user.enlazadoAAdmin)) && user.aliasAdmin) {
-      const admin = await User.findOne({ alias: user.aliasAdmin });
-      if (admin) {
-        datosAdmin = {
-          username: admin.username,
-          alias: admin.alias,
-          email: admin.email,
-          nombre: admin.nombre,
-          tipo: admin.tipo,
-        };
-        console.log("✅ Datos del admin encontrados:", datosAdmin);
-      } else {
-        console.log("❌ Admin no encontrado para alias:", user.aliasAdmin);
+    // 🔥 MODIFICACIÓN CLAVE: Obtener información del admin para subusuarios Y ADMINS ENLAZADOS
+    if ((user.tipo === 2) || (user.tipo === 1 && user.enlazadoAAdmin === true)) {
+      if (user.aliasAdmin) {
+        const admin = await User.findOne({ alias: user.aliasAdmin });
+        if (admin) {
+          datosAdmin = {
+            username: admin.username,
+            alias: admin.alias,
+            email: admin.email,
+            nombre: admin.nombre,
+            tipo: admin.tipo,
+          };
+          console.log("✅ Datos del admin encontrados para enlace:", datosAdmin);
+        } else {
+          console.log("❌ Admin no encontrado para alias:", user.aliasAdmin);
+        }
       }
     }
 
@@ -99,8 +148,8 @@ router.post("/login", async (req, res) => {
       tipo: user.tipo,
       alias: user.alias,
       usuario: user.username,
-      enlazadoAAdmin: user.enlazadoAAdmin || false, // Incluir esta información
-      admin: datosAdmin,
+      enlazadoAAdmin: user.enlazadoAAdmin || false,
+      admin: datosAdmin, // Incluir datos del admin enlazado si existe
     };
 
     console.log("=== RESPUESTA QUE SE ENVIARÁ ===");
@@ -276,7 +325,8 @@ router.get("/get-available-admins", async (req, res) => {
       tipo: 1, 
       $or: [
         { enlazadoAAdmin: false },
-        { enlazadoAAdmin: { $exists: false } }
+        { enlazadoAAdmin: { $exists: false } },
+        { enlazadoAAdmin: null }
       ]
     }).sort({ username: 1 });
     
