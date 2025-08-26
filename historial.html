@@ -469,6 +469,60 @@ background: rgba(128, 105, 105, 0.329);
       transition: all 0.3s ease;
     }
 
+    /* Estilo moderno para select tipo glass */
+select {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 30px; /* Muy redondeado */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px); /* Efecto glass */
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  font-size: 14px; /* Más compacto */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Flecha personalizada */
+select::after {
+  content: "▼";
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: white;
+  font-size: 12px;
+}
+
+/* Hover y focus */
+select:hover,
+select:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #4CAF50;
+  outline: none;
+  transform: scale(1.02);
+}
+
+/* Opciones dentro del select */
+select option {
+  background: rgba(44, 44, 44, 0.95);
+  color: white;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+/* Animación suave al abrir el select */
+select:focus option {
+  background: rgba(58, 58, 58, 0.95);
+}
+
+
     .volver-btn:hover {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
