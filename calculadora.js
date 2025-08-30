@@ -29,6 +29,597 @@ const usuario = urlParams.get("usuario");
 let filtroActivo = "todos";
 let valorFiltroActivo = "";
 
+
+// SISTEMA DE ACTUALIZACIÓN DINÁMICA DE PRECIOS EN CALCULADORA
+// Agregar estas funciones a calculadora.js
+
+// Variables globales para control de precios
+let precioModificadoManualmente = false;
+let nuevoPrecioManual = 0;
+let frutaConPrecioModificado = null;
+let calidadConPrecioModificado = null;
+
+// 🔥 FUNCIÓN PARA DETECTAR CAMBIOS MANUALES EN EL PRECIO
+function configurarDeteccionCambioPrecio() {
+  if (!precioPorKilo || isSubusuario) {
+    return; // No aplicar si no hay campo de precio o es subusuario
+  }
+
+  console.log("⚙️ Configurando detección de cambios de precio manual...");
+
+  // Remover listeners anteriores si existen
+  const nuevoInput = precioPorKilo.cloneNode(true);
+  precioPorKilo.parentNode.replaceChild(nuevoInput, precioPorKilo);
+  
+  // Actualizar referencia global
+  window.precioPorKilo = nuevoInput;
+  precioPorKilo = nuevoInput;
+
+  // Event listener para cambios manuales
+  precioPorKilo.addEventListener('input', function(e) {
+    const nuevoPrecio = parseFloat(this.value) || 0;
+    const frutaActual = frutaSelect.value;
+    const calidadActual = calidadSelect.value;
+    
+    if (frutaActual && calidadActual) {
+      const precioOriginal = getPrecioPorFrutaYCalidad(frutaActual, calidadActual);
+      
+      if (Math.abs(nuevoPrecio - precioOriginal) > 0.01) {
+        console.log("🔄 Precio modificado manualmente:", {
+          fruta: frutaActual,
+          calidad: calidadActual,
+          precioOriginal: precioOriginal,
+          nuevoPrecio: nuevoPrecio
+        });
+        
+        precioModificadoManualmente = true;
+        nuevoPrecioManual = nuevoPrecio;
+        frutaConPrecioModificado = frutaActual;
+        calidadConPrecioModificado = calidadActual;
+        
+        // Mostrar indicador visual
+        mostrarIndicadorPrecioModificado(precioOriginal, nuevoPrecio);
+        
+        // Actualizar pesas existentes con el nuevo precio
+        actualizarPesasExistentesConNuevoPrecio(frutaActual, calidadActual, nuevoPrecio);
+      }
+    }
+  });
+
+  // Event listener para cuando se pierde el foco
+  precioPorKilo.addEventListener('blur', function() {
+    if (precioModificadoManualmente) {
+      const frutaActual = frutaSelect.value;
+      const calidadActual = calidadSelect.value;
+      
+      if (frutaActual && calidadActual) {
+        confirmarCambioPrecio(frutaActual, calidadActual, nuevoPrecioManual);
+      }
+    }
+  });
+
+  console.log("✅ Detección de cambios de precio configurada");
+}
+
+// 🔥 FUNCIÓN PARA MOSTRAR INDICADOR VISUAL DE PRECIO MODIFICADO
+function mostrarIndicadorPrecioModificado(precioOriginal, nuevoPrecio) {
+  // Remover indicador anterior si existe
+  const indicadorAnterior = document.getElementById('indicadorPrecioModificado');
+  if (indicadorAnterior) {
+    indicadorAnterior.remove();
+  }
+
+  const indicador = document.createElement('div');
+  indicador.id = 'indicadorPrecioModificado';
+  indicador.style.cssText = `
+    position: absolute;
+    top: -35px;
+    right: 0;
+    background: linear-gradient(135deg, #ff6b6b, #ffa500);
+    color: white;
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 11px;
+    font-weight: bold;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    animation: pulseModificado 2s infinite;
+  `;
+
+  indicador.innerHTML = `
+    ⚡ PRECIO MODIFICADO<br>
+    <small>$${precioOriginal.toLocaleString()} → $${nuevoPrecio.toLocaleString()}</small>
+  `;
+
+  // Agregar CSS para la animación si no existe
+  if (!document.getElementById('pulseModificadoCSS')) {
+    const style = document.createElement('style');
+    style.id = 'pulseModificadoCSS';
+    style.textContent = `
+      @keyframes pulseModificado {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Posicionar relativo al campo de precio
+  const container = precioPorKilo.parentElement;
+  if (container) {
+    container.style.position = 'relative';
+    container.appendChild(indicador);
+  }
+
+  // Remover automáticamente después de 10 segundos
+  setTimeout(() => {
+    if (indicador && indicador.parentNode) {
+      indicador.remove();
+    }
+  }, 10000);
+}
+
+// 🔥 FUNCIÓN PARA ACTUALIZAR PESAS EXISTENTES CON NUEVO PRECIO
+function actualizarPesasExistentesConNuevoPrecio(fruta, calidad, nuevoPrecio) {
+  console.log("🔄 Actualizando pesas existentes con nuevo precio:", {
+    fruta, calidad, nuevoPrecio
+  });
+
+  const pesas = getPesas();
+  let pesasActualizadas = 0;
+  
+  const pesasModificadas = pesas.map(pesa => {
+    if (pesa.fruta === fruta && pesa.calidad === calidad) {
+      const nuevoValor = pesa.kilos * nuevoPrecio;
+      pesasActualizadas++;
+      
+      console.log(`   ✅ Pesa actualizada: ${pesa.kilos}kg - $${pesa.valor} → $${nuevoValor}`);
+      
+      return {
+        ...pesa,
+        precio: nuevoPrecio,
+        valor: nuevoValor
+      };
+    }
+    return pesa;
+  });
+
+  if (pesasActualizadas > 0) {
+    savePesas(pesasModificadas);
+    renderPesas();
+    
+    mostrarNotificacionElegante(
+      `🔄 ${pesasActualizadas} pesas actualizadas con el nuevo precio de $${nuevoPrecio.toLocaleString()}`,
+      "success"
+    );
+    
+    console.log(`✅ ${pesasActualizadas} pesas actualizadas exitosamente`);
+  }
+}
+
+// 🔥 FUNCIÓN PARA CONFIRMAR CAMBIO DE PRECIO
+function confirmarCambioPrecio(fruta, calidad, nuevoPrecio) {
+  const precioOriginal = getPrecioPorFrutaYCalidad(fruta, calidad);
+  
+  if (Math.abs(nuevoPrecio - precioOriginal) < 0.01) {
+    return; // No hay cambio significativo
+  }
+
+  const confirmacion = document.createElement('div');
+  confirmacion.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 20px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    z-index: 15000;
+    max-width: 500px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255,255,255,0.2);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  `;
+
+  confirmacion.innerHTML = `
+    <div style="font-size: 28px; margin-bottom: 15px;">⚡</div>
+    <div style="font-size: 22px; margin-bottom: 15px; font-weight: bold;">
+      ¿Actualizar precio permanentemente?
+    </div>
+    <div style="font-size: 16px; line-height: 1.5; margin-bottom: 20px; background: rgba(255,255,255,0.15); padding: 15px; border-radius: 12px;">
+      <strong>${fruta} - ${calidad}</strong><br>
+      Precio actual: <span style="color: #ffeb3b;">$${precioOriginal.toLocaleString()}</span><br>
+      Nuevo precio: <span style="color: #4caf50;">$${nuevoPrecio.toLocaleString()}</span><br><br>
+      <small style="opacity: 0.9;">
+        ℹ️ Este cambio afectará:<br>
+        • Las pesas existentes de esta fruta/calidad<br>
+        • Las futuras pesas que agregues<br>
+        • Se guardará en la base de datos para esta finca
+      </small>
+    </div>
+    <div style="display: flex; gap: 15px; justify-content: center;">
+      <button onclick="confirmarActualizacionPrecio(true)" style="
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 12px 25px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 130px;
+      " onmouseover="this.style.transform='scale(1.05)'" 
+         onmouseout="this.style.transform='scale(1)'">
+        ✅ Sí, Actualizar
+      </button>
+      <button onclick="confirmarActualizacionPrecio(false)" style="
+        background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 12px 25px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 130px;
+      " onmouseover="this.style.transform='scale(1.05)'" 
+         onmouseout="this.style.transform='scale(1)'">
+        ❌ Cancelar
+      </button>
+    </div>
+  `;
+
+  // Crear overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 14999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  `;
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(confirmacion);
+
+  // Animación de entrada
+  setTimeout(() => {
+    overlay.style.opacity = '1';
+    confirmacion.style.opacity = '1';
+    confirmacion.style.transform = 'translate(-50%, -50%) scale(1)';
+  }, 50);
+
+  // Función global para manejar la confirmación
+  window.confirmarActualizacionPrecio = function(confirmar) {
+    confirmacion.style.transform = 'translate(-50%, -50%) scale(0.9)';
+    confirmacion.style.opacity = '0';
+    overlay.style.opacity = '0';
+
+    setTimeout(() => {
+      if (confirmacion.parentNode) confirmacion.parentNode.removeChild(confirmacion);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+
+      if (confirmar) {
+        console.log("✅ Usuario confirmó actualización de precio");
+        ejecutarActualizacionPrecio(fruta, calidad, nuevoPrecio);
+      } else {
+        console.log("❌ Usuario canceló actualización de precio");
+        // Restaurar precio original
+        const precioOriginal = getPrecioPorFrutaYCalidad(fruta, calidad);
+        precioPorKilo.value = precioOriginal;
+        precioModificadoManualmente = false;
+        
+        // Remover indicador
+        const indicador = document.getElementById('indicadorPrecioModificado');
+        if (indicador) indicador.remove();
+        
+        mostrarNotificacionElegante("↩️ Precio restaurado al valor original", "info");
+      }
+
+      delete window.confirmarActualizacionPrecio;
+    }, 400);
+  };
+}
+
+// 🔥 FUNCIÓN PARA EJECUTAR LA ACTUALIZACIÓN DEL PRECIO EN BASE DE DATOS
+async function ejecutarActualizacionPrecio(fruta, calidad, nuevoPrecio) {
+  console.log("💾 Ejecutando actualización de precio en base de datos:", {
+    fruta, calidad, nuevoPrecio
+  });
+
+  try {
+    // Mostrar loading
+    mostrarNotificacionElegante("⏳ Actualizando precio en la base de datos...", "info");
+
+    // Buscar la fruta en los precios disponibles para obtener su ID
+    const frutaObj = preciosDisponibles.find(f => f.nombre === fruta);
+    if (!frutaObj || !frutaObj._id) {
+      throw new Error("No se pudo encontrar el ID de la fruta");
+    }
+
+    const frutaId = frutaObj._id;
+    const fincaId = new URLSearchParams(window.location.search).get("fincaId");
+
+    // Preparar datos para actualización
+    const datosActualizacion = {
+      nombre: fruta,
+      precios: {
+        ...frutaObj.precios,
+        [calidad]: nuevoPrecio
+      },
+      usuario: usuario,
+      adminAlias: sessionData.alias || usuario,
+      fincaId: fincaId
+    };
+
+    console.log("📤 Enviando actualización:", datosActualizacion);
+
+    // Realizar petición al servidor
+    const response = await fetch(`https://jc-frutas.onrender.com/precios/actualizar/${frutaId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(datosActualizacion)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Error ${response.status}`);
+    }
+
+    const resultado = await response.json();
+    console.log("✅ Precio actualizado en base de datos:", resultado);
+
+    // Actualizar precios locales
+    const frutaIndex = preciosDisponibles.findIndex(f => f._id === frutaId);
+    if (frutaIndex !== -1) {
+      preciosDisponibles[frutaIndex].precios[calidad] = nuevoPrecio;
+    }
+
+    // Limpiar variables de control
+    precioModificadoManualmente = false;
+    nuevoPrecioManual = 0;
+    frutaConPrecioModificado = null;
+    calidadConPrecioModificado = null;
+
+    // Remover indicador visual
+    const indicador = document.getElementById('indicadorPrecioModificado');
+    if (indicador) indicador.remove();
+
+    // Mostrar éxito
+    mostrarNotificacionElegante(
+      `💾 Precio actualizado exitosamente: ${fruta} (${calidad}) = $${nuevoPrecio.toLocaleString()}`,
+      "success"
+    );
+
+    console.log("🎉 Actualización de precio completada exitosamente");
+
+  } catch (error) {
+    console.error("❌ Error al actualizar precio:", error);
+    
+    // Restaurar precio original en caso de error
+    const precioOriginal = getPrecioPorFrutaYCalidad(fruta, calidad);
+    precioPorKilo.value = precioOriginal;
+    
+    // Restaurar pesas con precio original
+    actualizarPesasExistentesConNuevoPrecio(fruta, calidad, precioOriginal);
+    
+    // Limpiar variables
+    precioModificadoManualmente = false;
+    
+    mostrarNotificacionElegante(
+      `❌ Error al actualizar precio: ${error.message}`,
+      "error"
+    );
+  }
+}
+
+// 🔥 FUNCIÓN MODIFICADA PARA OBTENER PRECIO ACTUAL (CONSIDERA PRECIO MODIFICADO)
+function getPrecioActualConModificacion() {
+  if (isSubusuario) {
+    return 0;
+  }
+
+  const fruta = frutaSelect.value;
+  const calidad = calidadSelect.value;
+
+  // Si hay precio modificado manualmente para esta fruta/calidad, usarlo
+  if (precioModificadoManualmente && 
+      fruta === frutaConPrecioModificado && 
+      calidad === calidadConPrecioModificado) {
+    return nuevoPrecioManual;
+  }
+
+  // Caso contrario, usar precio normal
+  return getPrecioPorFrutaYCalidad(fruta, calidad);
+}
+
+// 🔥 FUNCIÓN MODIFICADA PARA AGREGAR PESAS (CONSIDERA PRECIO MODIFICADO)
+function sumarPesaConPrecioModificado() {
+  const kilos = parseInt(inputPeso.value);
+  if (isNaN(kilos) || kilos <= 0) {
+    mostrarNotificacionElegante("⚠️ Ingrese un peso válido", "warning");
+    return;
+  }
+
+  const frutaActual = frutaSelect.value;
+  const calidadActual = calidadSelect.value;
+  
+  if (!frutaActual || !calidadActual) {
+    mostrarNotificacionElegante("⚠️ Seleccione fruta y calidad", "warning");
+    return;
+  }
+
+  // 🔥 USAR PRECIO CON MODIFICACIÓN
+  const precio = getPrecioActualConModificacion();
+  const valor = kilos * precio;
+  
+  const nueva = { 
+    kilos, 
+    valor,
+    fruta: frutaActual,
+    calidad: calidadActual,
+    precio: precio // 🔥 USAR EL PRECIO MODIFICADO SI APLICA
+  };
+
+  const pesas = getPesas();
+
+  if (editandoIndex !== null) {
+    const pesaOriginal = pesas[editandoIndex];
+    nueva.fruta = pesaOriginal.fruta;
+    nueva.calidad = pesaOriginal.calidad;
+    nueva.precio = pesaOriginal.precio;
+    nueva.valor = kilos * nueva.precio;
+    
+    pesas[editandoIndex] = nueva;
+    editandoIndex = null;
+    mostrarNotificacionElegante("✏️ Pesa editada correctamente", "success");
+  } else {
+    pesas.push(nueva);
+    mostrarNotificacionElegante(
+      `➕ Pesa agregada: ${kilos}kg de ${frutaActual} (${calidadActual}) - $${precio.toLocaleString()}/kg`,
+      "success"
+    );
+  }
+
+  savePesas(pesas);
+  inputPeso.value = "";
+  renderPesas();
+  actualizarOpcionesFiltro();
+}
+
+// 🔥 FUNCIÓN PARA ACTUALIZAR PRECIO VISUAL CUANDO CAMBIA FRUTA/CALIDAD
+function actualizarPrecioKiloVisibleConModificacion() {
+  if (!isSubusuario && precioPorKilo) {
+    const precio = getPrecioActualConModificacion();
+    precioPorKilo.value = precio;
+    
+    // Mostrar indicador si el precio está modificado
+    const fruta = frutaSelect.value;
+    const calidad = calidadSelect.value;
+    
+    if (precioModificadoManualmente && 
+        fruta === frutaConPrecioModificado && 
+        calidad === calidadConPrecioModificado) {
+      const precioOriginal = getPrecioPorFrutaYCalidad(fruta, calidad);
+      mostrarIndicadorPrecioModificado(precioOriginal, precio);
+    } else {
+      // Remover indicador si no aplica modificación
+      const indicador = document.getElementById('indicadorPrecioModificado');
+      if (indicador) indicador.remove();
+    }
+  }
+}
+
+// 🔥 FUNCIÓN PARA INTEGRAR CON EL SISTEMA EXISTENTE
+function integrarSistemaPrecios() {
+  console.log("🔧 Integrando sistema de precios dinámicos...");
+
+  // Reemplazar función original de sumar pesa
+  if (window.sumarPesa) {
+    window.sumarPesa = sumarPesaConPrecioModificado;
+    console.log("✅ Función sumarPesa reemplazada");
+  }
+
+  // Reemplazar función de actualizar precio
+  if (window.actualizarPrecioKiloVisible) {
+    window.actualizarPrecioKiloVisible = actualizarPrecioKiloVisibleConModificacion;
+    console.log("✅ Función actualizarPrecioKiloVisible reemplazada");
+  }
+
+  // Reemplazar función getPrecioActual
+  if (window.getPrecioActual) {
+    window.getPrecioActual = getPrecioActualConModificacion;
+    console.log("✅ Función getPrecioActual reemplazada");
+  }
+
+  // Configurar detección de cambios
+  configurarDeteccionCambioPrecio();
+
+  // Configurar event listeners para cambios de fruta/calidad
+  if (frutaSelect) {
+    frutaSelect.addEventListener("change", () => {
+      if (!isSubusuario) {
+        actualizarPrecioKiloVisibleConModificacion();
+      }
+    });
+  }
+
+  if (calidadSelect) {
+    calidadSelect.addEventListener("change", () => {
+      if (!isSubusuario) {
+        actualizarPrecioKiloVisibleConModificacion();
+      }
+    });
+  }
+
+  console.log("🎉 Sistema de precios dinámicos integrado exitosamente");
+}
+
+// 🔥 INICIALIZAR SISTEMA AL CARGAR
+document.addEventListener("DOMContentLoaded", () => {
+  // Esperar a que el sistema original esté cargado
+  setTimeout(() => {
+    if (!isSubusuario) {
+      integrarSistemaPrecios();
+      console.log("⚡ Sistema de actualización dinámica de precios activado");
+    }
+  }, 1000);
+});
+
+// 🔥 TAMBIÉN INICIALIZAR AL CAMBIAR DE MODO O RECARGAR
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (!isSubusuario && typeof integrarSistemaPrecios === 'function') {
+      integrarSistemaPrecios();
+    }
+  }, 1500);
+});
+
+// 🔥 EXPORTAR FUNCIONES PARA USO MANUAL
+window.actualizarPrecioManualmente = function(fruta, calidad, precio) {
+  frutaConPrecioModificado = fruta;
+  calidadConPrecioModificado = calidad;
+  nuevoPrecioManual = precio;
+  precioModificadoManualmente = true;
+  
+  if (precioPorKilo) {
+    precioPorKilo.value = precio;
+  }
+  
+  actualizarPesasExistentesConNuevoPrecio(fruta, calidad, precio);
+  console.log(`🔄 Precio actualizado manualmente: ${fruta} (${calidad}) = $${precio}`);
+};
+
+window.resetearPreciosModificados = function() {
+  precioModificadoManualmente = false;
+  nuevoPrecioManual = 0;
+  frutaConPrecioModificado = null;
+  calidadConPrecioModificado = null;
+  
+  const indicador = document.getElementById('indicadorPrecioModificado');
+  if (indicador) indicador.remove();
+  
+  if (!isSubusuario) {
+    actualizarPrecioKiloVisibleConModificacion();
+  }
+  
+  console.log("🔄 Precios modificados reseteados");
+};
+
 // 2. AGREGAR ESTA FUNCIÓN DESPUÉS DE mostrarNotificacion()
 function crearSistemaFiltros() {
   const listaPesas = document.getElementById("listaPesas");
