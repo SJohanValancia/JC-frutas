@@ -674,6 +674,103 @@
         color: #eee;
       }
     }
+
+    /* SCROLL BUTTON STYLES */
+.scroll-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.scroll-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 35px rgba(76, 175, 80, 0.5);
+}
+
+.scroll-button:active {
+  transform: scale(1.05);
+}
+
+.scroll-button-icon {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.scroll-arrow {
+  position: absolute;
+  width: 3px;
+  height: 12px;
+  background: white;
+  border-radius: 2px;
+  left: 50%;
+  top: 50%;
+  transform-origin: center;
+  transition: all 0.3s ease;
+}
+
+.scroll-arrow:nth-child(1) {
+  transform: translate(-50%, -50%) rotate(45deg) translate(-4px, -2px);
+}
+
+.scroll-arrow:nth-child(2) {
+  transform: translate(-50%, -50%) rotate(-45deg) translate(4px, -2px);
+}
+
+.scroll-button.up .scroll-arrow:nth-child(1) {
+  transform: translate(-50%, -50%) rotate(-45deg) translate(-4px, 2px);
+}
+
+.scroll-button.up .scroll-arrow:nth-child(2) {
+  transform: translate(-50%, -50%) rotate(45deg) translate(4px, 2px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .scroll-button {
+    width: 50px;
+    height: 50px;
+    bottom: 15px;
+    right: 15px;
+  }
+  
+  .scroll-button-icon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .scroll-arrow {
+    width: 2px;
+    height: 10px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .scroll-button {
+    background: linear-gradient(135deg, #2E7D32, #1B5E20);
+    box-shadow: 0 8px 25px rgba(46, 125, 50, 0.3);
+  }
+  
+  .scroll-button:hover {
+    box-shadow: 0 12px 35px rgba(46, 125, 50, 0.5);
+  }
+}
+
   </style>
 </head>
 <body>
@@ -708,6 +805,14 @@
   <!-- Menu overlay -->
   <div class="menu-overlay" id="menuOverlay"></div>
 
+  <!-- Scroll Button -->
+<button class="scroll-button" id="scrollButton">
+  <div class="scroll-button-icon">
+    <div class="scroll-arrow"></div>
+    <div class="scroll-arrow"></div>
+  </div>
+</button>
+
   <div class="container">
 <p id="saludo" style="font-weight: bold; font-size: 24px;"></p>    <button id="btnAgregarFinca">➕ Agregar Finca</button>
     <input type="text" id="buscarFinca" placeholder="Buscar finca o propietario...">
@@ -722,6 +827,8 @@
       <button id="guardarFinca">Guardar</button>
     </div>
   </div>
+
+ 
 
   <!-- Modal para agregar nota rápida -->
   <div id="quickNoteModal" class="quick-note-modal">
@@ -1979,8 +2086,125 @@ async function cargarFincas() {
       }
     });
 
+    
+
     // Cargar fincas al iniciar
     cargarFincas();
+
+// SCROLL BUTTON FUNCTIONALITY PARA CONTENEDOR ESPECÍFICO
+const scrollButton = document.getElementById('scrollButton');
+const container = document.querySelector('.container');
+let isAtBottom = false;
+
+// Asegurar que el contenedor tenga scroll habilitado
+function setupContainerScroll() {
+  if (container) {
+    // Si el contenedor no tiene altura específica, configurarlo
+    if (!container.style.height && !container.style.maxHeight) {
+      container.style.height = '80vh'; // O el valor que necesites
+      container.style.overflowY = 'auto';
+    }
+  }
+}
+
+function updateScrollButtonState() {
+  if (!container) return;
+  
+  const scrollTop = container.scrollTop;
+  const scrollHeight = container.scrollHeight;
+  const clientHeight = container.clientHeight;
+  
+  // Considerar que está en el fondo si está dentro de los últimos 50px
+  const threshold = 50;
+  isAtBottom = scrollTop + clientHeight >= scrollHeight - threshold;
+  
+  // Mostrar/ocultar botón solo si hay contenido que hacer scroll
+  if (scrollHeight > clientHeight) {
+    scrollButton.style.display = 'flex';
+    
+    if (isAtBottom) {
+      scrollButton.classList.add('up');
+    } else {
+      scrollButton.classList.remove('up');
+    }
+  } else {
+    // No hay contenido suficiente para scroll, ocultar botón
+    scrollButton.style.display = 'none';
+  }
+}
+
+function smoothScrollTo(targetPosition, duration = 800) {
+  if (!container) return;
+  
+  const startPosition = container.scrollTop;
+  const distance = targetPosition - startPosition;
+  const startTime = performance.now();
+
+  function animation(currentTime) {
+    const timeElapsed = currentTime - startTime;
+    const progress = Math.min(timeElapsed / duration, 1);
+    
+    // Función de easing suave
+    const ease = progress < 0.5 
+      ? 4 * progress * progress * progress 
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    
+    container.scrollTop = startPosition + distance * ease;
+    
+    if (timeElapsed < duration) {
+      requestAnimationFrame(animation);
+    }
+  }
+  
+  requestAnimationFrame(animation);
+}
+
+scrollButton.addEventListener('click', () => {
+  if (!container) return;
+  
+  // Añadir efecto visual al botón
+  scrollButton.style.transform = 'scale(0.95)';
+  setTimeout(() => {
+    scrollButton.style.transform = '';
+  }, 150);
+  
+  if (isAtBottom) {
+    // Scroll hacia arriba (al inicio del contenedor)
+    smoothScrollTo(0);
+  } else {
+    // Scroll hacia abajo (al final del contenedor)
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    smoothScrollTo(scrollHeight - clientHeight);
+  }
+});
+
+// Actualizar estado del botón al hacer scroll en el contenedor
+if (container) {
+  container.addEventListener('scroll', updateScrollButtonState);
+  
+  // También escuchar cambios en el tamaño del contenedor
+  const resizeObserver = new ResizeObserver(updateScrollButtonState);
+  resizeObserver.observe(container);
+}
+
+// Actualizar cuando cambie el tamaño de la ventana
+window.addEventListener('resize', updateScrollButtonState);
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', () => {
+  setupContainerScroll();
+  
+  // Dar tiempo a que el contenido se cargue
+  setTimeout(updateScrollButtonState, 500);
+});
+
+// También actualizar después de que se carguen las fincas
+// (puedes llamar esta función después de cargar el contenido)
+function actualizarScrollDespuesDeCargar() {
+  setTimeout(updateScrollButtonState, 100);
+}
+
   </script>
 </body>
 </html>
