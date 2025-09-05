@@ -2,6 +2,136 @@ const express = require("express");
 const router = express.Router();
 const User = require('../models/User')
 
+// Middleware para verificar usuario bloqueado
+const verificarUsuarioBloqueado = async (req, res, next) => {
+  try {
+    // Obtener usuario de la sesión
+    if (req.session && req.session.user) {
+      const userId = req.session.user._id;
+      
+      // Consultar el usuario actual en la base de datos
+      const usuario = await User.findById(userId);
+      
+      if (!usuario) {
+        console.log('❌ Usuario no encontrado en la base de datos');
+        return res.status(401).json({ 
+          error: 'USUARIO_NO_ENCONTRADO', 
+          message: 'Usuario no encontrado' 
+        });
+      }
+      
+      // Verificar si está bloqueado
+      if (usuario.bloqueado === true) {
+        console.log('🚫 Usuario bloqueado intentando acceder:', usuario.username);
+        
+        // Destruir la sesión
+        req.session.destroy(() => {
+          res.status(403).json({ 
+            error: 'CUENTA_BLOQUEADA',
+            message: 'Su cuenta ha sido suspendida. Contacte al administrador.',
+            username: usuario.username,
+            blocked: true
+          });
+        });
+        return;
+      }
+      
+      // Actualizar los datos del usuario en la sesión (por si han cambiado)
+      req.session.user = usuario;
+    }
+    
+    // Continuar con la siguiente función
+    next();
+    
+  } catch (error) {
+    console.error('❌ Error en middleware de verificación de bloqueo:', error);
+    res.status(500).json({ 
+      error: 'ERROR_SERVIDOR', 
+      message: 'Error interno del servidor' 
+    });
+  }
+};
+
+module.exports = verificarUsuarioBloqueado;
+
+// ========== ACTUALIZACIÓN PARA auth.js ==========
+// Agregar estas rutas protegidas en auth.js
+
+// Endpoint para verificar sesión activa y estado de bloqueo
+router.get("/verify-session", verificarUsuarioBloqueado, async (req, res) => {
+  try {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ 
+        error: 'NO_SESSION', 
+        message: 'No hay sesión activa' 
+      });
+    }
+    
+    const user = req.session.user;
+    
+    res.status(200).json({
+      valid: true,
+      usuario: {
+        username: user.username,
+        alias: user.alias,
+        tipo: user.tipo,
+        bloqueado: user.bloqueado || false,
+        enlazadoAAdmin: user.enlazadoAAdmin || false
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error al verificar sesión:', error);
+    res.status(500).json({ 
+      error: 'ERROR_SERVIDOR', 
+      message: 'Error interno del servidor' 
+    });
+  }
+});
+
+// Endpoint específico para verificar solo el estado de bloqueo
+router.get("/check-block-status/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    console.log('🔍 Verificando estado de bloqueo para:', username);
+    
+    const user = await User.findOne({ username });
+    
+    if (!user) {
+      return res.status(404).json({ 
+        error: 'USUARIO_NO_ENCONTRADO', 
+        message: 'Usuario no encontrado' 
+      });
+    }
+    
+    const isBlocked = user.bloqueado === true;
+    
+    console.log(`📊 Estado de ${username}: ${isBlocked ? 'BLOQUEADO' : 'ACTIVO'}`);
+    
+    if (isBlocked) {
+      return res.status(403).json({ 
+        error: 'CUENTA_BLOQUEADA',
+        message: 'Cuenta suspendida',
+        username: username,
+        blocked: true
+      });
+    }
+    
+    res.status(200).json({ 
+      username: username,
+      blocked: false,
+      status: 'active'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error al verificar estado de bloqueo:', error);
+    res.status(500).json({ 
+      error: 'ERROR_SERVIDOR', 
+      message: 'Error interno del servidor' 
+    });
+  }
+});
 
 
 router.post("/register", async (req, res) => {
@@ -280,7 +410,19 @@ router.get("/get-alias", async (req, res) => {
 
     console.log("✅ Usuario encontrado:", user.username, "- Bloqueado:", user.bloqueado);
     
-    // Incluir información completa del usuario incluyendo estado de bloqueo y enlace
+    // ⚠️ VERIFICACIÓN CRÍTICA: Si el usuario está bloqueado
+    if (user.bloqueado === true) {
+      console.log("🚫 Usuario bloqueado detectado:", usuario);
+      
+      return res.status(403).json({ 
+        error: "CUENTA_BLOQUEADA",
+        message: "Su cuenta ha sido suspendida. Contacte al administrador.",
+        username: usuario,
+        blocked: true
+      });
+    }
+    
+    // Incluir información completa del usuario
     res.status(200).json({ 
       alias: user.alias,
       username: user.username,
