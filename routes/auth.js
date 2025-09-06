@@ -2,6 +2,35 @@ const express = require("express");
 const router = express.Router();
 const User = require('../models/User')
 
+// Función para verificar si un usuario está efectivamente bloqueado (incluyendo cadena de administradores)
+async function isEffectivelyBlocked(user) {
+  if (user.bloqueado === true) {
+    return true;
+  }
+
+  // Si no es dependiente, no verificar más
+  if (user.tipo !== 2 && !(user.tipo === 1 && user.enlazadoAAdmin === true)) {
+    return false;
+  }
+
+  // Si no tiene admin asignado (aunque debería), considerar bloqueado por seguridad
+  if (!user.aliasAdmin) {
+    console.log(`⚠️ Usuario dependiente sin aliasAdmin: ${user.username}`);
+    return true;
+  }
+
+  // Buscar el admin padre
+  const admin = await User.findOne({ alias: user.aliasAdmin });
+
+  if (!admin) {
+    console.log(`❌ Admin padre no encontrado para: ${user.username} (aliasAdmin: ${user.aliasAdmin})`);
+    return true; // Bloquear si el padre no existe
+  }
+
+  // Verificar recursivamente el padre
+  return await isEffectivelyBlocked(admin);
+}
+
 // Middleware para verificar usuario bloqueado
 const verificarUsuarioBloqueado = async (req, res, next) => {
   try {
@@ -20,9 +49,10 @@ const verificarUsuarioBloqueado = async (req, res, next) => {
         });
       }
       
-      // Verificar si está bloqueado
-      if (usuario.bloqueado === true) {
-        console.log('🚫 Usuario bloqueado intentando acceder:', usuario.username);
+      // Verificar si está efectivamente bloqueado (propio o por cadena)
+      const blocked = await isEffectivelyBlocked(usuario);
+      if (blocked) {
+        console.log('🚫 Usuario efectivamente bloqueado intentando acceder:', usuario.username);
         
         // Destruir la sesión
         req.session.destroy(() => {
@@ -51,8 +81,6 @@ const verificarUsuarioBloqueado = async (req, res, next) => {
     });
   }
 };
-
-module.exports = verificarUsuarioBloqueado;
 
 // ========== ACTUALIZACIÓN PARA auth.js ==========
 // Agregar estas rutas protegidas en auth.js
@@ -105,9 +133,9 @@ router.get("/check-block-status/:username", async (req, res) => {
       });
     }
     
-    const isBlocked = user.bloqueado === true;
+    const isBlocked = await isEffectivelyBlocked(user);
     
-    console.log(`📊 Estado de ${username}: ${isBlocked ? 'BLOQUEADO' : 'ACTIVO'}`);
+    console.log(`📊 Estado efectivo de ${username}: ${isBlocked ? 'BLOQUEADO' : 'ACTIVO'}`);
     
     if (isBlocked) {
       return res.status(403).json({ 
@@ -240,9 +268,10 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "CREDENCIALES_INVALIDAS", message: "Credenciales inválidas" });
     }
 
-    // 🚫 VERIFICACIÓN CRÍTICA: Comprobar si el usuario está bloqueado
-    if (user.bloqueado === true) {
-      console.log("🚫 Usuario bloqueado intentando iniciar sesión:", username);
+    // 🚫 VERIFICACIÓN CRÍTICA: Comprobar si el usuario está efectivamente bloqueado
+    const blocked = await isEffectivelyBlocked(user);
+    if (blocked) {
+      console.log("🚫 Usuario efectivamente bloqueado intentando iniciar sesión:", username);
       
       return res.status(403).json({ 
         error: "CUENTA_BLOQUEADA",
@@ -408,11 +437,12 @@ router.get("/get-alias", async (req, res) => {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    console.log("✅ Usuario encontrado:", user.username, "- Bloqueado:", user.bloqueado);
+    console.log("✅ Usuario encontrado:", user.username, "- Bloqueado propio:", user.bloqueado);
     
-    // ⚠️ VERIFICACIÓN CRÍTICA: Si el usuario está bloqueado
-    if (user.bloqueado === true) {
-      console.log("🚫 Usuario bloqueado detectado:", usuario);
+    // ⚠️ VERIFICACIÓN CRÍTICA: Verificar bloqueo efectivo
+    const blocked = await isEffectivelyBlocked(user);
+    if (blocked) {
+      console.log("🚫 Usuario efectivamente bloqueado detectado:", usuario);
       
       return res.status(403).json({ 
         error: "CUENTA_BLOQUEADA",
@@ -510,84 +540,25 @@ router.put("/update-user/:id", async (req, res) => {
   }
 });
 
-// Función recursiva para bloquear dependientes
-async function bloquearDependientes(adminAlias) {
-  try {
-    // Encontrar todos los dependientes directos (subusuarios y admins enlazados)
-    const dependientes = await User.find({ 
-      aliasAdmin: adminAlias,
-      bloqueado: { $ne: true }  // Solo bloquear si no están ya bloqueados
-    });
-
-    console.log(`🔍 Encontrados ${dependientes.length} dependientes directos para ${adminAlias}`);
-
-    for (const dependiente of dependientes) {
-      console.log(`🚫 Bloqueando dependiente: ${dependiente.username} (tipo: ${dependiente.tipo})`);
-      
-      // Actualizar el dependiente a bloqueado
-      await User.findByIdAndUpdate(
-        dependiente._id,
-        { bloqueado: true },
-        { new: true }
-      );
-
-      // Si el dependiente es un admin (tipo 1), bloquear recursivamente sus dependientes
-      if (dependiente.tipo === 1) {
-        await bloquearDependientes(dependiente.alias);
-      }
-    }
-
-    return dependientes.length;
-  } catch (error) {
-    console.error("❌ Error al bloquear dependientes:", error);
-    throw error;
-  }
-}
-
 // Bloquear usuario
 router.put("/block-user/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log("🚫 Iniciando bloqueo de usuario:", id);
+    console.log("🚫 Bloqueando usuario:", id);
     
-    const user = await User.findById(id);
-    
-    if (!user) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
-    }
-
-    // Si ya está bloqueado, no hacer nada más
-    if (user.bloqueado === true) {
-      console.log("⚠️ Usuario ya estaba bloqueado:", user.username);
-      return res.status(200).json({ 
-        message: "Usuario ya estaba bloqueado", 
-        user 
-      });
-    }
-
-    // Bloquear el usuario principal
-    const updatedUser = await User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
       id,
       { bloqueado: true },
       { new: true }
     );
-
-    console.log("✅ Usuario principal bloqueado:", updatedUser.username);
-
-    let dependientesBloqueados = 0;
-
-    // Si es un admin (tipo 1), bloquear sus dependientes recursivamente
-    if (user.tipo === 1) {
-      dependientesBloqueados = await bloquearDependientes(user.alias);
-      console.log(`✅ Total dependientes bloqueados: ${dependientesBloqueados}`);
+    
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
     }
-
-    res.status(200).json({ 
-      message: "Usuario y dependientes bloqueados correctamente", 
-      user: updatedUser,
-      dependientesBloqueados 
-    });
+    
+    console.log("✅ Usuario bloqueado:", user.username);
+    res.status(200).json({ message: "Usuario bloqueado correctamente", user });
     
   } catch (error) {
     console.error("❌ Error al bloquear usuario:", error);
