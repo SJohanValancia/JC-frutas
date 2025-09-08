@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Iniciar Sesión</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="login.js"></script>
+  <script src="jc-loader.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+  <div class="container-account">
+    <h2>Iniciar sesión</h2>
+    <form id="loginForm">
+      <input type="text" id="loginUsername" placeholder="Usuario" required>
+      <input type="password" id="loginPassword" placeholder="Contraseña" required>
+      <button type="submit">Entrar</button>
+    </form>
+
+        <p>¿Quieres cambiar tu contraseña? <a href="change-password.html">Cambiala aqui</a></p>
+
+
+  </div>
+
+  <script>
+    // Limpiar localStorage y sessionStorage cuando se carga la página de login (index.html)
+    document.addEventListener("DOMContentLoaded", () => {
+      localStorage.clear();  // Limpia localStorage
+      sessionStorage.clear();  // Limpia sessionStorage
+    });
+  </script>
+</body>
+<script type="module" src="login.js"></script>
+</html>

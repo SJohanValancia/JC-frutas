@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="jc-loader.js"></script>
+    <script src="blockCheck.js"></script>
+
+  <title>Recogida</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .calculadora {
+      margin-top: 40px;
+      width: 100%;
+      max-width: 400px;
+      border-radius: 20px;
+      padding: 20px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .calculadora input, .calculadora select {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .calculadora .teclado {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    /* Estilo moderno para select tipo glass */
+select {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 30px; /* Muy redondeado */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px); /* Efecto glass */
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  font-size: 14px; /* Más compacto */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Flecha personalizada */
+select::after {
+  content: "▼";
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: white;
+  font-size: 12px;
+}
+
+/* Hover y focus */
+select:hover,
+select:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #4CAF50;
+  outline: none;
+  transform: scale(1.02);
+}
+
+/* Opciones dentro del select */
+select option {
+  background: rgba(44, 44, 44, 0.95);
+  color: white;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+/* Animación suave al abrir el select */
+select:focus option {
+  background: rgba(58, 58, 58, 0.95);
+}
+
+
+    .calculadora .teclado button {
+      font-size: 20px;
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+    }
+
+    .calculadora .resumen {
+      margin-top: 20px;
+      text-align: left;
+    }
+
+    .calculadora .resumen span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text-secondary);
+    }
+
+    .borrarBtn {
+      background-color: #ff3b30;
+      border-color: #ff3b30;
+      color: white;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Estilos para campos de precio */
+    .precio-field {
+      margin-bottom: 15px;
+    }
+
+    .precio-field label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text-secondary);
+    }
+
+    .volver-btn {
+
+      top: -20px;
+      position: absolute;
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: white;
+  border: none;
+  padding: 15px 25px;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  width: 10%;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.guardar{
+
+  padding: 30px;
+
+}
+
+
+  </style>
+</head>
+<body>
+
+    <button class="volver-btn" onclick="window.history.back()">← Volver</button>
+
+
+  <div class="container">
+    <h2>Registro de Recogida</h2>
+
+    <input id="fecha" type="date" disabled />
+    <input id="propietario" type="text" placeholder="Propietario" disabled />
+    <input id="finca" type="text" placeholder="Finca" disabled />
+
+    <select id="frutaSelect">
+      <option value="">Selecciona una fruta</option>
+    </select>
+
+    <select id="calidadSelect">
+      <option value="primera">Primera</option>
+      <option value="segunda">Segunda</option>
+      <option value="tercera">Tercera</option>
+
+    </select>
+
+
+    <button class="guardar" id="guardarRecogida">Guardar Recogida</button>
+
+
+    <!-- Calculadora -->
+    <div class="calculadora">
+      <h3 style="margin-bottom: 10px;">Calculadora de Pesas</h3>
+      <input type="text" id="inputPeso" placeholder="Kilos actuales" readonly />
+      <div class="teclado">
+        <button onclick="escribirNumero('1')">1</button>
+        <button onclick="escribirNumero('2')">2</button>
+        <button onclick="escribirNumero('3')">3</button>
+        <button onclick="sumarPesa()">+</button>
+
+        <button onclick="escribirNumero('4')">4</button>
+        <button onclick="escribirNumero('5')">5</button>
+        <button onclick="escribirNumero('6')">6</button>
+        <button onclick="borrarNumero()">←</button>
+
+        <button onclick="escribirNumero('7')">7</button>
+        <button onclick="escribirNumero('8')">8</button>
+        <button onclick="escribirNumero('9')">9</button>
+        <button onclick="limpiarTodo()" class="borrarBtn">C</button>
+
+        <button onclick="escribirNumero('0')">0</button>
+        <button id="enviarReciboBtn" style="grid-column: span 3; background-color: #4CAF50; color: white;">
+          📤 Enviar Recibo
+        </button>
+      </div>
+
+      <div class="resumen">
+        <span>Ultima pesa: <strong id="ultimaPesa">0</strong></span>
+        <span>Total kilos: <strong id="totalKilos">0</strong></span>
+        
+        <!-- Campo de precio por kilo con etiqueta -->
+        <div class="precio-field">
+          <label for="precioPorKilo">Precio por Kilo</label>
+          <input type="number" id="precioPorKilo" placeholder="Precio por kilo" />
+        </div>
+        
+        <!-- Valor total - se ocultará para subusuarios -->
+        <span id="valorTotalContainer">Valor total: <strong id="valorTotal">$0</strong></span>
+        
+        <ul id="listaPesas" style="margin-top: 10px;"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script type="module" src="recogida.js"></script>
+  <script src="calculadora.js"></script>
+</body>
+</html>

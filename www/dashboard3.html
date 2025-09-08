@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Administrador - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            padding-bottom: 30px; /* Espacio extra al final */
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: white;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
+            margin-bottom: 10px;
+            margin-top: 30px; /* Espacio para el botón de logout */
+        }
+
+        .header p {
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .header-buttons {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .header-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .header-btn.logout-btn:hover {
+            background: #ff3838;
+            transform: translateY(-2px);
+        }
+
+        .header-btn.register-btn {
+            background: #2ed573;
+        }
+
+        .header-btn.register-btn:hover {
+            background: #26d061;
+            transform: translateY(-2px);
+        }
+
+        .search-container {
+            position: relative;
+            max-width: 100%;
+            margin: 20px 0 0 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: none;
+            border-radius: 20px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            color: #666;
+            transition: color 0.3s ease;
+        }
+
+        .search-clear:hover {
+            color: #ff4757;
+        }
+
+        .users-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        /* Para pantallas más grandes que móvil */
+        @media (min-width: 768px) {
+            .users-grid {
+                grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+                gap: 20px;
+            }
+            
+            .container {
+                padding: 0 20px;
+            }
+            
+            body {
+                padding: 20px;
+            }
+        }
+
+        .user-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 5px;
+        }
+
+        .user-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .user-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f1f1f1;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .user-info {
+            flex-grow: 1;
+            min-width: 0; /* Para permitir que el texto se corte */
+        }
+
+        .user-info h3 {
+            color: #333;
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+            word-break: break-word; /* Para nombres largos */
+        }
+
+        .user-type {
+            background: #3742fa;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .user-details {
+            margin: 15px 0;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .detail-value {
+            color: #333;
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-align: right;
+            word-break: break-all;
+        }
+
+        .editable {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+            border-radius: 5px;
+            min-width: 120px;
+            max-width: 180px;
+            text-align: right;
+            font-size: 0.9rem;
+        }
+
+        .password-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            min-width: 120px;
+            max-width: 180px;
+        }
+
+        .password-input {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 6px 30px 6px 10px;
+            border-radius: 5px;
+            width: 100%;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 6px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #666;
+            transition: color 0.3s ease;
+        }
+
+        .password-toggle:hover {
+            color: #339af0;
+        }
+
+        .user-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .action-btn {
+            padding: 10px 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            text-align: center;
+        }
+
+        .btn-block {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-block:hover {
+            background: #ff5252;
+            transform: translateY(-1px);
+        }
+
+        .btn-unblock {
+            background: #51cf66;
+            color: white;
+        }
+
+        .btn-unblock:hover {
+            background: #40c057;
+            transform: translateY(-1px);
+        }
+
+        .btn-inspect {
+            background: #339af0;
+            color: white;
+        }
+
+        .btn-inspect:hover {
+            background: #228be6;
+            transform: translateY(-1px);
+        }
+
+        .btn-save {
+            background: #20c997;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+            padding: 12px;
+            grid-column: 1 / -1;
+            font-size: 0.9rem;
+        }
+
+        .btn-save:hover {
+            background: #17a085;
+            transform: translateY(-1px);
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.1rem;
+            margin-top: 40px;
+            padding: 20px;
+        }
+
+        .status-blocked {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .status-active {
+            color: #51cf66;
+            font-weight: bold;
+        }
+
+        .no-users, .no-results {
+            text-align: center;
+            color: white;
+            font-size: 1.1rem;
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-card.hidden {
+            display: none;
+        }
+
+        /* Ajustes específicos para iPhone 12 Pro (390px width) */
+        @media (max-width: 414px) {
+            body {
+                padding: 8px;
+            }
+            
+            .header {
+                padding: 15px 12px;
+                margin-bottom: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+                margin-top: 35px;
+            }
+            
+            .user-card {
+                padding: 15px;
+            }
+            
+            .user-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+            
+            .user-info h3 {
+                font-size: 1.1rem;
+            }
+            
+            .detail-row {
+                margin-bottom: 8px;
+                gap: 8px;
+            }
+            
+            .detail-label, .detail-value {
+                font-size: 0.85rem;
+            }
+            
+            .editable, .password-container {
+                min-width: 100px;
+                max-width: 150px;
+            }
+            
+            .password-input {
+                padding: 5px 25px 5px 8px;
+                font-size: 0.85rem;
+            }
+            
+            .action-btn {
+                padding: 8px 6px;
+                font-size: 0.7rem;
+            }
+            
+            .search-input {
+                padding: 10px 35px 10px 12px;
+                font-size: 0.95rem;
+            }
+        }
+
+        /* Para pantallas muy pequeñas */
+        @media (max-width: 360px) {
+            .user-actions {
+                grid-template-columns: 1fr;
+                gap: 6px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .detail-value, .editable, .password-container {
+                width: 100%;
+                max-width: none;
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-buttons">
+                <a href="register.html" class="header-btn register-btn" id="registerBtn" style="display: none;">Registrar</a>
+                <button class="header-btn logout-btn" onclick="logout()">Cerrar Sesión</button>
+            </div>
+            <h1>🛡️ Super Administrador</h1>
+            <p id="welcomeMessage">Bienvenido</p>
+            
+            <!-- Buscador de usuarios -->
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar por nombre de usuario..." class="search-input">
+                <button class="search-clear" onclick="clearSearch()">✖️</button>
+            </div>
+        </div>
+
+        <div id="loadingMessage" class="loading">
+            🔄 Cargando usuarios...
+        </div>
+
+        <div id="usersContainer" class="users-grid" style="display: none;">
+            <!-- Las tarjetas de usuarios se generarán aquí -->
+        </div>
+
+        <div id="noResultsMessage" class="no-results" style="display: none;">
+            🔍 No se encontraron usuarios con ese nombre
+        </div>
+
+        <div id="noUsersMessage" class="no-users" style="display: none;">
+            📭 No se encontraron usuarios administradores
+        </div>
+    </div>
+
+    <script type="module" src="dashboard3.js"></script>
+</body>
+</html>

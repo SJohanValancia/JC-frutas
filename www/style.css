@@ -1,0 +1,874 @@
+/* Variables CSS para consistencia */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: rgba(0, 0, 0, 0.1);
+  --accent-primary: #5e646b;
+  --accent-secondary: #254352;
+  --accent-success: #34C759;
+  --accent-warning: #FF9F0A;
+  --accent-danger: #FF3B30;
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+}
+
+/* Reset y configuración base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  background: radial-gradient(circle at 30% 20%, #1a1a2e 0%, #16213e 35%, #0f0f3a 100%);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  overflow-x: hidden;
+}
+
+.editarGlobalBtn{
+
+  display: none;
+
+}
+
+/* Animaciones base */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 122, 255, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(0, 122, 255, 0.6); }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(30px) scale(0.9);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes liquidRipple {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 0.4; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+/* Contenedor principal */
+.container {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0) 0%, 
+    rgba(255, 255, 255, 0) 50%, 
+    rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 8px 16px rgba(39, 38, 38, 0.514),
+    inset 0 1px 0 rgba(0, 0, 0, 0);
+  padding: 40px;
+  text-align: center;
+  animation: slideIn 0.8s ease-out;
+  position: relative;
+  max-width: 500px;
+  width: 100%;
+
+  /* ✅ añadido: altura máxima y scroll interno */
+  max-height: 90vh;   /* el contenedor no será más alto que el viewport */
+  overflow-y: auto;
+  overflow-x: hidden;   /* activa scroll vertical interno */
+}
+
+.container-account {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 50%, 
+    rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 8px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(0, 0, 0, 0);
+  padding: 40px;
+  text-align: center;
+  animation: slideIn 0.8s ease-out;
+  position: relative;
+  max-width: 500px;
+  width: 100%;
+height: 400px;
+
+}
+
+#buscarFinca {
+  margin-top: 12px;
+  margin-bottom: 20px;
+}
+
+#buscarFinca::placeholder {
+  color: var(--text-tertiary);
+}
+
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(0, 0, 0, 0.1) 0deg,
+    rgba(0, 0, 0, 0) 120deg,
+    rgba(0, 0, 0, 0.1) 240deg,
+    rgba(0, 0, 0, 0.1) 360deg
+  );
+  animation: float 20s linear infinite;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* Títulos */
+h1, h2, h3 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 2rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+/* Eliminar la barra de desplazamiento tradicional */
+::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  overflow: hidden; /* Asegura que no aparezca ninguna barra de desplazamiento tradicional */
+}
+
+/* Barra de desplazamiento personalizada */
+::-webkit-scrollbar {
+  width: 8px; /* Ancho de la barra de desplazamiento */
+  height: 8px; /* Altura de la barra en el eje horizontal (si es necesario) */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3); /* Color del "dedo" de la barra */
+  border-radius: 12px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.6); /* Hover del dedo de la barra */
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1); /* Fondo de la barra de desplazamiento */
+  border-radius: 12px;
+}
+
+.hidden {
+  display: none;
+}
+
+
+/* Inputs mejorados */
+input, select {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin: 8px 0;
+  width: 100%;
+  font-size: 16px; /* Previene zoom en iOS */
+  color: var(--text-primary);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  outline: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input::placeholder, select option {
+  color: var(--text-tertiary);
+}
+
+input:focus, select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 
+    0 0 0 4px rgba(0, 122, 255, 0.2),
+    0 8px 16px rgba(0, 122, 255, 0.1);
+  transform: scale(1.02);
+}
+
+input:hover, select:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Botones líquidos */
+button {
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  border: none;
+  border-radius: 20px;
+  padding: 16px 32px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  margin: 8px;
+  box-shadow: 
+    0 8px 20px rgba(0, 122, 255, 0.3),
+    0 4px 8px rgba(0, 122, 255, 0.2);
+  text-transform: none;
+  letter-spacing: 0.025em;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transition: all 0.6s ease;
+  transform: translate(-50%, -50%);
+}
+
+button:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+button:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 
+    0 12px 30px rgba(0, 122, 255, 0.4),
+    0 6px 12px rgba(0, 122, 255, 0.3);
+}
+
+button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Botón de agregar especial */
+#btnAgregarFinca {
+  background: linear-gradient(135deg, var(--accent-success) 0%, #30D158 100%);
+  font-size: 18px;
+  padding: 20px 40px;
+  border-radius: 24px;
+  margin-bottom: 32px;
+  position: relative;
+  overflow: visible;
+}
+
+#btnAgregarFinca::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, transparent, rgba(52, 199, 89, 0.4), transparent);
+  border-radius: 26px;
+  z-index: -1;
+  animation: shimmer 2s infinite;
+}
+
+/* Modal mejorado */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: slideIn 0.4s ease-out;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.15) 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 28px;
+  padding: 40px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.3),
+    0 12px 24px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: slideIn 0.5s ease-out 0.1s both;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 3s infinite;
+}
+
+/* Tarjetas de cristal líquido */
+.card-glass {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.12) 0%, 
+    rgba(255, 255, 255, 0.08) 50%, 
+    rgba(255, 255, 255, 0.04) 100%);
+  backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 24px;
+  margin: 16px 0;
+  text-align: left;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.card-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.card-glass:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 16px 48px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.card-glass strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.card-glass small {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+/* Lista de fincas */
+#listaFincas {
+  overflow-y: visible; 
+  padding-right: 0; 
+}
+
+
+#listaFincas::-webkit-scrollbar {
+  width: 6px;
+}
+
+#listaFincas::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+#listaFincas::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+}
+
+#listaFincas::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Tarjetas de frutas */
+.fruta-card {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  margin: 16px 0;
+  transition: all 0.3s ease;
+  position: relative;
+  
+}
+
+.fruta-card::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.fruta-card:hover::after {
+  opacity: 1;
+}
+
+.fruta-card:hover {
+  border-color: rgba(0, 122, 255, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 122, 255, 0.2);
+}
+
+/* Precios por calidad */
+.precios-por-calidad {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.precios-por-calidad label {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  gap: 8px;
+}
+
+.precios-por-calidad input {
+  margin: 0;
+  padding: 12px;
+  font-size: 14px;
+  border-radius: 12px;
+}
+
+/* Botones de acción en tarjetas */
+.fruta-card button {
+  padding: 10px 16px;
+  font-size: 14px;
+  border-radius: 12px;
+  margin: 4px;
+}
+
+.editarBtn {
+  background: linear-gradient(135deg, var(--accent-warning) 0%, #FFB340 100%);
+}
+
+.eliminarBtn {
+  background: linear-gradient(135deg, var(--accent-danger) 0%, #FF6B6B 100%);
+}
+
+/* Estado oculto */
+.hidden {
+  display: none !important;
+}
+
+/* Links */
+a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--accent-secondary);
+  text-shadow: 0 0 10px rgba(0, 122, 255, 0.5);
+}
+
+/* Contenedor de frutas */
+
+
+/* Efectos especiales para inputs deshabilitados */
+input:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+/* Responsividad para iPhone 12 Pro y dispositivos similares */
+@media (max-width: 428px) {
+  body {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 60px; /* Espacio para status bar */
+  }
+  
+  .container {
+    padding: 20px;
+    margin: 0;
+    max-width: 100%;
+    width: 100%;
+    border-radius: 20px;
+    min-height: calc(100vh - 120px);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .modal {
+    padding: 20px;
+  }
+  
+  .modal-content {
+    padding: 24px;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px;
+  }
+  
+  .precios-por-calidad {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  h1 {
+    font-size: 1.75rem;
+    margin-bottom: 16px;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+  }
+  
+  h3 {
+    font-size: 1.25rem;
+    margin-bottom: 16px;
+  }
+  
+  button {
+    padding: 16px 24px;
+    font-size: 16px;
+    border-radius: 16px;
+    margin: 6px 0;
+    min-height: 48px; /* Tamaño mínimo para toque */
+  }
+  
+  #btnAgregarFinca {
+    padding: 18px 32px;
+    font-size: 17px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+  }
+  
+  input, select {
+    padding: 16px 18px;
+    font-size: 16px;
+    border-radius: 14px;
+    margin: 6px 0;
+    min-height: 48px;
+  }
+  
+  .card-glass {
+    padding: 20px;
+    margin: 12px 0;
+    border-radius: 16px;
+  }
+  
+  .fruta-card {
+    padding: 16px;
+    margin: 12px 0;
+    border-radius: 14px;
+  }
+  
+  .fruta-card button {
+    padding: 12px 16px;
+    font-size: 15px;
+    border-radius: 12px;
+    margin: 4px 2px;
+    min-height: 44px;
+  }
+  
+  #listaFincas {
+    max-height: 300px;
+    flex-grow: 1;
+  }
+  
+  #frutasContainer {
+    max-height: 400px;
+  }
+  
+  .precios-por-calidad label {
+    font-size: 13px;
+  }
+  
+  .precios-por-calidad input {
+    padding: 12px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+}
+
+/* Responsividad para tablets y pantallas medianas */
+@media (min-width: 429px) and (max-width: 768px) {
+  body {
+    padding: 24px;
+  }
+  
+  .container {
+    padding: 32px;
+    margin: 0;
+    max-width: 600px;
+  }
+  
+  .modal-content {
+    padding: 32px;
+    margin: 20px;
+    max-width: 450px;
+  }
+  
+  .precios-por-calidad {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  h1 {
+    font-size: 2.25rem;
+  }
+  
+  h2 {
+    font-size: 1.75rem;
+  }
+  
+  button {
+    padding: 15px 28px;
+    font-size: 15px;
+  }
+}
+
+/* Orientación landscape para móviles */
+@media (max-width: 768px) and (orientation: landscape) {
+  body {
+    padding: 12px;
+    padding-top: 40px;
+  }
+  
+  .container {
+    padding: 16px;
+    min-height: calc(100vh - 80px);
+  }
+  
+  .modal-content {
+    padding: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  #listaFincas {
+    max-height: 200px;
+  }
+  
+  #frutasContainer {
+    max-height: 250px;
+  }
+  
+  .precios-por-calidad {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+}
+
+/* Optimizaciones para pantallas de alta densidad (Retina) */
+@media (-webkit-min-device-pixel-ratio: 2) {
+  .container::before,
+  .modal-content::before,
+  .card-glass::before {
+    will-change: transform;
+  }
+  
+  button::before {
+    will-change: width, height;
+  }
+}
+
+/* Modo oscuro mejorado para iOS */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --text-primary: rgba(255, 255, 255, 0.98);
+    --text-secondary: rgba(255, 255, 255, 0.75);
+    --text-tertiary: rgba(255, 255, 255, 0.55);
+  }
+  
+  body {
+    background: radial-gradient(circle at 30% 20%, #0a0a0a 0%, #1a1a1a 35%, #000000 100%);
+  }
+}
+
+/* Soporte para safe areas en iPhone */
+@supports (padding: max(0px)) {
+  body {
+    padding-top: max(60px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Animaciones adicionales */
+.card-glass {
+  animation: slideIn 0.6s ease-out;
+}
+
+.fruta-card {
+  animation: slideIn 0.8s ease-out;
+}
+
+/* Efecto de carga */
+.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+#btnVolverDashboard {
+  background: #3498db5b;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+#btnVolverDashboard:hover {
+  background: #2980b9;
+}
+/* Vista optimizada para pantallas grandes (PC/escritorio) */
+@media (min-width: 1024px) {
+body {
+  padding: 40px;
+  justify-content: center;   /* ✅ centrado horizontal */
+  align-items: flex-start;   /* mantiene la parte superior */
+}
+
+
+  .container {
+    max-width: 1000px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 48px;
+    border-radius: 32px;
+  }
+
+  .card-glass {
+    font-size: 18px;
+    padding: 32px;
+    margin: 20px 0;
+  }
+
+  .fruta-card {
+    padding: 28px;
+    margin: 20px 0;
+    font-size: 17px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .precios-por-calidad {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  input, select {
+    font-size: 18px;
+    padding: 18px 24px;
+  }
+
+  button {
+    font-size: 18px;
+    padding: 18px 36px;
+    border-radius: 20px;
+  }
+
+  #frutasContainer {
+    max-height: none;
+  }
+
+  #listaFincas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+}
+

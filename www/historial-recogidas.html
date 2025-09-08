@@ -1,0 +1,2199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Historial de Recogidas</title>
+  <script src="jc-loader.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="blockCheck.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #ffffff;
+            --secondary-color: #ff6b6b;
+            --success-color: #4ecdc4;
+            --warning-color: #ffe66d;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2b2b2b 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 15px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 0 10px;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        /* Estilo moderno para select tipo glass */
+select {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 30px; /* Muy redondeado */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px); /* Efecto glass */
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  font-size: 14px; /* Más compacto */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Flecha personalizada */
+select::after {
+  content: "▼";
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: white;
+  font-size: 12px;
+}
+
+/* Hover y focus */
+select:hover,
+select:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #4CAF50;
+  outline: none;
+  transform: scale(1.02);
+}
+
+/* Opciones dentro del select */
+select option {
+  background: rgba(44, 44, 44, 0.95);
+  color: white;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+/* Animación suave al abrir el select */
+select:focus option {
+  background: rgba(58, 58, 58, 0.95);
+}
+
+
+        .filters-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-input, .filter-select {
+            padding: 14px 16px;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            font-size: 1em;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            min-height: 48px;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .filter-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .date-range {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            position: relative;
+        }
+
+        .date-info {
+            position: absolute;
+            top: -25px;
+            right: 0;
+            font-size: 0.75em;
+            color: var(--success-color);
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .date-info.active {
+            opacity: 1;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.9em;
+            min-height: 48px;
+            min-width: 120px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary-color), #0099cc);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, var(--secondary-color), #cc5555);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-value {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .recogidas-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+        }
+
+        .recogida-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .recogida-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 20px 20px 0 0;
+        }
+
+        .recogida-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 15px;
+        }
+
+        .finca-info h3 {
+            font-size: 1.4em;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .finca-info p {
+            color: var(--text-secondary);
+            font-size: 1em;
+            line-height: 1.4;
+        }
+
+        .fecha-badge {
+            background: linear-gradient(45deg, var(--success-color), #45b7aa);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .card-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .info-item:hover {
+            background: rgba(0, 0, 0, 0.3);
+            transform: scale(1.05);
+        }
+
+        .info-icon {
+            font-size: 1.6em;
+            margin-bottom: 10px;
+        }
+
+        .info-label {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .info-value {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* ESTILOS PARA MÚLTIPLES FRUTAS Y CALIDADES */
+        .frutas-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .fruta-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+            white-space: nowrap;
+        }
+
+        .calidades-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .calidad-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .calidad-primera {
+            background: linear-gradient(45deg, var(--success-color), #45b7aa);
+            color: white;
+        }
+
+        .calidad-segunda {
+            background: linear-gradient(45deg, var(--warning-color), #e6cc00);
+            color: #333;
+        }
+
+        .calidad-extra {
+            background: linear-gradient(45deg, var(--secondary-color), #cc5555);
+            color: white;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .usuario-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .usuario-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1em;
+        }
+
+        .usuario-name {
+            font-size: 0.95em;
+            font-weight: 600;
+        }
+
+        .pesas-summary {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 18px;
+            margin-top: 15px;
+        }
+
+        .pesas-title {
+            font-size: 0.95em;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .pesas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .pesa-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            font-size: 0.85em;
+            border-left: 3px solid var(--success-color);
+        }
+
+        .pesa-fruta {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 4px;
+        }
+
+        .pesa-kilos {
+            font-size: 1.1em;
+            font-weight: 700;
+            margin: 6px 0;
+        }
+
+        .pesa-calidad {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+            color: var(--text-secondary);
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 50px;
+            color: var(--text-secondary);
+            font-size: 1.1em;
+        }
+
+        .volver-btn {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .volver-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+        }
+
+        .editar-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+            font-size: 0.85em;
+            min-width: 80px;
+        }
+
+        .editar-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+            background: linear-gradient(135deg, #218838, #1e7e34);
+        }
+
+        .editar-btn:active {
+            transform: translateY(0);
+        }
+
+        /* INDICADOR DE RECOGIDA MÚLTIPLE */
+        .multiple-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        }
+
+        /* OPTIMIZACIÓN MÓVIL */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 16px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+                margin-bottom: 12px;
+            }
+
+            .header p {
+                font-size: 1em;
+            }
+
+            .filters-container {
+                padding: 20px;
+                margin-bottom: 25px;
+            }
+
+            .filters-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+                margin-bottom: 25px;
+            }
+
+            .stat-card {
+                padding: 20px;
+            }
+
+            .stat-value {
+                font-size: 1.8em;
+            }
+
+            .recogidas-container {
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+                margin: 0 -2px;
+            }
+
+            .recogida-card {
+                padding: 18px;
+                border-radius: 16px;
+            }
+
+            .card-header {
+                margin-bottom: 16px;
+                padding-bottom: 12px;
+            }
+
+            .finca-info h3 {
+                font-size: 1.1em;
+                margin-bottom: 6px;
+            }
+
+            .finca-info p {
+                font-size: 0.85em;
+            }
+
+            .fecha-badge {
+                padding: 6px 12px;
+                font-size: 0.75em;
+            }
+
+            .card-body {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .info-item {
+                padding: 12px;
+            }
+
+            .info-icon {
+                font-size: 1.3em;
+                margin-bottom: 8px;
+            }
+
+            .info-label {
+                font-size: 0.75em;
+                margin-bottom: 6px;
+            }
+
+            .info-value {
+                font-size: 1em;
+            }
+
+            .frutas-container, .calidades-container {
+                gap: 4px;
+            }
+
+            .fruta-badge, .calidad-badge {
+                font-size: 0.7em;
+                padding: 3px 8px;
+            }
+
+            .usuario-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 0.85em;
+            }
+
+            .usuario-name {
+                font-size: 0.85em;
+            }
+
+            .pesas-summary {
+                padding: 14px;
+                margin-top: 12px;
+            }
+
+            .pesas-title {
+                font-size: 0.8em;
+                margin-bottom: 10px;
+            }
+
+            .pesas-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+                gap: 8px;
+            }
+
+            .pesa-item {
+                padding: 10px;
+                font-size: 0.8em;
+            }
+
+            .filter-actions {
+                flex-direction: column;
+                margin-top: 20px;
+            }
+
+            .btn {
+                width: 100%;
+                padding: 16px;
+                font-size: 0.95em;
+            }
+
+            .card-footer {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch !important;
+            }
+            
+            .editar-btn {
+                width: 100%;
+                padding: 12px;
+                font-size: 0.9em;
+            }
+            
+            .card-footer > div:last-child {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .multiple-badge {
+                top: 8px;
+                right: 8px;
+                font-size: 0.7em;
+                padding: 4px 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 16px 12px;
+            }
+
+            .recogidas-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                margin: 0;
+            }
+
+            .recogida-card {
+                padding: 20px;
+            }
+
+            .card-body {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .fecha-badge {
+                align-self: flex-end;
+            }
+        }
+
+        /* Animaciones mejoradas */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .recogida-card {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .recogida-card:nth-child(even) {
+            animation-delay: 0.1s;
+        }
+
+        .recogida-card:nth-child(odd) {
+            animation-delay: 0.2s;
+        }
+
+        /* Mejoras de accesibilidad */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Optimización para pantallas de alta densidad */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .header h1 {
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }
+        }
+
+        /* 🔥 ESTILOS PARA ETIQUETA DE LIQUIDACIÓN */
+.liquidada-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  z-index: 1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+    </style>
+</head>
+<body>
+
+  <button class="volver-btn" onclick="window.history.back()">← Volver</button>
+
+  <div class="container">
+    <div class="header">
+      <div class="stats-container" id="statsContainer">
+        <!-- Las estadísticas se cargarán dinámicamente -->
+      </div>
+
+      <h1>📊 Historial de Recogidas</h1>
+      <p>Aquí podrás ver todas las recogidas de frutas que se han hecho y filtrarlas como más te guste</p>
+    </div>
+
+    <div class="filters-container">
+      <div class="filters-grid">
+        <div class="filter-group">
+          <label>🔍 Buscar por texto</label>
+          <input type="text" id="searchText" class="filter-input" placeholder="Finca, propietario, usuario...">
+        </div>
+
+        <div style="display: none;" class="filter-group">
+          <label>🍎 Fruta</label>
+          <select id="filtroFruta" class="filter-select">
+            <option value="">Todas las frutas</option>
+          </select>
+        </div>
+
+        <div style="display: none;"  class="filter-group">
+          <label>⭐ Calidad</label>
+          <select id="filtroCalidad" class="filter-select">
+            <option value="">Todas las calidades</option>
+            <option value="primera">Primera</option>
+            <option value="segunda">Segunda</option>
+            <option value="extra">Extra</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>👤 Usuario</label>
+          <select id="filtroUsuario" class="filter-select">
+            <option value="">Todos los usuarios</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+  <label>📝 Estado </label>
+  <select id="filtroLiquidacion" class="filter-select">
+    <option value="">Todas</option>
+    <option value="liquidada">Liquidadas</option>
+    <option value="activa">Activas</option>
+  </select>
+</div>
+
+        <div class="filter-group">
+          <label>📅 Rango de fechas</label>
+          <div class="date-range">
+            <div class="date-info" id="dateInfo"></div>
+            <input type="date" id="fechaDesde" class="filter-input" placeholder="Fecha desde">
+            <input type="date" id="fechaHasta" class="filter-input" placeholder="Fecha hasta">
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="aplicarFiltros()">🔍 Aplicar Filtros</button>
+        <button class="btn btn-secondary" onclick="limpiarFiltros()">🗑️ Limpiar</button>
+      </div>
+    </div>
+
+    <div id="recogidasContainer" class="recogidas-container">
+      <div class="loading">⏳ Cargando recogidas...</div>
+    </div>
+  </div>
+
+  <script>
+// Variables globales
+let todasLasRecogidas = [];
+let recogidasFiltradas = [];
+let tipoUsuarioActual = 1;
+let esSubusuario = false;
+
+
+// 🔥 SOLUCIÓN DEFINITIVA - FUNCIÓN CORREGIDA PARA ZONA HORARIA
+function obtenerFechaSoloFecha(fechaStr) {
+  if (!fechaStr) return null;
+  
+  try {
+    let fecha = null;
+    
+    // Si ya es un objeto Date
+    if (fechaStr instanceof Date) {
+      fecha = fechaStr;
+    }
+    // Si es string con formato ISO (2025-08-05T00:00:00.000Z)
+    else if (typeof fechaStr === 'string' && fechaStr.includes('T')) {
+      fecha = new Date(fechaStr);
+    }
+    // Si es string simple (YYYY-MM-DD)
+    else if (typeof fechaStr === 'string') {
+      const partes = fechaStr.split('-');
+      if (partes.length === 3 && partes[0].length === 4) {
+        const año = parseInt(partes[0]);
+        const mes = parseInt(partes[1]) - 1;
+        const dia = parseInt(partes[2]);
+        fecha = new Date(año, mes, dia);
+      } else {
+        fecha = new Date(fechaStr);
+      }
+    }
+    
+    if (fecha && !isNaN(fecha.getTime())) {
+      // 🔥 CLAVE: Usar métodos UTC para evitar problemas de zona horaria
+      let año, mes, dia;
+      
+      // Si la fecha original es UTC (viene con GMT+0000), usar métodos UTC
+      if (fechaStr.toString().includes('GMT+0000') || fechaStr.toString().includes('UTC')) {
+        año = fecha.getUTCFullYear();
+        mes = fecha.getUTCMonth() + 1; // UTC months are 0-11, convert to 1-12
+        dia = fecha.getUTCDate();
+      } else {
+        // Si es fecha local, usar métodos normales
+        año = fecha.getFullYear();
+        mes = fecha.getMonth() + 1;
+        dia = fecha.getDate();
+      }
+      
+      // Formatear con padding de ceros
+      const mesStr = String(mes).padStart(2, '0');
+      const diaStr = String(dia).padStart(2, '0');
+      
+      const fechaSolo = `${año}-${mesStr}-${diaStr}`;
+      console.log(`🔄 Fecha procesada CORREGIDA: ${fechaStr} → ${fechaSolo}`);
+      return fechaSolo;
+    } else {
+      console.error('❌ Fecha inválida:', fechaStr);
+      return null;
+    }
+    
+  } catch (error) {
+    console.error('❌ Error procesando fecha:', error);
+    return null;
+  }
+}
+
+// 🔥 FUNCIÓN ALTERNATIVA MÁS SIMPLE Y ROBUSTA
+function obtenerFechaSoloFechaV2(fechaStr) {
+  if (!fechaStr) return null;
+  
+  try {
+    // Crear fecha y extraer componentes UTC para evitar zona horaria
+    const fecha = new Date(fechaStr);
+    
+    if (isNaN(fecha.getTime())) {
+      console.error('❌ Fecha inválida:', fechaStr);
+      return null;
+    }
+    
+    // 🔥 USAR SIEMPRE UTC PARA CONSISTENCIA
+    const año = fecha.getUTCFullYear();
+    const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getUTCDate()).padStart(2, '0');
+    
+    const fechaSolo = `${año}-${mes}-${dia}`;
+    console.log(`🔄 Fecha procesada UTC: ${fechaStr} → ${fechaSolo}`);
+    return fechaSolo;
+    
+  } catch (error) {
+    console.error('❌ Error procesando fecha:', error);
+    return null;
+  }
+}
+
+// 🔥 VERSIÓN FINAL RECOMENDADA - MÁS SIMPLE Y EFECTIVA
+function obtenerFechaSoloFechaFinal(fechaStr) {
+  if (!fechaStr) return null;
+  
+  try {
+    const fecha = new Date(fechaStr);
+    
+    if (isNaN(fecha.getTime())) {
+      return null;
+    }
+    
+    // Siempre usar UTC para evitar problemas de zona horaria
+    const fechaSolo = fecha.toISOString().split('T')[0];
+    console.log(`🔄 Fecha UTC: ${fechaStr} → ${fechaSolo}`);
+    return fechaSolo;
+    
+  } catch (error) {
+    console.error('❌ Error:', error);
+    return null;
+  }
+}
+
+
+// 🔥 FUNCIÓN DE FILTRADO CORREGIDA
+function aplicarFiltros() {
+  const textoBusqueda = document.getElementById('searchText').value.toLowerCase();
+  const filtroFruta = document.getElementById('filtroFruta').value;
+  const filtroCalidad = document.getElementById('filtroCalidad').value;
+  const filtroUsuario = document.getElementById('filtroUsuario').value;
+  const fechaDesde = document.getElementById('fechaDesde').value;
+  const fechaHasta = document.getElementById('fechaHasta').value;
+  const filtroLiquidacion = document.getElementById('filtroLiquidacion').value;
+
+  console.log("🔍 === INICIANDO FILTRADO INCLUSIVO ===");
+  console.log("📅 Filtros de fecha:");
+  console.log("   Fecha desde:", fechaDesde, "(INCLUIDA)");
+  console.log("   Fecha hasta:", fechaHasta, "(INCLUIDA)");
+  console.log("📊 Total recogidas antes del filtro:", todasLasRecogidas.length);
+
+  recogidasFiltradas = todasLasRecogidas.filter(recogida => {
+    // Filtro de texto
+    if (textoBusqueda) {
+      const frutasRecogida = obtenerFrutasUnicas(recogida).join(' ').toLowerCase();
+      const textoCompleto = `${recogida.finca || ''} ${recogida.propietario || ''} ${recogida.alias || ''} ${recogida.usuario || ''} ${frutasRecogida}`.toLowerCase();
+      if (!textoCompleto.includes(textoBusqueda)) {
+        return false;
+      }
+    }
+
+    // Filtro de fruta
+    if (filtroFruta) {
+      const frutasRecogida = obtenerFrutasUnicas(recogida);
+      if (!frutasRecogida.includes(filtroFruta)) {
+        return false;
+      }
+    }
+
+    // Filtro de calidad
+    if (filtroCalidad) {
+      const calidadesRecogida = obtenerCalidadesUnicas(recogida);
+      if (!calidadesRecogida.includes(filtroCalidad)) {
+        return false;
+      }
+    }
+
+    // Filtro de usuario
+    if (filtroUsuario) {
+      const usuarioRecogida = recogida.alias || recogida.usuario;
+      if (usuarioRecogida !== filtroUsuario) {
+        return false;
+      }
+    }
+
+    // Filtro de liquidación
+    if (filtroLiquidacion === 'liquidada') {
+      if (recogida.estadoLiquidacion !== 'liquidada') {
+        return false;
+      }
+    } else if (filtroLiquidacion === 'activa') {
+      if (recogida.estadoLiquidacion === 'liquidada') {
+        return false;
+      }
+    }
+
+    // 🔥 FILTRO DE FECHAS INCLUSIVO - CAMBIO CLAVE AQUÍ
+   // 🔥 FILTRO DE FECHAS INCLUSIVO - CAMBIO CLAVE AQUÍ
+ if (fechaDesde || fechaHasta) {
+      const fechaRecogidaStr = obtenerFechaSoloFecha(recogida.fecha);
+      
+      if (!fechaRecogidaStr) {
+        console.warn(`⚠️ No se pudo procesar fecha de recogida:`, recogida.fecha);
+        return false;
+      }
+
+      console.log(`📅 Verificando recogida ID ${recogida._id?.slice(-4)}: fecha=${fechaRecogidaStr}`);
+
+      // 🔥 CORRECCIÓN: Usar >= y <= para incluir las fechas límite
+      // Verificar límite inferior (desde) - INCLUSIVO
+      if (fechaDesde) {
+        if (fechaRecogidaStr < fechaDesde) { // CORRECTO: < para excluir fechas anteriores
+          console.log(`   ❌ Excluida: ${fechaRecogidaStr} es ANTERIOR a ${fechaDesde}`);
+          return false;
+        }
+      }
+      
+      // Verificar límite superior (hasta) - INCLUSIVO  
+      if (fechaHasta) {
+        if (fechaRecogidaStr > fechaHasta) { // CORRECTO: > para excluir fechas posteriores
+          console.log(`   ❌ Excluida: ${fechaRecogidaStr} es POSTERIOR a ${fechaHasta}`);
+          return false;
+        }
+      }
+
+      // 🔥 LOGGING MEJORADO PARA VERIFICAR INCLUSIÓN
+      let estadoInclusión = "✅ INCLUIDA";
+      let detalleRango = "";
+      
+      if (fechaDesde && fechaHasta) {
+        detalleRango = `está en el rango [${fechaDesde} → ${fechaHasta}]`;
+      } else if (fechaDesde) {
+        detalleRango = `es >= ${fechaDesde}`;
+      } else if (fechaHasta) {
+        detalleRango = `es <= ${fechaHasta}`;
+      }
+      
+      console.log(`   ${estadoInclusión}: ${fechaRecogidaStr} ${detalleRango}`);
+    }
+    
+    return true;
+  });
+
+  // Ordenar por fecha (más recientes primero)
+  recogidasFiltradas.sort((a, b) => {
+    const fechaA = obtenerFechaSoloFecha(a.fecha);
+    const fechaB = obtenerFechaSoloFecha(b.fecha);
+    
+    if (!fechaA || !fechaB) return 0;
+    
+    return fechaB.localeCompare(fechaA); // Orden descendente
+  });
+
+  console.log(`✅ FILTRADO INCLUSIVO COMPLETADO:`);
+  console.log(`   📊 Recogidas filtradas: ${recogidasFiltradas.length} de ${todasLasRecogidas.length}`);
+  
+  // 🔥 VERIFICACIÓN DE INCLUSIVIDAD - Muestra de fechas en resultados
+  if (fechaDesde || fechaHasta) {
+    console.log("📋 Verificación de inclusividad - Muestra de fechas en resultados:");
+    recogidasFiltradas.slice(0, 5).forEach((r, i) => {
+      const fechaStr = obtenerFechaSoloFecha(r.fecha);
+      console.log(`   ${i + 1}. ${fechaStr} - ${r.finca} - ID: ${r._id?.slice(-4)}`);
+    });
+
+    // 🔥 VERIFICACIÓN ESPECÍFICA DE FECHAS LÍMITE
+    if (fechaDesde) {
+      const recogidasFechaDesde = recogidasFiltradas.filter(r => obtenerFechaSoloFecha(r.fecha) === fechaDesde);
+      console.log(`🎯 Recogidas en fecha DESDE exacta (${fechaDesde}):`, recogidasFechaDesde.length);
+      if (recogidasFechaDesde.length > 0) {
+        recogidasFechaDesde.forEach(r => {
+          console.log(`   ✅ INCLUIDA: ${r.finca} - ${obtenerFechaSoloFecha(r.fecha)}`);
+        });
+      } else {
+        console.log(`   ℹ️ No hay recogidas exactamente en la fecha ${fechaDesde}`);
+      }
+    }
+
+    if (fechaHasta) {
+      const recogidasFechaHasta = recogidasFiltradas.filter(r => obtenerFechaSoloFecha(r.fecha) === fechaHasta);
+      console.log(`🎯 Recogidas en fecha HASTA exacta (${fechaHasta}):`, recogidasFechaHasta.length);
+      if (recogidasFechaHasta.length > 0) {
+        recogidasFechaHasta.forEach(r => {
+          console.log(`   ✅ INCLUIDA: ${r.finca} - ${obtenerFechaSoloFecha(r.fecha)}`);
+        });
+      } else {
+        console.log(`   ℹ️ No hay recogidas exactamente en la fecha ${fechaHasta}`);
+      }
+    }
+  }
+
+  // Actualizar información visual de fechas
+  actualizarInfoFechas(fechaDesde, fechaHasta);
+  actualizarStats();
+  mostrarRecogidas();
+}
+
+function debugProblemaFechas() {
+  console.log("🚨 === DEBUG PROBLEMA DE FECHAS ===");
+  
+  // Obtener rango de fechas de los inputs
+  const fechaDesde = document.getElementById('fechaDesde').value;
+  const fechaHasta = document.getElementById('fechaHasta').value;
+  
+  console.log(`📅 Filtros activos:`);
+  console.log(`   Desde: "${fechaDesde}"`);
+  console.log(`   Hasta: "${fechaHasta}"`);
+  
+  if (fechaDesde) {
+    console.log(`\n🔍 Buscando recogidas >= ${fechaDesde}:`);
+    todasLasRecogidas.forEach(recogida => {
+      const fechaRecogida = obtenerFechaSoloFecha(recogida.fecha);
+      const cumpleDesde = fechaRecogida >= fechaDesde;
+      const simbolo = cumpleDesde ? '✅' : '❌';
+      console.log(`   ${simbolo} ${fechaRecogida} | Finca: ${recogida.finca} | Cumple: ${cumpleDesde}`);
+    });
+  }
+  
+  if (fechaHasta) {
+    console.log(`\n🔍 Buscando recogidas <= ${fechaHasta}:`);
+    todasLasRecogidas.forEach(recogida => {
+      const fechaRecogida = obtenerFechaSoloFecha(recogida.fecha);
+      const cumpleHasta = fechaRecogida <= fechaHasta;
+      const simbolo = cumpleHasta ? '✅' : '❌';
+      console.log(`   ${simbolo} ${fechaRecogida} | Finca: ${recogida.finca} | Cumple: ${cumpleHasta}`);
+    });
+  }
+  
+  console.log(`\n📊 Resultados después del filtro: ${recogidasFiltradas.length} recogidas`);
+  recogidasFiltradas.forEach(recogida => {
+    const fechaRecogida = obtenerFechaSoloFecha(recogida.fecha);
+    console.log(`   📋 INCLUIDA: ${fechaRecogida} | ${recogida.finca}`);
+  });
+}
+
+// 🔥 FUNCIÓN DE DEBUG PARA VERIFICAR FECHAS
+function debugFechasCompleto() {
+  console.log("🔍 === ANÁLISIS COMPLETO DE FECHAS ===");
+  
+  console.log("📊 Todas las recogidas y sus fechas:");
+  todasLasRecogidas.forEach((recogida, i) => {
+    const fechaOriginal = recogida.fecha;
+    const fechaProcesada = obtenerFechaSoloFecha(fechaOriginal);
+    
+    console.log(`${i + 1}. ID: ${recogida._id?.slice(-4)} | Original: ${fechaOriginal} | Procesada: ${fechaProcesada} | Finca: ${recogida.finca}`);
+  });
+  
+  // Obtener rango completo de fechas
+  const fechasProcesadas = todasLasRecogidas
+    .map(r => obtenerFechaSoloFecha(r.fecha))
+    .filter(f => f !== null)
+    .sort();
+    
+  if (fechasProcesadas.length > 0) {
+    console.log(`📅 RANGO COMPLETO DE FECHAS DISPONIBLE:`);
+    console.log(`   Fecha más antigua: ${fechasProcesadas[0]}`);
+    console.log(`   Fecha más reciente: ${fechasProcesadas[fechasProcesadas.length - 1]}`);
+    console.log(`   Total fechas válidas: ${fechasProcesadas.length}`);
+    
+    // Mostrar distribución por mes
+    const distribucionMeses = {};
+    fechasProcesadas.forEach(fecha => {
+      const mesAño = fecha.substring(0, 7); // YYYY-MM
+      distribucionMeses[mesAño] = (distribucionMeses[mesAño] || 0) + 1;
+    });
+    
+    console.log("📈 Distribución por mes:");
+    Object.entries(distribucionMeses)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([mes, cantidad]) => {
+        console.log(`   ${mes}: ${cantidad} recogidas`);
+      });
+  }
+}
+// 🔥 PASO 4: Modificar el event listener para incluir debug
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('searchText').addEventListener('input', debounce(aplicarFiltros, 500));
+  document.getElementById('filtroFruta').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroCalidad').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroUsuario').addEventListener('change', aplicarFiltros);
+  document.getElementById('fechaDesde').addEventListener('change', aplicarFiltros);
+  document.getElementById('fechaHasta').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroLiquidacion').addEventListener('change', aplicarFiltros);
+  
+  cargarRecogidas().then(() => {
+    // Llamar función de debug después de cargar los datos (opcional)
+    // debugFechas();
+  });
+});
+// Obtener parámetros de URL
+const params = new URLSearchParams(window.location.search);
+const usuario = params.get("usuario") || "admin";
+
+function volverPaginaAnterior() {
+  if (document.referrer !== '') {
+    window.history.back();
+  } else {
+    window.location.href = 'index.html';
+  }
+}
+
+// Verificar tipo de usuario al cargar
+async function verificarTipoUsuario() {
+  try {
+    const storedData = sessionStorage.getItem('userData');
+    if (storedData) {
+      const userData = JSON.parse(storedData);
+      tipoUsuarioActual = userData.tipo;
+      esSubusuario = userData.tipo === 2;
+    } else if (usuario) {
+      const response = await fetch(`https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+      if (response.ok) {
+        const userData = await response.json();
+        tipoUsuarioActual = userData.tipo;
+        esSubusuario = userData.tipo === 2;
+      }
+    }
+    console.log("👤 Tipo de usuario:", tipoUsuarioActual, "Es subusuario:", esSubusuario);
+  } catch (error) {
+    console.error("Error al verificar tipo de usuario:", error);
+  }
+}
+
+// 🔥 FUNCIÓN PARA OBTENER FRUTAS ÚNICAS DE LAS PESAS
+function obtenerFrutasUnicas(recogida) {
+  if (!recogida.pesas || !Array.isArray(recogida.pesas)) {
+    return [recogida.fruta || 'N/A'];
+  }
+  
+  const frutasUnicas = [...new Set(recogida.pesas.map(pesa => pesa.fruta).filter(Boolean))];
+  return frutasUnicas.length > 0 ? frutasUnicas : [recogida.fruta || 'N/A'];
+}
+
+// 🔥 FUNCIÓN PARA OBTENER CALIDADES ÚNICAS DE LAS PESAS
+function obtenerCalidadesUnicas(recogida) {
+  if (!recogida.pesas || !Array.isArray(recogida.pesas)) {
+    return [recogida.calidad || 'primera'];
+  }
+  
+  const calidadesUnicas = [...new Set(recogida.pesas.map(pesa => pesa.calidad).filter(Boolean))];
+  return calidadesUnicas.length > 0 ? calidadesUnicas : [recogida.calidad || 'primera'];
+}
+
+// 🔥 FUNCIÓN PARA FORMATEAR FECHA CORRECTAMENTE - CORREGIDA PARA EVITAR PROBLEMA DE ZONA HORARIA
+// 🔥 FUNCIÓN PARA FORMATEAR FECHA CORRECTAMENTE - VERSIÓN ROBUSTA COMO EN LIQUIDACIONMES
+function formatearFecha(fechaString) {
+    if (!fechaString) return 'Sin fecha';
+    
+    // Log para debug
+    console.log('🔍 Formateando fecha:', fechaString, typeof fechaString);
+    
+    try {
+        let fecha = null;
+        
+        // Caso 1: Ya es un objeto Date
+        if (fechaString instanceof Date) {
+            fecha = fechaString;
+        }
+        // Caso 2: String que parece un objeto Date serializado
+        else if (typeof fechaString === 'string' && (fechaString.includes('GMT') || fechaString.includes('UTC'))) {
+            // Crear fecha desde el string del objeto Date
+            fecha = new Date(fechaString);
+        }
+        // Caso 3: String con formato ISO (2024-08-04T00:00:00.000Z)
+        else if (typeof fechaString === 'string' && fechaString.includes('T')) {
+            const fechaSolo = fechaString.split('T')[0];
+            const partes = fechaSolo.split('-');
+            
+            if (partes.length === 3 && partes[0].length === 4) {
+                const año = parseInt(partes[0]);
+                const mes = parseInt(partes[1]) - 1;
+                const dia = parseInt(partes[2]);
+                
+                if (!isNaN(año) && !isNaN(mes) && !isNaN(dia) && 
+                    año > 1900 && año < 2100 && mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+                    fecha = new Date(año, mes, dia);
+                }
+            }
+        }
+        // Caso 4: String con formato simple (YYYY-MM-DD)
+        else if (typeof fechaString === 'string') {
+            const partes = fechaString.split('-');
+            
+            if (partes.length === 3 && partes[0].length === 4) {
+                const año = parseInt(partes[0]);
+                const mes = parseInt(partes[1]) - 1;
+                const dia = parseInt(partes[2]);
+                
+                if (!isNaN(año) && !isNaN(mes) && !isNaN(dia) && 
+                    año > 1900 && año < 2100 && mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+                    fecha = new Date(año, mes, dia);
+                }
+            } else {
+                // Último recurso: usar Date.parse()
+                fecha = new Date(fechaString);
+            }
+        }
+        
+        // Verificar si la fecha es válida
+        if (fecha && !isNaN(fecha.getTime())) {
+            // Para fechas UTC, usar los métodos UTC para evitar conversión de timezone
+            let fechaFormateada;
+            
+            if (fechaString.toString().includes('GMT+0000') || fechaString.toString().includes('UTC')) {
+                // Es una fecha UTC, extraer componentes usando UTC
+                const año = fecha.getUTCFullYear();
+                const mes = fecha.getUTCMonth();
+                const dia = fecha.getUTCDate();
+                
+                // Crear nueva fecha local con esos componentes
+                const fechaLocal = new Date(año, mes, dia);
+                
+                // Formatear manualmente para evitar problemas de timezone
+                const diaStr = String(fechaLocal.getDate()).padStart(2, '0');
+                const mesStr = String(fechaLocal.getMonth() + 1).padStart(2, '0');
+                const añoStr = fechaLocal.getFullYear();
+                
+                fechaFormateada = `${diaStr}/${mesStr}/${añoStr}`;
+            } else {
+                // Fecha normal - formatear manualmente para consistencia
+                const diaStr = String(fecha.getDate()).padStart(2, '0');
+                const mesStr = String(fecha.getMonth() + 1).padStart(2, '0');
+                const añoStr = fecha.getFullYear();
+                
+                fechaFormateada = `${diaStr}/${mesStr}/${añoStr}`;
+            }
+            
+            console.log('✅ Fecha formateada exitosamente:', fechaFormateada);
+            return fechaFormateada;
+        } else {
+            console.warn('⚠️ Fecha inválida después del procesamiento:', fechaString);
+            return `Fecha inválida: ${fechaString}`;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error formateando fecha:', fechaString, error);
+        return `Error en fecha: ${fechaString}`;
+    }
+}
+
+// 🔥 FUNCIÓN AUXILIAR PARA FORMATEAR FECHA ESPECIALMENTE PARA LIQUIDACIONES
+function formatearFechaLiquidacion(fechaString) {
+    if (!fechaString) return 'Sin fecha';
+    
+    try {
+        // Si es una fecha de liquidación, usar el mismo método robusto
+        return formatearFecha(fechaString);
+    } catch (error) {
+        console.error('❌ Error formateando fecha de liquidación:', fechaString, error);
+        return 'Fecha inválida';
+    }
+}
+// Cargar todas las recogidas
+async function cargarRecogidas() {
+  try {
+    await verificarTipoUsuario();
+    
+    let adminAlias = params.get("alias");
+    if (!adminAlias && usuario) {
+      const response = await fetch(`https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+      if (response.ok) {
+        const userData = await response.json();
+        adminAlias = userData.alias;
+      }
+    }
+
+    console.log("📥 Cargando recogidas para adminAlias:", adminAlias);
+
+    const response = await fetch(`https://jc-frutas.onrender.com/recogidas/resumen/${adminAlias}?usuario=${encodeURIComponent(usuario)}`);
+    
+    if (!response.ok) {
+      throw new Error(`Error del servidor: ${response.status}`);
+    }
+
+    const data = await response.json();
+    todasLasRecogidas = data.recogidas || [];
+    recogidasFiltradas = [...todasLasRecogidas];
+
+    console.log("✅ Recogidas cargadas:", todasLasRecogidas.length);
+
+    // Actualizar filtros y mostrar datos
+    actualizarFiltros();
+    actualizarStats();
+    mostrarRecogidas();
+
+  } catch (error) {
+    console.error("❌ Error al cargar recogidas:", error);
+    document.getElementById('recogidasContainer').innerHTML = `
+      <div class="no-results">
+        ❌ Error al cargar las recogidas: ${error.message}
+      </div>
+    `;
+  }
+}
+
+// Actualizar opciones de filtros
+function actualizarFiltros() {
+  // 🔥 FRUTAS ÚNICAS DE TODAS LAS PESAS
+  const todasLasFrutas = new Set();
+  todasLasRecogidas.forEach(recogida => {
+    const frutasRecogida = obtenerFrutasUnicas(recogida);
+    frutasRecogida.forEach(fruta => todasLasFrutas.add(fruta));
+  });
+  
+  const selectFruta = document.getElementById('filtroFruta');
+  selectFruta.innerHTML = '<option value="">Todas las frutas</option>';
+  [...todasLasFrutas].sort().forEach(fruta => {
+    selectFruta.innerHTML += `<option value="${fruta}">${fruta}</option>`;
+  });
+
+  // Usuarios únicos
+  const usuarios = [...new Set(todasLasRecogidas.map(r => r.alias || r.usuario).filter(Boolean))];
+  const selectUsuario = document.getElementById('filtroUsuario');
+  selectUsuario.innerHTML = '<option value="">Todos los usuarios</option>';
+  usuarios.forEach(usuario => {
+    selectUsuario.innerHTML += `<option value="${usuario}">${usuario}</option>`;
+  });
+
+  // 🔥 NO ESTABLECER FECHAS POR DEFECTO - DEJAR QUE EL USUARIO ELIJA
+  // Los campos de fecha permanecen vacíos para que el usuario tenga control total
+  console.log("📅 Campos de fecha listos para filtrado manual");
+  
+  // Solo mostrar información sobre el rango disponible
+  const fechas = todasLasRecogidas.map(r => new Date(r.fecha + 'T00:00:00')).filter(f => !isNaN(f));
+  if (fechas.length > 0) {
+    const fechaMin = new Date(Math.min(...fechas));
+    const fechaMax = new Date(Math.max(...fechas));
+    console.log(`📊 Rango de fechas disponible: ${fechaMin.toLocaleDateString('es-ES')} - ${fechaMax.toLocaleDateString('es-ES')}`);
+  }
+}
+
+// Actualizar estadísticas
+function actualizarStats() {
+  const recogidas = recogidasFiltradas;
+  const totalRecogidas = recogidas.length;
+  const totalKilos = recogidas.reduce((sum, r) => sum + (r.totalKilos || 0), 0);
+  const totalPagado = esSubusuario ? 0 : recogidas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
+  const promedioKilos = totalRecogidas > 0 ? (totalKilos / totalRecogidas) : 0;
+
+  // 🔥 NUEVO: Calcular estadísticas por fruta
+  const estadisticasPorFruta = calcularEstadisticasPorFruta(recogidas);
+
+  const statsHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${totalRecogidas}</div>
+      <div class="stat-label">📊 Total Recogidas</div>
+    </div>
+
+    ${!esSubusuario ? `
+    <div class="stat-card">
+      <div class="stat-value">${totalPagado.toLocaleString()}</div>
+      <div class="stat-label">💰 Total Pagado</div>
+    </div>
+    ` : ''}
+
+    <div class="stat-card">
+      <div class="stat-value">${totalKilos.toFixed(1)}</div>
+      <div class="stat-label">⚖️ Total Kilos</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-value">${promedioKilos.toFixed(1)}</div>
+      <div class="stat-label">📈 Promedio/Recogida</div>
+    </div>
+  `;
+
+  // 🔥 NUEVO: HTML para estadísticas por fruta
+  const frutasStatsHTML = generarHTMLEstadisticasFrutas(estadisticasPorFruta);
+
+  document.getElementById('statsContainer').innerHTML = statsHTML + frutasStatsHTML;
+}
+
+
+// 🔥 FUNCIÓN PARA CALCULAR ESTADÍSTICAS POR FRUTA CON CALIDADES AGRUPADAS
+function calcularEstadisticasPorFruta(recogidas) {
+  const estadisticas = {};
+
+  recogidas.forEach(recogida => {
+    // Procesar pesas si existen
+    if (recogida.pesas && Array.isArray(recogida.pesas)) {
+      recogida.pesas.forEach(pesa => {
+        const fruta = pesa.fruta || 'Sin especificar';
+        const calidad = pesa.calidad || 'primera';
+        const kilos = pesa.kilos || 0;
+        const valor = pesa.valor || 0;
+        
+        if (!estadisticas[fruta]) {
+          estadisticas[fruta] = {
+            recogidas: new Set(), // Usamos Set para contar recogidas únicas
+            kilos: 0,
+            valor: 0,
+            pesas: 0,
+            calidades: {
+              primera: 0,
+              segunda: 0,
+              extra: 0
+            }
+          };
+        }
+        
+        // Actualizar estadísticas
+        estadisticas[fruta].recogidas.add(recogida._id); // ID único de recogida
+        estadisticas[fruta].kilos += kilos;
+        estadisticas[fruta].valor += valor;
+        estadisticas[fruta].pesas += 1;
+        estadisticas[fruta].calidades[calidad] += kilos;
+      });
+    } else {
+      // Procesar recogida sin pesas detalladas
+      const fruta = recogida.fruta || 'Sin especificar';
+      const calidad = recogida.calidad || 'primera';
+      const kilos = recogida.totalKilos || 0;
+      const valor = recogida.valorPagar || 0;
+      
+      if (!estadisticas[fruta]) {
+        estadisticas[fruta] = {
+          recogidas: new Set(),
+          kilos: 0,
+          valor: 0,
+          pesas: 0,
+          calidades: {
+            primera: 0,
+            segunda: 0,
+            extra: 0
+          }
+        };
+      }
+      
+      estadisticas[fruta].recogidas.add(recogida._id);
+      estadisticas[fruta].kilos += kilos;
+      estadisticas[fruta].valor += valor;
+      estadisticas[fruta].pesas += 1;
+      estadisticas[fruta].calidades[calidad] += kilos;
+    }
+  });
+
+  // Convertir Sets de recogidas a números
+  Object.keys(estadisticas).forEach(fruta => {
+    estadisticas[fruta].recogidas = estadisticas[fruta].recogidas.size;
+  });
+
+  return estadisticas;
+}
+
+// 🔥 FUNCIÓN PARA GENERAR HTML DE ESTADÍSTICAS AGRUPADAS POR FRUTA
+function generarHTMLEstadisticasFrutas(estadisticas) {
+  const frutasOrdenadas = Object.entries(estadisticas)
+    .sort(([,a], [,b]) => b.kilos - a.kilos);
+
+  if (frutasOrdenadas.length === 0) {
+    return '';
+  }
+
+  let frutasHTML = `
+    <div style="grid-column: 1/-1; margin-top: 20px;">
+      <div style="background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px; box-shadow: var(--shadow);">
+        <h3 style="text-align: center; color: var(--primary-color); margin-bottom: 20px; font-size: 1.3em;">
+          🍎 Estadísticas Consolidadas por Fruta
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+  `;
+
+  frutasOrdenadas.forEach(([fruta, stats]) => {
+    const porcentajePrimera = stats.kilos > 0 ? (stats.calidades.primera / stats.kilos * 100).toFixed(1) : 0;
+    const porcentajeSegunda = stats.kilos > 0 ? (stats.calidades.segunda / stats.kilos * 100).toFixed(1) : 0;
+    const porcentajeExtra = stats.kilos > 0 ? (stats.calidades.extra / stats.kilos * 100).toFixed(1) : 0;
+    const promedioKilos = stats.recogidas > 0 ? (stats.kilos / stats.recogidas).toFixed(1) : 0;
+
+    frutasHTML += `
+      <div style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; border-left: 4px solid var(--success-color);">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+          <div style="font-size: 2em;">${obtenerEmojifruta(fruta)}</div>
+          <div>
+            <div style="font-weight: 700; font-size: 1.2em; color: var(--primary-color);">${fruta}</div>
+            <div style="font-size: 0.9em; color: var(--text-secondary);">${stats.recogidas} recogidas</div>
+          </div>
+        </div>
+        
+        <!-- RESUMEN PRINCIPAL -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+          <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px;">
+            <div style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 5px;">Total Kilos</div>
+            <div style="font-size: 1.4em; font-weight: 700; color: var(--success-color);">${stats.kilos.toFixed(1)}</div>
+          </div>
+          
+          <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px;">
+            <div style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 5px;">Promedio</div>
+            <div style="font-size: 1.2em; font-weight: 700;">${promedioKilos} kg/rec</div>
+          </div>
+        </div>
+        
+        <!-- DESGLOSE POR CALIDAD -->
+        <div style="margin-bottom: 15px;">
+          <div style="font-size: 0.9em; color: var(--text-secondary); margin-bottom: 8px; text-align: center;">
+            Distribución por Calidad
+          </div>
+          
+          <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px;">
+            <!-- Primera -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <div>
+                <span class="calidad-badge calidad-primera" style="margin-right: 8px;">Primera</span>
+                <span style="font-size: 0.8em; color: var(--text-secondary);">${porcentajePrimera}%</span>
+              </div>
+              <div style="font-weight: 600;">${stats.calidades.primera.toFixed(1)} kg</div>
+            </div>
+            
+            <!-- Segunda -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <div>
+                <span class="calidad-badge calidad-segunda" style="margin-right: 8px;">Segunda</span>
+                <span style="font-size: 0.8em; color: var(--text-secondary);">${porcentajeSegunda}%</span>
+              </div>
+              <div style="font-weight: 600;">${stats.calidades.segunda.toFixed(1)} kg</div>
+            </div>
+            
+            <!-- Extra -->
+            <div style="display: flex; justify-content: space-between;">
+              <div>
+                <span class="calidad-badge calidad-extra" style="margin-right: 8px;">Extra</span>
+                <span style="font-size: 0.8em; color: var(--text-secondary);">${porcentajeExtra}%</span>
+              </div>
+              <div style="font-weight: 600;">${stats.calidades.extra.toFixed(1)} kg</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- VALOR TOTAL (solo para admin) -->
+        ${!esSubusuario ? `
+        
+          </div>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  });
+
+  frutasHTML += `
+        </div>
+      </div>
+    </div>
+  `;
+
+  return frutasHTML;
+}
+
+// 🔥 NUEVA FUNCIÓN: Obtener emoji representativo para cada fruta
+function obtenerEmojifruta(fruta) {
+  const emojis = {
+    'mango': '🥭',
+    'aguacate, papelillo, semil, choquete, polo': '🥑',
+    'limón, taiti, mandarin': '🍋',
+    'naranja': '🍊',
+    'mandarina': '🍊',
+    'guayaba': '🍈',
+    'papaya': '🧡',
+    'maracuyá': '💛',
+    'lulo': '💚',
+    'tomate': '🍅',
+    'plátano': '🍌',
+    'banano': '🍌',
+    'coco': '🥥',
+    'piña': '🍍',
+    'fresa': '🍓',
+    'mora': '🫐',
+    'uva': '🍇',
+    'pera': '🍐',
+    'manzana': '🍎',
+    'durazno': '🍑',
+    'ciruela': '🟣'
+  };
+  
+  const frutaLower = fruta.toLowerCase();
+  
+  // Buscar coincidencia exacta
+  if (emojis[frutaLower]) {
+    return emojis[frutaLower];
+  }
+  
+  // Buscar coincidencia parcial
+  for (const [nombre, emoji] of Object.entries(emojis)) {
+    if (frutaLower.includes(nombre) || nombre.includes(frutaLower)) {
+      return emoji;
+    }
+  }
+  
+  // Emoji por defecto
+  return '🍎';
+}
+
+// 🔥 FUNCIÓN PRINCIPAL PARA MOSTRAR RECOGIDAS CON MÚLTIPLES FRUTAS
+// 🔥 FUNCIÓN PRINCIPAL PARA MOSTRAR RECOGIDAS CON DESGLOSE DE CALIDADES
+function mostrarRecogidas() {
+  const container = document.getElementById('recogidasContainer');
+  
+  if (recogidasFiltradas.length === 0) {
+    container.innerHTML = `
+      <div class="no-results">
+        🔍 No se encontraron recogidas con los filtros aplicados
+      </div>
+    `;
+    return;
+  }
+
+  const recogidasHTML = recogidasFiltradas.map(recogida => {
+    const fechaFormateada = formatearFecha(recogida.fecha);
+    const usuarioMostrar = recogida.alias || recogida.usuario || 'Usuario';
+    const avatarInitial = usuarioMostrar.charAt(0).toUpperCase();
+
+    // 🔥 CALCULAR KILOS POR CALIDAD
+    const kilosPorCalidad = {
+      primera: 0,
+      segunda: 0,
+      extra: 0
+    };
+    
+    if (recogida.pesas && Array.isArray(recogida.pesas)) {
+      recogida.pesas.forEach(pesa => {
+        const calidad = pesa.calidad || 'primera';
+        kilosPorCalidad[calidad] += pesa.kilos || 0;
+      });
+    } else {
+      const calidad = recogida.calidad || 'primera';
+      kilosPorCalidad[calidad] = recogida.totalKilos || 0;
+    }
+    
+    // 🔥 GENERAR HTML PARA DESGLOSE DE CALIDADES
+    const desgloseCalidadesHTML = `
+      <div style="margin-top: 8px; font-size: 0.85em;">
+        <div>
+          <span class="calidad-badge calidad-primera" style="margin-right: 5px;">primera</span>
+          <span>${kilosPorCalidad.primera.toFixed(1)} kg</span>
+        </div>
+        <div style="margin-top: 4px;">
+          <span class="calidad-badge calidad-segunda" style="margin-right: 5px;">segunda</span>
+          <span>${kilosPorCalidad.segunda.toFixed(1)} kg</span>
+        </div>
+
+      </div>
+    `;
+
+    // Resto del código permanece igual...
+    const frutasUnicas = obtenerFrutasUnicas(recogida);
+    const calidadesUnicas = obtenerCalidadesUnicas(recogida);
+    const esMultiple = frutasUnicas.length > 1 || calidadesUnicas.length > 1;
+    const estaLiquidada = recogida.estadoLiquidacion === 'liquidada';
+
+    // 🔥 GENERAR HTML PARA FRUTAS MÚLTIPLES
+    const frutasHTML = frutasUnicas.length === 1 ? 
+      `<div class="info-value">${frutasUnicas[0]}</div>` :
+      `<div class="frutas-container">
+        ${frutasUnicas.map(fruta => `<span class="fruta-badge">${fruta}</span>`).join('')}
+      </div>`;
+
+    // 🔥 GENERAR HTML PARA CALIDADES MÚLTIPLES
+    const calidadesHTML = calidadesUnicas.length === 1 ? 
+      `<span class="calidad-badge calidad-${calidadesUnicas[0]}">${calidadesUnicas[0]}</span>` :
+      `<div class="calidades-container">
+        ${calidadesUnicas.map(calidad => `<span class="calidad-badge calidad-${calidad}">${calidad}</span>`).join('')}
+      </div>`;
+
+    return `
+      <div class="recogida-card">
+        ${esMultiple ? '<div class="multiple-badge">MÚLTIPLE</div>' : ''}
+        ${estaLiquidada ? '<div class="liquidada-badge">✅ LIQUIDADA</div>' : ''}
+        
+        <div class="card-header">
+          <div class="finca-info">
+            <h3>🏡 ${recogida.finca || 'Finca'}</h3>
+            <p>👤 ${recogida.propietario || 'Propietario'}</p>
+          </div>
+          <div class="fecha-badge">📅 ${fechaFormateada}</div>
+        </div>
+
+        <div class="card-body">
+          <div class="info-item">
+            <div class="info-icon">🍎</div>
+            <div class="info-label">${frutasUnicas.length === 1 ? 'Fruta' : 'Frutas'}</div>
+            ${frutasHTML}
+          </div>
+
+          <div class="info-item">
+            <div class="info-icon">⭐</div>
+            <div class="info-label">${calidadesUnicas.length === 1 ? 'Calidad' : 'Calidades'}</div>
+            <div class="info-value">
+              ${calidadesHTML}
+            </div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-icon">⚖️</div>
+            <div class="info-label">Total Kilos</div>
+            <div class="info-value">${(recogida.totalKilos || 0).toFixed(1)} kg</div>
+            ${desgloseCalidadesHTML}
+          </div>
+
+          <div class="info-item">
+            <div class="info-icon">🧺</div>
+            <div class="info-label">Cantidad Pesas</div>
+            <div class="info-value">${recogida.pesas ? recogida.pesas.length : 0}</div>
+          </div>
+
+          ${!esSubusuario ? `
+          <div class="info-item">
+            <div class="info-icon">💵</div>
+            <div class="info-label">Precio/Kg</div>
+            <div class="info-value">${(recogida.precio || 0).toLocaleString()}</div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-icon">💰</div>
+            <div class="info-label">Total a Pagar</div>
+            <div class="info-value">${(recogida.valorPagar || 0).toLocaleString()}</div>
+          </div>
+          ` : ''}
+        </div>
+
+        ${recogida.pesas && recogida.pesas.length > 0 ? `
+          <div class="pesas-summary">
+            <div class="pesas-title">🧺 Detalle de Pesas (${recogida.pesas.length})</div>
+            <div class="pesas-grid">
+              ${recogida.pesas.map(pesa => `
+                <div class="pesa-item">
+                  <div class="pesa-fruta">${pesa.fruta || 'N/A'}</div>
+                  <div class="pesa-kilos">${pesa.kilos} kg</div>
+                  <div class="pesa-calidad">${pesa.calidad || 'N/A'}</div>
+                  ${!esSubusuario && pesa.valor ? `<div style="font-size: 0.8em; margin-top: 4px; color: var(--success-color);">${pesa.valor.toLocaleString()}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${estaLiquidada ? `
+          <div style="margin-top: 10px; font-size: 0.8em; color: var(--success-color); text-align: center;">
+            Liquidada el ${formatearFecha(recogida.fechaLiquidacion)} por ${recogida.usuarioLiquida || 'usuario'}
+          </div>
+        ` : ''}
+
+        <div class="card-footer">
+          <div class="usuario-info">
+            <div class="usuario-avatar">${avatarInitial}</div>
+            <div>
+              <div style="font-weight: 600;">${usuarioMostrar}</div>
+              <div style="font-size: 0.8em; color: var(--text-secondary);">Registrado por</div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+            <button class="editar-btn" data-id="${recogida._id}" data-finca-id="${recogida.fincaId}">✏️ Editar</button>
+            <div style="text-align: right; font-size: 0.8em; color: var(--text-secondary);">
+              ID: ${recogida._id ? recogida._id.slice(-6) : 'N/A'}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = recogidasHTML;
+
+  // Event listeners para botones de editar
+  document.querySelectorAll('.editar-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const recogidaId = e.target.getAttribute('data-id');
+      const fincaId = e.target.getAttribute('data-finca-id');
+      
+      if (recogidaId && fincaId) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const usuario = urlParams.get('usuario') || params.get('usuario');
+        
+        const editarUrl = `recogida.html?modo=editar&idRecogida=${recogidaId}&fincaId=${fincaId}&usuario=${encodeURIComponent(usuario)}`;
+        window.location.href = editarUrl;
+      }
+    });
+  });
+}
+// 🔥 FUNCIÓN PARA GENERAR HTML DE UNA FRUTA ÚNICA CON DETALLE DE CALIDADES
+function generarHTMLFrutaUnica(fruta, kilosPorCalidad) {
+  const totalKilos = Object.values(kilosPorCalidad).reduce((sum, kilos) => sum + kilos, 0);
+  
+  return `
+    <div>
+      <div class="info-value">${fruta}</div>
+      <div style="margin-top: 8px; font-size: 0.85em;">
+        <div>Total: ${totalKilos.toFixed(1)} kg</div>
+        ${generarDetalleCalidades(kilosPorCalidad)}
+      </div>
+    </div>
+  `;
+}
+
+// 🔥 FUNCIÓN PARA GENERAR DETALLE DE CALIDADES
+function generarDetalleCalidades(kilosPorCalidad) {
+  return Object.entries(kilosPorCalidad)
+    .map(([calidad, kilos]) => `
+      <div style="margin-top: 4px;">
+        <span class="calidad-badge calidad-${calidad}" style="margin-right: 5px;">${calidad}</span>
+        <span>${kilos.toFixed(1)} kg</span>
+      </div>
+    `).join('');
+}
+// 🔥 FUNCIÓN PARA ACTUALIZAR INFORMACIÓN VISUAL DE FECHAS - CORREGIDA
+function actualizarInfoFechas(fechaDesde, fechaHasta) {
+  const dateInfo = document.getElementById('dateInfo');
+  
+  if (fechaDesde || fechaHasta) {
+    let texto = '';
+    if (fechaDesde && fechaHasta) {
+      texto = `📅 Rango: ${fechaDesde} ➜ ${fechaHasta} (inclusivo)`;
+    } else if (fechaDesde) {
+      texto = `📅 Desde: ${fechaDesde} (incluido)`;
+    } else if (fechaHasta) {
+      texto = `📅 Hasta: ${fechaHasta} (incluido)`;
+    }
+    
+    dateInfo.textContent = texto;
+    dateInfo.classList.add('active');
+  } else {
+    dateInfo.classList.remove('active');
+  }
+}
+
+// Limpiar filtros
+function limpiarFiltros() {
+  document.getElementById('searchText').value = '';
+  document.getElementById('filtroFruta').value = '';
+  document.getElementById('filtroCalidad').value = '';
+  document.getElementById('filtroUsuario').value = '';
+  document.getElementById('fechaDesde').value = '';
+  document.getElementById('fechaHasta').value = '';
+  document.getElementById('filtroLiquidacion').value = ''; // Limpiar nuevo filtro
+  
+  recogidasFiltradas = [...todasLasRecogidas];
+  actualizarStats();
+  mostrarRecogidas();
+}
+
+// 🔥 EXPORTAR DATOS MEJORADO PARA MÚLTIPLES FRUTAS
+function exportarDatos() {
+  if (recogidasFiltradas.length === 0) {
+    alert('No hay datos para exportar');
+    return;
+  }
+
+  const fechaExportacion = new Date().toLocaleDateString('es-ES');
+  let contenido = `=== REPORTE DE RECOGIDAS ===\nFecha de exportación: ${fechaExportacion}\nTotal de registros: ${recogidasFiltradas.length}\n\n`;
+
+  // Estadísticas generales
+  const totalKilos = recogidasFiltradas.reduce((sum, r) => sum + (r.totalKilos || 0), 0);
+  const totalPagado = esSubusuario ? 0 : recogidasFiltradas.reduce((sum, r) => sum + (r.valorPagar || 0), 0);
+  
+  contenido += `=== RESUMEN ESTADÍSTICO ===\n`;
+  contenido += `Total Kilos: ${totalKilos.toFixed(1)} kg\n`;
+  if (!esSubusuario) {
+    contenido += `Total Pagado: ${totalPagado.toLocaleString()}\n`;
+  }
+  contenido += `Promedio por Recogida: ${(totalKilos / recogidasFiltradas.length).toFixed(1)} kg\n\n`;
+
+  // Detalle de recogidas
+  contenido += `=== DETALLE DE RECOGIDAS ===\n`;
+  
+  recogidasFiltradas.forEach((recogida, index) => {
+    const fechaFormateada = formatearFecha(recogida.fecha);
+    const usuario = recogida.alias || recogida.usuario || 'Usuario';
+    const frutasUnicas = obtenerFrutasUnicas(recogida);
+    const calidadesUnicas = obtenerCalidadesUnicas(recogida);
+    
+    contenido += `\n${index + 1}. RECOGIDA DEL ${fechaFormateada}\n`;
+    contenido += `   Finca: ${recogida.finca || 'N/A'} - Propietario: ${recogida.propietario || 'N/A'}\n`;
+    contenido += `   Usuario: ${usuario}\n`;
+    contenido += `   Frutas: ${frutasUnicas.join(', ')}\n`;
+    contenido += `   Calidades: ${calidadesUnicas.join(', ')}\n`;
+    contenido += `   Total Kilos: ${(recogida.totalKilos || 0).toFixed(1)} kg\n`;
+    
+    if (!esSubusuario) {
+      contenido += `   Precio/Kg: ${(recogida.precio || 0).toLocaleString()}\n`;
+      contenido += `   Total a Pagar: ${(recogida.valorPagar || 0).toLocaleString()}\n`;
+    }
+    
+    // Detalle de pesas con frutas individuales
+    if (recogida.pesas && recogida.pesas.length > 0) {
+      contenido += `   Pesas detalladas (${recogida.pesas.length}):\n`;
+      recogida.pesas.forEach((pesa, idx) => {
+        contenido += `     ${idx + 1}. ${pesa.fruta || 'N/A'} (${pesa.calidad || 'N/A'}): ${pesa.kilos}kg`;
+        if (!esSubusuario && pesa.valor) {
+          contenido += ` - ${pesa.valor.toLocaleString()}`;
+        }
+        contenido += '\n';
+      });
+    }
+    
+    contenido += `   ID: ${recogida._id ? recogida._id.slice(-8) : 'N/A'}\n`;
+  });
+
+  // Descargar archivo
+  const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `recogidas_multiple_frutas_${new Date().toISOString().split('T')[0]}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+
+  mostrarNotificacion('📥 Reporte exportado exitosamente con detalles de múltiples frutas', 'success');
+}
+
+// Mostrar notificación
+function mostrarNotificacion(mensaje, tipo = 'info') {
+  const notificacion = document.createElement('div');
+  notificacion.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: ${tipo === 'success' ? 'linear-gradient(45deg, #4ecdc4, #45b7aa)' : 'linear-gradient(45deg, #00d4ff, #0099cc)'};
+    color: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    z-index: 10000;
+    font-weight: 600;
+    animation: slideInRight 0.3s ease;
+    max-width: 300px;
+  `;
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutRight {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  notificacion.textContent = mensaje;
+  document.body.appendChild(notificacion);
+  
+  setTimeout(() => {
+    notificacion.style.animation = 'slideOutRight 0.3s ease';
+    setTimeout(() => {
+      if (notificacion.parentNode) {
+        notificacion.parentNode.removeChild(notificacion);
+      }
+    }, 300);
+  }, 4000);
+}
+
+// Función debounce para optimizar búsqueda
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('searchText').addEventListener('input', debounce(aplicarFiltros, 500));
+  document.getElementById('filtroFruta').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroCalidad').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroUsuario').addEventListener('change', aplicarFiltros);
+  document.getElementById('fechaDesde').addEventListener('change', aplicarFiltros);
+  document.getElementById('fechaHasta').addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroLiquidacion').addEventListener('change', aplicarFiltros); // Nuevo event listener
+  
+  cargarRecogidas();
+});
+  </script>
+</body>
+</html>

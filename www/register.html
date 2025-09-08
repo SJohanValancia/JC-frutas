@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Registro - Solo Super Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="jc-loader.js"></script>
+  
+  <style>
+    .form-section {
+      margin-bottom: 15px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    
+    .form-section h4 {
+      margin: 0 0 10px 0;
+      color: #333;
+      font-size: 14px;
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0;
+    }
+    
+    .checkbox-container input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+    }
+    
+    .checkbox-container label {
+      margin: 0;
+      font-size: 14px;
+      color: #555;
+      cursor: pointer;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .info-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-account">
+    <div class="register-header">
+      <h2>🛡️ Registro de Usuario</h2>
+      <p class="super-admin-notice">Solo accesible para Super Administrador</p>
+    </div>
+
+    <form id="registerForm">
+      <!-- Campos básicos -->
+      <input type="text" id="registerName" placeholder="Nombre de usuario" required>
+      <input type="password" id="registerPassword" placeholder="Contraseña" required>
+      <input type="text" id="registerAlias" placeholder="Tu alias (único)" required />
+
+      <select id="registerTipo" required>
+        <option value="">Selecciona tipo</option>
+        <option value="1">Administrador</option>
+        <option value="2">Subusuario</option>
+      </select>
+
+      <!-- Para subusuarios: campo tradicional de alias admin -->
+      <div id="aliasAdminContainer" class="form-section hidden">
+        <h4>👤 Configuración de Subusuario</h4>
+        <input type="text" id="aliasAdmin" placeholder="Alias del administrador">
+        <div class="info-text">
+          El subusuario estará vinculado a este administrador
+        </div>
+      </div>
+
+      <!-- Para administradores: opción de enlazar con otro admin -->
+      <div id="enlazarAdminContainer" class="form-section hidden">
+        <h4>🔗 Configuración de Administrador</h4>
+        <div class="checkbox-container">
+          <input type="checkbox" id="enlazarAdmin">
+          <label for="enlazarAdmin">Enlazar este administrador con otro administrador</label>
+        </div>
+        <div class="info-text">
+          Si marcas esta opción, este administrador verá la información del administrador seleccionado, pero mantendrá todas sus funciones de admin.
+        </div>
+      </div>
+
+      <!-- Select de administradores disponibles (solo se muestra si se marca el checkbox) -->
+      <div id="adminSelectContainer" class="form-section hidden">
+        <h4>🎯 Seleccionar Administrador</h4>
+        <select id="adminSelect">
+          <option value="">Cargando administradores...</option>
+        </select>
+        <div class="info-text">
+          Selecciona el administrador al que se enlazará este nuevo administrador
+        </div>
+      </div>
+
+      <button type="submit">Registrar Usuario</button>
+    </form>
+
+    <div class="register-actions">
+      <a href="dashboard3.html" class="back-link">← Volver al Dashboard</a>
+    </div>
+  </div>
+
+  <script type="module" src="register-protected.js"></script>
+</body>
+</html>
