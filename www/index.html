@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Iniciar Sesión</title>
   <link rel="stylesheet" href="style.css">
-  <script type="module" src="login.js"></script>
   <script src="jc-loader.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
@@ -30,5 +29,9 @@
     });
   </script>
 </body>
+<script type="module">
+  import { openDB } from 'https://cdn.jsdelivr.net/npm/idb@7/+esm';
+  window.idb = { openDB };
+</script>
 <script type="module" src="login.js"></script>
 </html>

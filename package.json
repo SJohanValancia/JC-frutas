@@ -9,6 +9,7 @@
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
+    "idb": "^8.0.3",
     "mongoose": "^8.16.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"

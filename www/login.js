@@ -1,4 +1,5 @@
 import { apiFetch } from "./api.js";
+import { getUserFromDB, saveUserToDB } from "./db.js";
 
 // Limpiar localStorage cuando se carga la página de login
 document.addEventListener("DOMContentLoaded", () => {
@@ -7,42 +8,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Función principal para manejar el login
 async function handleLogin(username, password) {
-    try {
-        console.log("🔄 Intentando login para:", username);
-        
-        const response = await apiFetch("/auth/login", "POST", {
-            username,
-            password
+  try {
+    if (navigator.onLine) {
+      console.log("🌐 Online: intentando login con servidor...");
+      try {
+        const response = await apiFetch("/auth/login", "POST", { username, password });
+
+        await saveUserToDB({
+          username,
+          tipo: response.tipo,
+          alias: response.alias,
+          enlazadoAAdmin: response.enlazadoAAdmin,
+          admin: response.admin,
         });
-        
-        console.log("✅ Login exitoso:", response);
-        
-        // Guardar datos de usuario
+
         localStorage.setItem("userData", JSON.stringify(response));
-        
-        // Redirigir según el tipo de usuario
         redirectUserByType(response, username);
-        
-    } catch (error) {
-        console.error("❌ Error en login:", error);
-        
-        // Verificar si el error es por cuenta bloqueada usando el nuevo sistema
-        if (error.type === 'CUENTA_BLOQUEADA' || error.message === 'CUENTA_BLOQUEADA') {
-            console.log("🚫 Usuario bloqueado detectado");
-            handleBlockedUser(username, error);
-            return;
-        }
-        
-        // Verificar también por status 403
-        if (error.status === 403) {
-            console.log("🚫 Posible usuario bloqueado - Status 403");
-            handleBlockedUser(username, error);
-            return;
-        }
-        
-        // Para otros errores, mostrar mensaje genérico
-        alert("❌ Error en el login: " + error.message);
+        return; // ✅ Salir si todo fue bien
+      } catch (err) {
+        console.warn("⚠️ Servidor no responde, intentando login offline...");
+        // ❌ No mostrar alerta aquí, solo log
+      }
     }
+
+    // ✅ Si estás offline o el servidor falló, intenta con IndexedDB
+    console.log("📴 Intentando login offline...");
+    const user = await getUserFromDB(username);
+
+    if (!user) {
+      alert("❌ Usuario no encontrado en modo offline");
+      return;
+    }
+
+    const fakeResponse = {
+      tipo: user.tipo,
+      alias: user.alias,
+      usuario: user.username,
+      enlazadoAAdmin: user.enlazadoAAdmin,
+      admin: user.admin,
+    };
+
+    localStorage.setItem("userData", JSON.stringify(fakeResponse));
+    redirectUserByType(fakeResponse, username);
+
+  } catch (error) {
+    console.error("❌ Error en login:", error);
+    alert("❌ Error en el login: " + error.message);
+  }
 }
 
 // Función para manejar usuarios bloqueados
