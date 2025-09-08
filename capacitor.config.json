@@ -1,5 +1,28 @@
 {
   "appId": "app.cjfrutas.netlify",
   "appName": "JC-F",
-  "webDir": "www"
+  "webDir": "www",
+  "server": {
+    "allowNavigation": [
+      "https://jc-frutas.onrender.com",
+      "https://jc-frutas.netlify.app",
+      "https://localhost",
+      "http://localhost"
+    ],
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "ios": {
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }
