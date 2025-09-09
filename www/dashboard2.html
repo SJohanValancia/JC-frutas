@@ -5,7 +5,7 @@
   <title>Dashboard Subusuario</title>
   <link rel="stylesheet" href="style.css">
   <script src="jc-loader.js"></script>
-    <script src="blockCheck.js"></script>
+  <script src="blockCheck.js"></script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -99,23 +99,9 @@
 <body>
   <div class="container">
     <h1 id="saludo">Bienvenido <span id="usuarioInfo"></span></h1>
-    
-    <!-- Sección removida de la info de debug -->
-    <!-- No aparece debug info ni botón para debug -->
-
-    <!-- Información del Administrador eliminada para subusuarios -->
-    <!-- <div id="adminInfo" class="admin-info">
-      <h3 style="margin-top: 0; color: var(--primary-color, #00d4ff);">📋 Información del Administrador</h3>
-      <p><strong>Administrador:</strong> <span id="adminNombre">Cargando...</span></p>
-      <p><strong>Email:</strong> <span id="adminEmail">Cargando...</span></p>
-      <p><strong>Alias:</strong> <span id="adminAlias">Cargando...</span></p>
-    </div> -->
-
-    <!-- Eliminar el botón de agregar finca para subusuarios -->
-    <!-- <button id="btnAgregarFinca">➕ Agregar Finca</button> -->
 
     <input type="text" id="buscarFinca" placeholder="Buscar finca o propietario...">
-    
+
     <div id="listaFincas"></div>
   </div>
 
@@ -131,61 +117,55 @@
 <script type="module">
   import { apiFetch } from "./api.js";
 
-  // Obtener parámetros de la URL
+  // Parámetros de URL
   const params = new URLSearchParams(window.location.search);
   const usuario = params.get("usuario");
   const adminAlias = params.get("admin");
 
-  // Obtener el alias del subusuario desde sessionStorage
+  // Session user alias
   const sessionData = JSON.parse(sessionStorage.getItem('userData') || '{}');
-  const currentUserAlias = sessionData.alias;  // Usamos el alias desde sessionStorage
+  const currentUserAlias = sessionData.alias || '';
 
-  // Cambiar el saludo para mostrar el alias
-  const saludo = document.getElementById("saludo");
   document.getElementById("usuarioInfo").textContent = currentUserAlias;
 
-  // Lógica para ocultar elementos para subusuarios
+  // Ocultar elementos si es subusuario (manteniendo tu lógica)
   if (usuario && usuario !== "null" && usuario !== "undefined" && usuario !== null && usuario !== undefined) {
-    if (sessionData.tipo === 2) {  // Si es subusuario
-      // Remover o deshabilitar las secciones no deseadas para subusuarios
+    if (sessionData.tipo === 2) {
       const btnAgregarFinca = document.getElementById("btnAgregarFinca");
       const adminInfo = document.getElementById("adminInfo");
-      
-      // Ocultar el botón de agregar finca y la información del administrador
-      if (btnAgregarFinca) btnAgregarFinca.style.display = "none"; // Ocultar botón de agregar finca
-      if (adminInfo) adminInfo.style.display = "none"; // Ocultar información del administrador
+      if (btnAgregarFinca) btnAgregarFinca.style.display = "none";
+      if (adminInfo) adminInfo.style.display = "none";
     }
   }
 
-  // Lógica para cargar las fincas
   const lista = document.getElementById("listaFincas");
   const buscarInput = document.getElementById("buscarFinca");
 
-  async function cargarFincas() {
-    try {
-      if (!adminAlias) {
-        console.error("❌ No hay adminAlias definido");
-        lista.innerHTML = "<p>❌ Error: No se puede cargar fincas sin adminAlias</p>";
-        return;
-      }
+  // IndexedDB manager (import dinámico)
+  let idbManager = null;
 
-      const response = await fetch(`https://jc-frutas.onrender.com/fincas/por-admin/${adminAlias}`);
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-
-      const fincasAdmin = await response.json();
-      mostrarFincas(fincasAdmin);
-    } catch (err) {
-      console.error("❌ Error al cargar fincas:", err);
-      alert("Error al cargar fincas: " + err.message);
-      lista.innerHTML = `<p>❌ Error al cargar fincas: ${err.message}</p>`;
+  // Helpers defensivos para trabajar con el módulo de IndexedDB aunque sus nombres varíen
+  const putFincasBulk = async (fincas) => {
+    if (!idbManager) return;
+    if (typeof idbManager.putFincas === 'function') return idbManager.putFincas(fincas);
+    if (typeof idbManager.putMany === 'function') return idbManager.putMany('fincas', fincas);
+    if (typeof idbManager.put === 'function') {
+      for (const f of fincas) await idbManager.put('fincas', f);
     }
-  }
+  };
 
+  const getAllFincasLocal = async () => {
+    if (!idbManager) return [];
+    if (typeof idbManager.getAllFincas === 'function') return idbManager.getAllFincas();
+    if (typeof idbManager.getAll === 'function') return idbManager.getAll('fincas');
+    console.warn('getAllFincas no disponible en indexeddb-manager');
+    return [];
+  };
+
+  // Mostrar fincas (igual que tu función original)
   async function mostrarFincas(fincas) {
-    lista.innerHTML = ""; // Limpiar la lista de fincas
-    if (fincas.length === 0) {
+    lista.innerHTML = "";
+    if (!fincas || fincas.length === 0) {
       lista.innerHTML = `
         <div class="card-glass">
           <p style="text-align: center; opacity: 0.7;">
@@ -195,7 +175,6 @@
         </div>
       `;
     } else {
-      // Renderizar solo las tarjetas de finca que contienen los detalles que el subusuario puede ver
       for (const finca of fincas) {
         const div = document.createElement("div");
         div.className = "card-glass";
@@ -205,18 +184,18 @@
             <div class="finca-title">${finca.nombre}</div>
             <div class="propietario">Propietario: ${finca.propietario}</div>
           </div>
-          
+
           <div class="botones-container">
             <button onclick="location.href='recogida.html?fincaId=${finca._id}&usuario=${encodeURIComponent(usuario)}&finca=${encodeURIComponent(finca.nombre)}&propietario=${encodeURIComponent(finca.propietario)}'">📊 Recogida</button>
           </div>
         `;
-        
+
         lista.prepend(div);
       }
     }
   }
 
-  // Función para buscar por finca o propietario
+  // Búsqueda
   function buscarFinca() {
     const query = buscarInput.value.toLowerCase();
     const fincas = document.querySelectorAll('.card-glass');
@@ -226,17 +205,83 @@
       const propietario = finca.querySelector('.propietario').textContent.toLowerCase();
 
       if (fincaNombre.includes(query) || propietario.includes(query)) {
-        finca.style.display = 'block'; // Mostrar finca que coincida
+        finca.style.display = 'block';
       } else {
-        finca.style.display = 'none'; // Ocultar finca que no coincida
+        finca.style.display = 'none';
       }
     });
   }
-
-  // Agregar el evento de búsqueda
   buscarInput.addEventListener('input', buscarFinca);
 
-  // Inicializar la aplicación
+  // Cargar fincas: intenta servidor -> guarda en IDB; si falla o está offline, carga desde IDB
+  async function cargarFincas() {
+    try {
+      if (!adminAlias) {
+        console.error("❌ No hay adminAlias definido");
+        lista.innerHTML = "<p>❌ Error: No se puede cargar fincas sin adminAlias</p>";
+        return;
+      }
+
+      // Si estamos online, preferimos traer del servidor y guardar en IndexedDB
+      if (navigator.onLine) {
+        try {
+          console.log('🌐 Online: obteniendo fincas del servidor...');
+          const response = await fetch(`https://jc-frutas.onrender.com/fincas/por-admin/${adminAlias}`);
+          if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+          const fincasAdmin = await response.json();
+
+          // Guardar en IndexedDB (para uso offline posterior)
+          try {
+            if (idbManager) {
+              await putFincasBulk(fincasAdmin);
+              console.log('✅ Fincas guardadas en IndexedDB');
+            } else {
+              console.log('IndexedDB manager no disponible: no se guardarán localmente');
+            }
+          } catch (e) {
+            console.warn('⚠️ Error guardando en IndexedDB:', e);
+          }
+
+          await mostrarFincas(fincasAdmin);
+          return;
+        } catch (err) {
+          console.warn('❗ No se pudo cargar desde servidor (se intentará la caché):', err);
+          // caerá al bloque de cache abajo
+        }
+      }
+
+      // Offline o fallo al pedir al servidor -> cargar desde IndexedDB
+      console.log('📴 Cargando fincas desde IndexedDB (offline fallback)...');
+      const cached = await getAllFincasLocal();
+      const filtradas = (cached || []).filter(f => {
+        // filtrar por adminAlias (según cómo guardes adminAlias en el objeto)
+        if (!f) return false;
+        return (f.adminAlias && String(f.adminAlias) === String(adminAlias)) ||
+               (f.admin && String(f.admin) === String(adminAlias)) ||
+               (f.usuario && String(f.usuario) === String(adminAlias));
+      });
+
+      if (filtradas.length > 0) {
+        console.log(`📦 Cargadas ${filtradas.length} fincas desde IndexedDB`);
+        await mostrarFincas(filtradas);
+      } else {
+        console.warn('No hay fincas en IndexedDB para este adminAlias');
+        lista.innerHTML = `
+          <div class="card-glass">
+            <p style="text-align:center; opacity:0.7;">
+              📋 No hay datos offline para el administrador <strong>${adminAlias}</strong>.
+              <br><small>Conéctate a Internet para descargar las fincas.</small>
+            </p>
+          </div>
+        `;
+      }
+    } catch (err) {
+      console.error('❌ Error general al cargar fincas:', err);
+      lista.innerHTML = `<p>❌ Error al cargar fincas: ${err.message}</p>`;
+    }
+  }
+
+  // Inicializar: importar IndexedDB manager (si existe) y cargar fincas
   async function inicializarApp() {
     console.log("🚀 Inicializando dashboard subusuario...");
 
@@ -250,10 +295,26 @@
       return;
     }
 
+    // Intentar cargar el manager de IndexedDB (no rompe si no existe)
+    try {
+      idbManager = await import('./indexeddb-manager.js');
+      console.log('🔁 indexeddb-manager cargado:', idbManager);
+    } catch (e) {
+      console.warn('⚠️ No se pudo cargar indexeddb-manager.js — la app seguirá funcionando online:', e);
+      idbManager = null;
+    }
+
+    // Cargar las fincas (prefiere servidor si hay Internet, si no usa caché)
     await cargarFincas();
   }
 
-  // Ejecutar inicialización
+  // Reintentar al volver online
+  window.addEventListener('online', () => {
+    console.log('🔔 Volviste online: actualizando fincas desde servidor...');
+    cargarFincas();
+  });
+
+  // Ejecutar
   inicializarApp();
 </script>
 </body>
