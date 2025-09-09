@@ -8,6 +8,45 @@ const cantidadInput = document.getElementById("cantidadFrutas");
 const frutasContainer = document.getElementById("frutasContainer");
 const guardarBtn = document.getElementById("guardarPrecios");
 
+// precios.js (fragmento)
+import './dbb.js'; // si usas módulos; si no, asegúrate de que db.js se haya cargado antes
+
+async function fetchAndStorePrices() {
+  try {
+    const resp = await fetch('/api/precios'); // tu endpoint real
+    if (!resp.ok) throw new Error('Error al traer precios');
+    const data = await resp.json();
+    // Suponiendo data = [{id, frutaId, precio, updatedAt}, ...]
+    await window.IDB_HELPER.savePrices(data.map(p => ({
+  key: p.frutaId || p.id || p.nombre,
+  ...p
+})));
+    renderPrices(data);
+  } catch (err) {
+    console.warn('No se pudo traer precios del servidor, usando cache local:', err);
+    const cached = await window.IDB_HELPER.getAllPrices();
+    renderPrices(cached);
+  }
+}
+
+function renderPrices(pricesArray) {
+  // tu función para mostrar precios en UI
+  // ejemplo simple:
+  const container = document.querySelector('#lista-precios');
+  if (!container) return;
+  container.innerHTML = pricesArray.map(p => `<div>${p.frutaId || p.key}: ${p.precio}</div>`).join('');
+}
+
+// Llamar al cargar la página
+fetchAndStorePrices();
+
+// Opcional: refrescar cuando vuelva online
+window.addEventListener('online', () => {
+  console.log('Volvimos online — actualizando precios desde server.');
+  fetchAndStorePrices();
+});
+
+
 // Cargar precios al iniciar
 cargarPreciosGuardados();
 
@@ -100,9 +139,50 @@ async function cargarPreciosGuardados() {
 
     console.log(`📊 Mostrando ${frutasFinales.length} frutas`);
     renderFrutasGuardadas(frutasFinales);
+
+    // Guardar frutas en IndexedDB para uso offline
+await window.IDB_HELPER.saveFruits(fincaId, frutasFinales);
+
   } catch (err) {
     console.error("❌ Error al cargar precios guardados:", err);
     alert("Error al cargar precios: " + err.message);
+  }
+}
+
+// 🔁 Sincronizar TODAS las frutas y precios del servidor a IndexedDB
+async function sincronizarFrutasYpreciosALocal() {
+  try {
+    console.log("🔄 Sincronizando frutas y precios desde servidor...");
+
+    const res = await fetch(`https://jc-frutas.onrender.com/precios/todos`);
+    if (!res.ok) throw new Error("No se pudieron obtener los precios");
+
+    const todos = await res.json(); // [{ fincaId, frutas: [...] }, ...]
+
+    for (const registro of todos) {
+      const { fincaId, frutas } = registro;
+
+      if (!fincaId || !frutas || !frutas.length) continue;
+
+      // Guardar frutas
+      await window.IDB_HELPER.saveFruits(fincaId, frutas);
+
+      // Guardar precios (como prices)
+      await window.IDB_HELPER.savePrices(frutas.map(f => ({
+        key: f.nombre,
+        fincaId,
+        ...f
+      })));
+
+      console.log(`✅ Finca ${fincaId}: ${frutas.length} frutas sincronizadas`);
+    }
+
+    console.log("✅ Sincronización completa finalizada");
+    alert("✅ Frutas y precios sincronizados para uso offline");
+
+  } catch (err) {
+    console.error("❌ Error al sincronizar:", err);
+    alert("No se pudieron sincronizar los datos offline");
   }
 }
 
@@ -492,3 +572,12 @@ if (!document.querySelector('#loading-animation-styles')) {
 console.log("✅ precios.js cargado correctamente");
 console.log("🏠 Finca ID:", fincaId);
 console.log("👤 Usuario:", usuario);
+
+// 🔁 Ejecutar sincronización completa solo una vez por usuario
+(async () => {
+  const yaSincronizado = localStorage.getItem("frutasSincronizadas_v1");
+  if (!yaSincronizado) {
+    await sincronizarFrutasYpreciosALocal();
+    localStorage.setItem("frutasSincronizadas_v1", "true");
+  }
+})();

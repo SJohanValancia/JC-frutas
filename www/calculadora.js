@@ -1529,25 +1529,42 @@ async function configurarInterfazCalculadora() {
 
 async function cargarPreciosFrutas() {
   const fincaId = new URLSearchParams(window.location.search).get("fincaId");
-  const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
-  if (!res.ok) throw new Error("No se pudo cargar precios");
-  const datos = await res.json();
 
-  let frutasFinales = [];
-  for (const doc of datos) {
-    if (doc.frutas?.length > frutasFinales.length) {
-      frutasFinales = doc.frutas;
+  try {
+    if (navigator.onLine) {
+      console.log("📡 Cargando precios desde servidor...");
+      const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
+      if (!res.ok) throw new Error("No se pudo cargar precios");
+      const datos = await res.json();
+
+      let frutasFinales = [];
+      for (const doc of datos) {
+        if (doc.frutas?.length > frutasFinales.length) {
+          frutasFinales = doc.frutas;
+        }
+      }
+
+      // Guardar en IndexedDB
+      await window.IDB_HELPER.savePrices(frutasFinales.map(f => ({
+        key: f.nombre,
+        fincaId,
+        ...f
+      })));
+
+      preciosDisponibles = frutasFinales;
+    } else {
+      console.log("📦 Sin conexión: usando precios desde IndexedDB");
+      const cached = await window.IDB_HELPER.getAllPrices();
+      preciosDisponibles = cached.filter(p => p.fincaId === fincaId);
     }
-  }
 
-  preciosDisponibles = frutasFinales;
-  
-  const debeOcultarPrecios = isSubusuario && !esAdministradorViendo;
-  if (!debeOcultarPrecios) {
-    actualizarPrecioKiloVisible();
+    if (!isSubusuario) actualizarPrecioKiloVisible();
+    renderPesas();
+
+  } catch (err) {
+    console.error("❌ Error al cargar precios:", err);
+    alert("No se pudieron cargar los precios. Verifica tu conexión.");
   }
-  
-  renderPesas();
 }
 
 function getPrecioPorFrutaYCalidad(fruta, calidad) {

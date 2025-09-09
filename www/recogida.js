@@ -9,6 +9,105 @@ const modo = params.get("modo");
 const idRecogida = params.get("idRecogida");
 
 
+// recogida.js (fragmento)
+import './dbb.js';
+
+async function loadFruitsForFinca(fincaId) {
+  // Intentar obtener del server si hay internet, sino usar IndexedDB
+  if (navigator.onLine) {
+    try {
+      const res = await fetch(`/api/fincas/${fincaId}/frutas`);
+      if (!res.ok) throw new Error('No data from server');
+      const frutas = await res.json();
+      // Guardar copia en indexedDB
+      await window.IDB_HELPER.saveFruits(fincaId, frutas);
+      populateFruitsSelect(frutas);
+      return;
+    } catch (err) {
+      console.warn('Error trayendo frutas del server, fallback a cache', err);
+    }
+  }
+  // Fallback a IndexedDB
+  const cached = await window.IDB_HELPER.getFruitsByFinca(fincaId);
+  populateFruitsSelect(cached);
+}
+
+function populateFruitsSelect(frutas) {
+  const sel = frutaSelect || document.getElementById('frutaSelect');
+  if (!sel) return;
+  sel.innerHTML = frutas.map(f => `<option value="${f.id || f.key || f.nombre}">${f.nombre}</option>`).join('');
+}
+
+// Envío de recogida
+async function submitRecogida(recogidaData) {
+  // recogidaData: { fincaId, frutaId, cantidad, precio, fecha, userId, ... }
+  if (navigator.onLine) {
+    try {
+      const res = await fetch('/api/recogidas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recogidaData)
+      });
+      if (!res.ok) throw new Error('Server rejected');
+      const saved = await res.json();
+      mostrarExito('Recogida registrada en el servidor');
+      // opcional: actualizar precios/frutas locales si server devuelve info
+      return saved;
+    } catch (err) {
+      console.warn('Fallo al enviar recogida, guardando en pending_local', err);
+      await window.IDB_HELPER.addPendingRecogida(recogidaData);
+      mostrarExito('Sin internet: Recogida guardada localmente y se sincronizará cuando haya conexión.');
+      return { offline: true };
+    }
+  } else {
+    await window.IDB_HELPER.addPendingRecogida(recogidaData);
+    mostrarExito('Sin internet: Recogida guardada localmente y se sincronizará cuando haya conexión.');
+    return { offline: true };
+  }
+}
+
+function mostrarExito(msg) {
+  // tu UI: toast o aviso
+  alert(msg);
+}
+
+// Llamar loadFruitsForFinca al abrir la página de recogida
+loadFruitsForFinca(fincaId);
+
+// Sincronizar pendientes cuando vuelva la conexión
+window.addEventListener('online', async () => {
+  console.log('online: intentando sincronizar recogidas pendientes');
+  await syncPendingRecogidas();
+});
+
+async function syncPendingRecogidas() {
+  const pendings = await window.IDB_HELPER.getAllPendingRecogidas();
+  for (const p of pendings) {
+    try {
+      const res = await fetch('/api/recogidas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(p.recogida)
+      });
+      if (res.ok) {
+        // eliminado local si se guardó en servidor
+        await window.IDB_HELPER.deletePendingRecogida(p.key);
+        console.log('Recogida sincronizada:', p.key);
+      } else {
+        console.warn('Servidor rechazó recogida pendiente', p.key, await res.text());
+        // Decide: si el servidor rechaza, podrías eliminar local o marcar como error; aquí dejamos para intentar luego.
+      }
+    } catch (err) {
+      console.warn('No se pudo sincronizar recogida', p.key, err);
+      // si falla una, terminamos (volverá a intentarse cuando quede online otra vez)
+      return;
+    }
+  }
+  // Opcional: notificar al usuario
+  if (pendings.length > 0) {
+    mostrarExito('Todas las recogidas pendientes se sincronizaron correctamente.');
+  }
+}
 
 
 // 🔥 FUNCIÓN PARA CONFIGURAR LA INFORMACIÓN DE LA FINCA Y PROPIETARIO
@@ -508,13 +607,14 @@ async function guardarRecogida() {
   data.pesas.forEach((pesa, idx) => {
     console.log(`   Pesa ${idx + 1}: ${pesa.kilos}kg de ${pesa.fruta} (${pesa.calidad})`);
   });
+try {
+  const metodo = modo === "editar" ? "PUT" : "POST";
+  const url = modo === "editar" 
+    ? `https://jc-frutas.onrender.com/recogidas/${idRecogida}` 
+    : "https://jc-frutas.onrender.com/recogidas/nueva";
 
-  try {
-    const metodo = modo === "editar" ? "PUT" : "POST";
-    const url = modo === "editar" ? 
-      `https://jc-frutas.onrender.com/recogidas/${idRecogida}` : 
-      "https://jc-frutas.onrender.com/recogidas/nueva";
-
+  // Intentamos enviar al servidor si hay conexión
+  if (navigator.onLine) {
     const response = await fetch(url, {
       method: metodo,
       headers: { "Content-Type": "application/json" },
@@ -522,55 +622,39 @@ async function guardarRecogida() {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(()=>({}));
       throw new Error(`Error del servidor: ${response.status} - ${errorData.error || 'Error desconocido'}`);
     }
 
     const result = await response.json();
-    console.log("✅ Recogida guardada con frutas individuales:", result);
-
-    // Verificar que se guardaron las frutas individuales
-    if (result.recogida && result.recogida.pesas) {
-      console.log("🔍 Verificación final - Pesas guardadas:");
-      result.recogida.pesas.forEach((pesa, idx) => {
-        console.log(`   ✓ Pesa ${idx + 1}: ${pesa.kilos}kg de ${pesa.fruta} (${pesa.calidad})`);
-      });
-    }
-
-    // Limpiar localStorage después del guardado exitoso
+    console.log("✅ Recogida guardada en servidor:", result);
+    // aquí va el código de limpieza/feedback que ya tenías...
     const limpiezaExitosa = limpiarPesasCompleto();
-    
-    if (limpiezaExitosa) {
-      console.log("✅ LocalStorage limpiado exitosamente después de guardar");
-      mostrarAnimacionExito("✔ Recogida guardada con frutas individuales");
-    } else {
-      console.warn("⚠️ Hubo un problema al limpiar el localStorage");
-      mostrarAnimacionExito("✔ Recogida guardada (revisar limpieza)");
-    }
-    
-    // ✅ Limpiar el input después de guardar exitosamente
-    if (inputPeso) {
-      inputPeso.value = "";
-    }
-    
-    setTimeout(() => {
-      const pesasRestantes = localStorage.getItem("pesas_recogida");
-      if (pesasRestantes) {
-        console.warn("⚠️ Aún quedan pesas en localStorage, forzando limpieza...");
-        localStorage.removeItem("pesas_recogida");
-      }
-      
-      window.location.reload();
-    }, 1500);
-    
-  } catch (err) {
-    console.error("❌ Error al guardar recogida:", err);
-    mostrarAlertaPersonalizada(
-      "❌ Error al guardar",
-      "Error al guardar recogida: " + err.message,
-      "error"
-    );
+    if (limpiezaExitosa) mostrarAnimacionExito("✔ Recogida guardada");
+    setTimeout(() => { window.location.reload(); }, 1200);
+    return result;
+  } else {
+    // Si no hay conexión: usar el submitRecogida que ya existe y guarda en pending_recogidas
+    await submitRecogida(data);
+    limpiarPesasCompleto();
+    mostrarAnimacionExito("✔ Recogida guardada localmente (sin conexión). Se sincronizará al volver online.");
+    return { offline: true };
   }
+} catch (err) {
+  // Si ocurre cualquier error al enviar (ej. servidor caído), guardar en pending local
+  console.error("❌ Error al guardar recogida (se guardará localmente):", err);
+  try {
+    await window.IDB_HELPER.addPendingRecogida(data);
+    limpiarPesasCompleto();
+    mostrarAnimacionExito("✔ Recogida guardada localmente por error de red/servidor. Se sincronizará luego.");
+    return { offline: true };
+  } catch (err2) {
+    console.error("❌ No se pudo guardar localmente:", err2);
+    mostrarAlertaPersonalizada("❌ Error al guardar", "No se pudo guardar la recogida en servidor ni localmente: " + err2.message, "error");
+    throw err2;
+  }
+}
+
 }
 
 // 🔥 NUEVA FUNCIÓN PARA MOSTRAR CONFIRMACIÓN DE GUARDADO
@@ -735,25 +819,33 @@ async function configurarInterfazSegunTipoUsuario() {
 }
 
 // 🔥 FUNCIÓN MODIFICADA: Cargar frutas y precios
+// Reemplaza la función cargarFrutas existente por esta
 async function cargarFrutas() {
   console.log("🍎 Iniciando carga de frutas para finca:", fincaId);
-  
+
   if (!fincaId) {
     console.error("❌ No hay fincaId disponible");
     alert("Error: No se pudo identificar la finca");
     return [];
   }
 
-  try {
-    const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
-    
-    if (!res.ok) {
-      throw new Error(`Error ${res.status}: No se pudo cargar precios`);
-    }
-    
-    const precios = await res.json();
-    console.log("📊 Precios recibidos:", precios);
+  // Normaliza cómo esperas las frutas en IndexedDB
+  const normalizeFrutas = (frutasRaw) => {
+    return (frutasRaw || []).map(f => ({
+      id: f.id ?? f._id ?? f.key ?? f.nombre,
+      nombre: f.nombre ?? f.name ?? f.nombreFruta ?? f.key,
+      // copia cualquier campo extra si lo necesitas
+      ...f
+    }));
+  };
 
+  try {
+    // Intentar traer precios/frutas desde el servidor
+    const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
+    if (!res.ok) throw new Error(`Error ${res.status}: No se pudo cargar precios`);
+    const precios = await res.json();
+
+    // Extraer la lista de frutas (igual que antes)
     let frutasFinales = [];
     for (const doc of precios) {
       if (doc.frutas && doc.frutas.length > frutasFinales.length) {
@@ -761,12 +853,25 @@ async function cargarFrutas() {
       }
     }
 
-    preciosDisponibles = frutasFinales;
-    console.log("💰 Precios cargados:", preciosDisponibles.length, "frutas disponibles");
+    // Normalizar y guardar en IndexedDB para uso offline
+    const frutasNormalizadas = normalizeFrutas(frutasFinales);
+    if (window.IDB_HELPER && typeof window.IDB_HELPER.saveFruits === 'function') {
+      await window.IDB_HELPER.saveFruits(fincaId, frutasNormalizadas);
+      console.log("✅ Frutas guardadas en IndexedDB para offline");
+    } else if (window.IDB_HELPER && typeof window.IDB_HELPER.savePrices === 'function') {
+      // si tu db guarda por "precios", puedes guardar ahí también
+      await window.IDB_HELPER.savePrices(frutasNormalizadas);
+      console.log("✅ Frutas guardadas en IndexedDB (savePrices)");
+    } else {
+      console.warn("⚠️ IDB_HELPER.saveFruits no disponible");
+    }
 
+    preciosDisponibles = frutasNormalizadas;
+
+    // Poblar select (usa frutaSelect definido arriba)
     if (frutaSelect) {
       frutaSelect.innerHTML = '<option value="">Selecciona una fruta</option>';
-      frutasFinales.forEach(fruta => {
+      frutasNormalizadas.forEach(fruta => {
         const opt = document.createElement("option");
         opt.value = fruta.nombre;
         opt.textContent = fruta.nombre;
@@ -783,13 +888,45 @@ async function cargarFrutas() {
       `;
     }
 
-    return frutasFinales;
+    return frutasNormalizadas;
   } catch (err) {
-    console.error("❌ Error al cargar frutas:", err);
-    alert("Error al cargar frutas: " + err.message);
-    return [];
+    console.warn("❌ Error al cargar frutas desde servidor, intentando fallback a IndexedDB:", err);
+
+    // Fallback a IndexedDB
+    try {
+      const cached = await window.IDB_HELPER.getFruitsByFinca(fincaId);
+      const frutasCached = normalizeFrutas(cached);
+      preciosDisponibles = frutasCached;
+
+      if (frutaSelect) {
+        frutaSelect.innerHTML = '<option value="">Selecciona una fruta</option>';
+        frutasCached.forEach(fruta => {
+          const opt = document.createElement("option");
+          opt.value = fruta.nombre;
+          opt.textContent = fruta.nombre;
+          frutaSelect.appendChild(opt);
+        });
+      }
+
+      if (calidadSelect) {
+        calidadSelect.innerHTML = `
+          <option value="">Selecciona calidad</option>
+          <option value="primera">Primera</option>
+          <option value="segunda">Segunda</option>
+          <option value="tercera">Tercera</option>
+        `;
+      }
+
+      console.log("✅ Frutas cargadas desde IndexedDB (offline):", frutasCached.length);
+      return frutasCached;
+    } catch (err2) {
+      console.error("❌ No hay frutas en IndexedDB:", err2);
+      alert("No se pudieron cargar las frutas (no hay conexión y no hay cache local).");
+      return [];
+    }
   }
 }
+
 
 function getPesas() {
   try {
