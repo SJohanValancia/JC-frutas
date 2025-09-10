@@ -445,38 +445,53 @@ const JCUltraLoader = {
     }
   },
 
-  // 🌐 Interceptor de fetch
+  // 🌐 Interceptor de fetch (con exclusión de endpoints sensibles)
   interceptFetch() {
     const originalFetch = window.fetch;
     let activeRequests = 0;
-    
+
+    // Endpoints que NO deben activar el loader
+    const excludedUrls = [
+      '/auth/check-block-status',
+      '/auth/verify-session',
+      '/auth/get-alias'
+    ];
+
     window.fetch = (...args) => {
-      activeRequests++;
-      
-      if (!this.isActive && activeRequests > 0) {
-        this.show('');
-      } else if (this.isActive) {
-        this.updateMessage('ya casi');
+      const url = args[0];
+      const isExcluded = excludedUrls.some(excluded => url.includes(excluded));
+
+      if (!isExcluded) {
+        activeRequests++;
+        if (!this.isActive && activeRequests > 0) {
+          this.show('');
+        } else if (this.isActive) {
+          this.updateMessage('ya casi');
+        }
       }
-      
+
       return originalFetch(...args)
         .then(response => {
-          activeRequests--;
-          if (activeRequests <= 0 && this.isActive) {
-            setTimeout(() => {
-              if (activeRequests <= 0) {
-                this.updateMessage('Complete');
-                setTimeout(() => this.hide(), 600);
-              }
-            }, 300);
+          if (!isExcluded) {
+            activeRequests--;
+            if (activeRequests <= 0 && this.isActive) {
+              setTimeout(() => {
+                if (activeRequests <= 0) {
+                  this.updateMessage('Complete');
+                  setTimeout(() => this.hide(), 600);
+                }
+              }, 300);
+            }
           }
           return response;
         })
         .catch(error => {
-          activeRequests--;
-          if (activeRequests <= 0 && this.isActive) {
-            this.updateMessage('Error');
-            setTimeout(() => this.hide(), 1200);
+          if (!isExcluded) {
+            activeRequests--;
+            if (activeRequests <= 0 && this.isActive) {
+              this.updateMessage('Error');
+              setTimeout(() => this.hide(), 1200);
+            }
           }
           throw error;
         });
@@ -562,25 +577,3 @@ const JCUltraLoader = {
   console.log('✨ JC Professional Loader listo');
 })();
 
-/**
- * ✨ CARACTERÍSTICAS PROFESIONALES:
- * 
- * 🎯 USO SÚPER SIMPLE:
- * 1. Incluir en el <head>: <script src="jc-loader.js"></script>
- * 2. ¡YA ESTÁ! Se ejecuta automáticamente
- * 
- * ✅ Diseño profesional y elegante
- * ✅ Letras JC reales con tipografía limpia
- * ✅ Línea que dibuja las letras progresivamente
- * ✅ Fondo oscuro con blur sutil
- * ✅ Efectos de partículas minimalistas
- * ✅ Animaciones suaves y sofisticadas
- * ✅ Colores neutros y profesionales
- * ✅ Responsive design
- * ✅ Auto-hide inteligente
- * 
- * USO MANUAL (opcional):
- * JCLoader.show('Custom message');
- * JCLoader.hide();
- * JCLoader.updateMessage('New state');
- */

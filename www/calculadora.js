@@ -1476,55 +1476,56 @@ async function verificarTipoUsuario() {
 }
 
 async function configurarInterfazCalculadora() {
-  console.log("🎨 Configurando interfaz de calculadora según tipo de usuario...");
-  
-  await verificarTipoUsuario();
-  
-  console.log("🔍 Análisis de visibilidad:");
-  console.log("- Es subusuario:", isSubusuario);
-  console.log("- Debe ocultar precios:", isSubusuario);
-  
-  if (isSubusuario) {
-    console.log("🚫 Configurando calculadora para subusuario - ocultando precios");
+    console.log("🎨 Configurando interfaz de calculadora según tipo de usuario...");
     
-    if (precioPorKilo) {
-      precioPorKilo.style.display = "none";
-      const labelPrecio = document.querySelector('label[for="precioPorKilo"]');
-      if (labelPrecio) labelPrecio.style.display = "none";
+    await verificarTipoUsuario();
+    
+    console.log("🔍 Análisis de visibilidad:");
+    console.log("- Es subusuario:", isSubusuario);
+    console.log("- Debe ocultar precios:", isSubusuario);
+    
+    if (isSubusuario) {
+        console.log("🚫 Configurando calculadora para subusuario - ocultando precios");
+        
+        // 🔥 ASEGURAR QUE ESTÉN OCULTOS INMEDIATAMENTE
+        if (precioPorKilo) {
+            precioPorKilo.style.display = "none";
+            const labelPrecio = document.querySelector('label[for="precioPorKilo"]');
+            if (labelPrecio) labelPrecio.style.display = "none";
+        }
+        
+        if (valorTotal) {
+            const containerValorTotal = valorTotal.parentElement;
+            if (containerValorTotal) {
+                containerValorTotal.style.display = "none";
+            }
+        }
+        
+        if (enviarReciboBtn) {
+            enviarReciboBtn.innerHTML = "📤 Enviar Registro";
+        }
+        
+        console.log("✅ Interfaz de calculadora configurada para subusuario");
+    } else {
+        console.log("✅ Configurando calculadora para administrador - mostrando todos los elementos");
+        
+        if (precioPorKilo) {
+            precioPorKilo.style.display = "block";
+            const labelPrecio = document.querySelector('label[for="precioPorKilo"]');
+            if (labelPrecio) labelPrecio.style.display = "block";
+        }
+        
+        if (valorTotal) {
+            const containerValorTotal = valorTotal.parentElement;
+            if (containerValorTotal) {
+                containerValorTotal.style.display = "block";
+            }
+        }
+        
+        if (enviarReciboBtn) {
+            enviarReciboBtn.innerHTML = "📤 Enviar Factura";
+        }
     }
-    
-    if (valorTotal) {
-      const containerValorTotal = valorTotal.parentElement;
-      if (containerValorTotal) {
-        containerValorTotal.style.display = "none";
-      }
-    }
-    
-    if (enviarReciboBtn) {
-      enviarReciboBtn.innerHTML = "📤 Enviar Registro";
-    }
-    
-    console.log("✅ Interfaz de calculadora configurada para subusuario");
-  } else {
-    console.log("✅ Configurando calculadora para administrador - mostrando todos los elementos");
-    
-    if (precioPorKilo) {
-      precioPorKilo.style.display = "block";
-      const labelPrecio = document.querySelector('label[for="precioPorKilo"]');
-      if (labelPrecio) labelPrecio.style.display = "block";
-    }
-    
-    if (valorTotal) {
-      const containerValorTotal = valorTotal.parentElement;
-      if (containerValorTotal) {
-        containerValorTotal.style.display = "block";
-      }
-    }
-    
-    if (enviarReciboBtn) {
-      enviarReciboBtn.innerHTML = "📤 Enviar Factura";
-    }
-  }
 }
 
 async function cargarPreciosFrutas() {
@@ -2377,3 +2378,33 @@ function importarDatos(fileInput) {
   };
   reader.readAsText(file);
 }
+// 🔥 VERIFICACIÓN CONSTANTE PARA SUBUSUARIOS
+function verificarConstantementeSubusuario() {
+    if (isSubusuario) {
+        // Verificar cada segundo que los precios estén ocultos
+        const verificarOcultos = setInterval(() => {
+            const precioPorKilo = document.getElementById('precioPorKilo');
+            const valorTotalContainer = document.getElementById('valorTotalContainer');
+            
+            if (precioPorKilo && precioPorKilo.style.display !== 'none') {
+                precioPorKilo.style.display = 'none';
+                console.log("🚨 Campo precio por kilo reapareció - ocultando de nuevo");
+            }
+            
+            if (valorTotalContainer && valorTotalContainer.style.display !== 'none') {
+                valorTotalContainer.style.display = 'none';
+                console.log("🚨 Campo valor total reapareció - ocultando de nuevo");
+            }
+        }, 1000);
+        
+        // Detener después de 30 segundos
+        setTimeout(() => {
+            clearInterval(verificarOcultos);
+        }, 30000);
+    }
+}
+
+// Ejecutar cuando se cargue la página
+window.addEventListener('load', () => {
+    setTimeout(verificarConstantementeSubusuario, 2000);
+});

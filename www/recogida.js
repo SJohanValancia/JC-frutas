@@ -81,34 +81,615 @@ window.addEventListener('online', async () => {
 });
 
 async function syncPendingRecogidas() {
+  console.log("🔄 Iniciando sincronización de recogidas pendientes...");
+
   const pendings = await window.IDB_HELPER.getAllPendingRecogidas();
+  if (pendings.length === 0) {
+    console.log("✅ No hay recogidas pendientes para sincronizar");
+    return;
+  }
+
+  console.log(`📦 Se encontraron ${pendings.length} recogidas pendientes`);
+
+  let sincronizadas = 0;
+  let errores = 0;
+
   for (const p of pendings) {
     try {
-      const res = await fetch('/api/recogidas', {
+      const res = await fetch('https://jc-frutas.onrender.com/recogidas/nueva', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p.recogida)
       });
+
       if (res.ok) {
-        // eliminado local si se guardó en servidor
         await window.IDB_HELPER.deletePendingRecogida(p.key);
-        console.log('Recogida sincronizada:', p.key);
+        console.log('✅ Recogida sincronizada:', p.key);
+        sincronizadas++;
       } else {
-        console.warn('Servidor rechazó recogida pendiente', p.key, await res.text());
-        // Decide: si el servidor rechaza, podrías eliminar local o marcar como error; aquí dejamos para intentar luego.
+        console.warn('⚠️ Servidor rechazó recogida pendiente', p.key, await res.text());
+        errores++;
       }
     } catch (err) {
-      console.warn('No se pudo sincronizar recogida', p.key, err);
-      // si falla una, terminamos (volverá a intentarse cuando quede online otra vez)
-      return;
+      console.error('❌ Error al sincronizar recogida', p.key, err);
+      errores++;
     }
   }
-  // Opcional: notificar al usuario
-  if (pendings.length > 0) {
-    mostrarExito('Todas las recogidas pendientes se sincronizaron correctamente.');
+
+  // 🔥 Mostrar feedback al usuario
+  if (sincronizadas > 0) {
+    mostrarNotificacionElegante(`✅ ${sincronizadas} recogidas sincronizadas con éxito`, "success");
+  }
+
+  if (errores > 0) {
+    mostrarNotificacionElegante(`⚠️ ${errores} recogidas fallaron al sincronizar`, "warning");
+  }
+
+  console.log(`📊 Sincronización finalizada: ${sincronizadas} ok, ${errores} errores`);
+}
+
+window.verificarRecogidasPendientes = async () => {
+  const pendings = await window.IDB_HELPER.getAllPendingRecogidas();
+  if (pendings.length === 0) {
+    alert("✅ No hay recogidas pendientes");
+    return;
+  }
+
+  // Crear una interfaz más elegante para mostrar las recogidas pendientes
+  const modal = document.createElement("div");
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 20000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  `;
+
+  const contenido = document.createElement("div");
+  contenido.style.cssText = `
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  `;
+
+  let html = `
+    <h2 style="margin-bottom: 20px; text-align: center;">📦 Recogidas Pendientes (${pendings.length})</h2>
+    <div style="margin-bottom: 20px; text-align: center;">
+      <button onclick="sincronizarTodasPendientes()" style="
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 12px 25px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-right: 10px;
+      ">
+        🔄 Sincronizar Todas
+      </button>
+      <button onclick="cerrarModalPendientes()" style="
+        background: linear-gradient(135deg, #fc466b 0%, #3f5efb 100%);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 12px 25px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+      ">
+        ❌ Cerrar
+      </button>
+    </div>
+    <div style="border-top: 1px solid rgba(255,255,255,0.3); padding-top: 20px;">
+  `;
+
+  pendings.forEach((p, i) => {
+    const r = p.recogida;
+    const fecha = new Date(r.fecha).toLocaleDateString('es-CO');
+    const hora = p.createdAt ? new Date(p.createdAt).toLocaleTimeString('es-CO') : 'Hora no disponible';
+    
+    html += `
+      <div style="margin-bottom: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 250px;">
+            <strong style="color: #4CAF50;">#${i + 1}</strong> - ${fecha} ${hora}<br>
+            <span style="font-size: 14px; opacity: 0.9;">${r.finca} - ${r.propietario}</span><br>
+            <span style="font-size: 14px;">📊 ${r.totalKilos}kg - $${r.valorPagar.toLocaleString()}</span><br>
+            <span style="font-size: 12px; opacity: 0.8;">🍎 ${Object.keys(r.resumenFrutas || {}).join(', ')}</span>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button onclick="sincronizarRecogidaIndividual('${p.key}')" style="
+              background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+              color: white;
+              border: none;
+              border-radius: 20px;
+              padding: 8px 16px;
+              font-size: 14px;
+              font-weight: bold;
+              cursor: pointer;
+              transition: all 0.3s ease;
+            " onmouseover="this.style.transform='scale(1.05)'" 
+               onmouseout="this.style.transform='scale(1)'">
+              🔄 Sincronizar
+            </button>
+            <button onclick="eliminarRecogidaPendiente('${p.key}')" style="
+              background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+              color: white;
+              border: none;
+              border-radius: 20px;
+              padding: 8px 16px;
+              font-size: 14px;
+              font-weight: bold;
+              cursor: pointer;
+              transition: all 0.3s ease;
+            " onmouseover="this.style.transform='scale(1.05)'" 
+               onmouseout="this.style.transform='scale(1)'">
+              🗑️ Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    </div>
+    <div style="margin-top: 20px; text-align: center; font-size: 12px; opacity: 0.7;">
+      💡 Las recogidas se sincronizarán automáticamente cuando haya conexión
+    </div>
+  `;
+
+  contenido.innerHTML = html;
+  modal.appendChild(contenido);
+  document.body.appendChild(modal);
+
+  // Funciones globales para el modal
+  window.cerrarModalPendientes = function() {
+    if (modal.parentNode) {
+      modal.parentNode.removeChild(modal);
+    }
+    delete window.cerrarModalPendientes;
+    delete window.sincronizarRecogidaIndividual;
+    delete window.eliminarRecogidaPendiente;
+    delete window.sincronizarTodasPendientes;
+  };
+};
+
+// 🔥 FUNCIÓN PARA SINCRONIZAR UNA RECOGIDA INDIVIDUAL
+window.sincronizarRecogidaIndividual = async function(keyRecogida) {
+  try {
+    console.log(`🔄 Intentando sincronizar recogida individual: ${keyRecogida}`);
+    
+    // Obtener la recogida pendiente específica
+    const pendings = await window.IDB_HELPER.getAllPendingRecogidas();
+    const recogidaPendiente = pendings.find(p => p.key === keyRecogida);
+    
+    if (!recogidaPendiente) {
+      mostrarNotificacionElegante("❌ Recogida no encontrada", "error");
+      return;
+    }
+
+    // Verificar conexión
+    if (!navigator.onLine) {
+      mostrarNotificacionElegante("❌ Sin conexión a Internet", "error");
+      return;
+    }
+
+    // Intentar enviar al servidor
+    const response = await fetch('https://jc-frutas.onrender.com/recogidas/nueva', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(recogidaPendiente.recogida)
+    });
+
+    if (response.ok) {
+      // Eliminar de pendientes
+      await window.IDB_HELPER.deletePendingRecogida(keyRecogida);
+      
+      // Mostrar éxito y actualizar la lista
+      mostrarNotificacionElegante("✅ Recogida sincronizada con éxito", "success");
+      
+      // Recargar la lista de pendientes
+      setTimeout(() => {
+        window.cerrarModalPendientes();
+        window.verificarRecogidasPendientes();
+      }, 1500);
+      
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      mostrarNotificacionElegante(`⚠️ Error del servidor: ${errorData.error || 'Error desconocido'}`, "warning");
+    }
+    
+  } catch (error) {
+    console.error("❌ Error al sincronizar recogida individual:", error);
+    mostrarNotificacionElegante("❌ Error al sincronizar", "error");
+  }
+};
+
+// 🔥 FUNCIÓN PARA ELIMINAR UNA RECOGIDA PENDIENTE
+window.eliminarRecogidaPendiente = async function(keyRecogida) {
+  try {
+    const confirmacion = confirm("¿Está seguro de que desea eliminar esta recogida pendiente? Esta acción no se puede deshacer.");
+    
+    if (!confirmacion) {
+      return;
+    }
+
+    await window.IDB_HELPER.deletePendingRecogida(keyRecogida);
+    mostrarNotificacionElegante("🗑️ Recogida eliminada", "success");
+    
+    // Recargar la lista
+    setTimeout(() => {
+      window.cerrarModalPendientes();
+      window.verificarRecogidasPendientes();
+    }, 1000);
+    
+  } catch (error) {
+    console.error("❌ Error al eliminar recogida pendiente:", error);
+    mostrarNotificacionElegante("❌ Error al eliminar", "error");
+  }
+};
+
+// 🔥 FUNCIÓN PARA SINCRONIZAR TODAS LAS RECOGIDAS PENDIENTES
+window.sincronizarTodasPendientes = async function() {
+  try {
+    const pendings = await window.IDB_HELPER.getAllPendingRecogidas();
+    
+    if (pendings.length === 0) {
+      mostrarNotificacionElegante("No hay recogidas para sincronizar", "info");
+      return;
+    }
+
+    if (!navigator.onLine) {
+      mostrarNotificacionElegante("❌ Sin conexión a Internet", "error");
+      return;
+    }
+
+    let sincronizadas = 0;
+    let errores = 0;
+
+    // Crear overlay de progreso
+    const progressOverlay = document.createElement("div");
+    progressOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 30000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    `;
+
+    const progressContent = document.createElement("div");
+    progressContent.style.cssText = `
+      background: white;
+      color: #333;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      min-width: 300px;
+    `;
+
+    progressContent.innerHTML = `
+      <h3>🔄 Sincronizando recogidas...</h3>
+      <div style="margin: 20px 0;">
+        <div style="width: 100%; background: #f0f0f0; border-radius: 10px; height: 20px; overflow: hidden;">
+          <div id="progressBar" style="width: 0%; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); height: 100%; transition: width 0.3s ease;"></div>
+        </div>
+        <p id="progressText" style="margin-top: 10px; font-size: 14px;">Preparando...</p>
+      </div>
+    `;
+
+    progressOverlay.appendChild(progressContent);
+    document.body.appendChild(progressOverlay);
+
+    for (let i = 0; i < pendings.length; i++) {
+      const p = pendings[i];
+      
+      // Actualizar progreso
+      const progress = ((i + 1) / pendings.length) * 100;
+      document.getElementById('progressBar').style.width = progress + '%';
+      document.getElementById('progressText').textContent = `Sincronizando ${i + 1} de ${pendings.length}...`;
+
+      try {
+        const response = await fetch('https://jc-frutas.onrender.com/recogidas/nueva', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(p.recogida)
+        });
+
+        if (response.ok) {
+          await window.IDB_HELPER.deletePendingRecogida(p.key);
+          sincronizadas++;
+          console.log(`✅ Recogida sincronizada: ${p.key}`);
+        } else {
+          errores++;
+          console.warn(`⚠️ Error al sincronizar: ${p.key}`);
+        }
+      } catch (error) {
+        errores++;
+        console.error(`❌ Error al sincronizar ${p.key}:`, error);
+      }
+    }
+
+    // Remover overlay
+    if (progressOverlay.parentNode) {
+      progressOverlay.parentNode.removeChild(progressOverlay);
+    }
+
+    // Mostrar resultado
+    let mensaje = `📊 Sincronización completada:\n`;
+    mensaje += `✅ ${sincronizadas} recogidas sincronizadas\n`;
+    if (errores > 0) {
+      mensaje += `⚠️ ${errores} recogidas fallidas`;
+    }
+
+    mostrarNotificacionElegante(mensaje, errores > 0 ? "warning" : "success");
+
+    // Recargar lista
+    setTimeout(() => {
+      window.cerrarModalPendientes();
+      if (sincronizadas > 0) {
+        window.verificarRecogidasPendientes();
+      }
+    }, 2000);
+
+  } catch (error) {
+    console.error("❌ Error al sincronizar todas:", error);
+    mostrarNotificacionElegante("❌ Error al sincronizar todas las recogidas", "error");
+  }
+};
+
+// 🔥 FUNCIÓN PARA MOSTRAR NOTIFICACIONES ELEGANTES
+function mostrarNotificacionElegante(mensaje, tipo = "success") {
+  // Remover notificaciones anteriores
+  const notificacionesAnteriores = document.querySelectorAll('.notificacion-elegante');
+  notificacionesAnteriores.forEach(n => n.remove());
+
+  const colores = {
+    success: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+    error: "linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)",
+    warning: "linear-gradient(135deg, #f2994a 0%, #f2c94c 100%)",
+    info: "linear-gradient(135deg, #56ccf2 0%, #2f80ed 100%)"
+  };
+
+  const notificacion = document.createElement("div");
+  notificacion.className = "notificacion-elegante";
+  notificacion.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: ${colores[tipo] || colores.success};
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 25000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    transform: translateX(400px);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    max-width: 350px;
+    line-height: 1.4;
+  `;
+
+  notificacion.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 20px;">
+        ${tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : tipo === 'warning' ? '⚠️' : 'ℹ️'}
+      </span>
+      <div>${mensaje.replace(/\n/g, '<br>')}</div>
+    </div>
+  `;
+
+  document.body.appendChild(notificacion);
+
+  // Animación de entrada
+  setTimeout(() => {
+    notificacion.style.transform = "translateX(0)";
+  }, 100);
+
+  // Animación de salida
+  setTimeout(() => {
+    notificacion.style.transform = "translateX(400px)";
+    setTimeout(() => {
+      if (notificacion.parentNode) {
+        notificacion.parentNode.removeChild(notificacion);
+      }
+    }, 300);
+  }, 3000);
+}
+
+// 🔥 SISTEMA DE INDICADOR DE CONEXIÓN
+class IndicadorConexion {
+  constructor() {
+    this.indicador = null;
+    this.bolita = null;
+    this.mensaje = null;
+    this.mostrarPermanente = false;
+    this.init();
+  }
+
+  init() {
+    this.crearElementos();
+    this.verificarConexion();
+    this.configurarEventListeners();
+  }
+
+  crearElementos() {
+    // Crear elementos si no existen
+    if (!document.getElementById('indicadorConexion')) {
+      const indicador = document.createElement('div');
+      indicador.id = 'indicadorConexion';
+      indicador.className = 'indicador-conexion';
+      
+      const bolita = document.createElement('div');
+      bolita.id = 'bolitaConexion';
+      bolita.className = 'bolita-conexion';
+      
+      const mensaje = document.createElement('div');
+      mensaje.id = 'mensajeConexion';
+      mensaje.className = 'mensaje-conexion';
+      
+      indicador.appendChild(bolita);
+      indicador.appendChild(mensaje);
+      
+      document.body.appendChild(indicador);
+    }
+
+    this.indicador = document.getElementById('indicadorConexion');
+    this.bolita = document.getElementById('bolitaConexion');
+    this.mensaje = document.getElementById('mensajeConexion');
+  }
+
+  configurarEventListeners() {
+    // Escuchar cambios de conexión
+    window.addEventListener('online', () => {
+      console.log("🌐 Conexión restablecida");
+      this.actualizarEstado(true);
+      this.mostrarNotificacionReconexion();
+    });
+
+    window.addEventListener('offline', () => {
+      console.log("❌ Conexión perdida");
+      this.actualizarEstado(false);
+    });
+
+    // Verificar periódicamente la conexión
+    setInterval(() => {
+      this.verificarConexion();
+    }, 10000); // Cada 10 segundos
+  }
+
+  verificarConexion() {
+    const estaOnline = navigator.onLine;
+    this.actualizarEstado(estaOnline);
+  }
+
+  actualizarEstado(online) {
+    if (!this.bolita || !this.mensaje) return;
+
+    if (online) {
+      this.bolita.className = 'bolita-conexion conectado';
+      this.mensaje.textContent = 'Conectado';
+      this.indicador.style.display = 'flex';
+      
+      // Ocultar después de 3 segundos si está conectado
+      setTimeout(() => {
+        if (navigator.onLine && !this.mostrarPermanente) {
+          this.indicador.style.opacity = '0';
+          setTimeout(() => {
+            this.indicador.style.display = 'none';
+          }, 300);
+        }
+      }, 3000);
+      
+    } else {
+      this.bolita.className = 'bolita-conexion desconectado';
+      this.mensaje.textContent = 'Sin conexión, no olvide sincronizar sus recogidas cuando tenga internet de nuevo';
+      this.indicador.style.display = 'flex';
+      this.indicador.style.opacity = '1';
+      this.mostrarPermanente = true;
+    }
+  }
+
+  mostrarNotificacionReconexion() {
+    // Mostrar notificación temporal cuando se reconecta
+    const notificacion = document.createElement('div');
+    notificacion.style.cssText = `
+      position: fixed;
+      top: 80px;
+      left: 20px;
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      padding: 12px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      z-index: 10001;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    `;
+    
+    notificacion.innerHTML = '✅ Conexión restablecida';
+    document.body.appendChild(notificacion);
+
+    setTimeout(() => {
+      notificacion.style.opacity = '1';
+      notificacion.style.transform = 'translateY(0)';
+    }, 100);
+
+    setTimeout(() => {
+      notificacion.style.opacity = '0';
+      notificacion.style.transform = 'translateY(-10px)';
+      setTimeout(() => {
+        if (notificacion.parentNode) {
+          notificacion.parentNode.removeChild(notificacion);
+        }
+      }, 300);
+    }, 2000);
+  }
+
+  // Método para forzar la visibilidad del indicador
+  mostrar() {
+    if (this.indicador) {
+      this.indicador.style.display = 'flex';
+      this.indicador.style.opacity = '1';
+    }
+  }
+
+  // Método para ocultar el indicador
+  ocultar() {
+    if (this.indicador) {
+      this.indicador.style.opacity = '0';
+      setTimeout(() => {
+        this.indicador.style.display = 'none';
+      }, 300);
+    }
   }
 }
 
+// 🔥 INICIALIZAR EL INDICADOR CUANDO SE CARGUE LA PÁGINA
+document.addEventListener('DOMContentLoaded', function() {
+  // Delay para asegurar que el DOM esté completamente cargado
+  setTimeout(() => {
+    window.indicadorConexion = new IndicadorConexion();
+    console.log("✅ Indicador de conexión inicializado");
+  }, 100);
+});
+
+// 🔥 FUNCIÓN AUXILIAR PARA VERIFICAR CONEXIÓN ANTES DE ACCIONES
+function verificarConexionAntesDeAccion(accion) {
+  if (!navigator.onLine) {
+    mostrarNotificacionElegante("❌ Sin conexión. Esta acción se guardará localmente y se sincronizará cuando tenga internet.", "warning");
+    return false;
+  }
+  return true;
+}
+
+window.forzarSincronizacion = async () => {
+  if (navigator.onLine) {
+    await syncPendingRecogidas();
+  } else {
+    alert("❌ No hay conexión a Internet");
+  }
+};
 
 // 🔥 FUNCIÓN PARA CONFIGURAR LA INFORMACIÓN DE LA FINCA Y PROPIETARIO
 function configurarInformacionFinca() {
@@ -293,10 +874,29 @@ function mostrarAnimacionError(mensaje) {
 }
 
 // FUNCIÓN PARA VERIFICAR TIPO DE USUARIO
+// 🔥 FUNCIÓN CORREGIDA: Siempre usar subusuario como fallback cuando no hay conexión
 async function verificarTipoUsuario() {
   console.log("=== VERIFICANDO TIPO DE USUARIO ===");
   
   try {
+    // 📡 PRIMERO: Verificar si hay conexión
+    if (!navigator.onLine) {
+      console.log("📡 Sin conexión: usando MODO SUBUSUARIO por defecto");
+      
+      // 🔥 USAR SUBUSUARIO COMO VALOR POR DEFECTO SIN INTERNET
+      isSubusuario = true;
+      tipoUsuarioVerificado = 2;
+      
+      console.log("✅ Modo SUBUSUARIO activado (sin conexión)");
+      console.log("🚫 Precios estarán OCULTOS");
+      
+      // Aplicar interfaz de subusuario inmediatamente
+      await configurarInterfazSegunTipoUsuario();
+      
+      return isSubusuario;
+    }
+
+    // 🌐 SI HAY CONEXIÓN: Intentar obtener datos normales
     const storedData = sessionStorage.getItem('userData');
     console.log("📦 Datos en sessionStorage:", storedData);
     
@@ -321,7 +921,10 @@ async function verificarTipoUsuario() {
       
       if (!response.ok) {
         console.error("❌ Error en respuesta del servidor:", response.status);
-        return false;
+        // 🔥 Fallback a subusuario si el servidor falla
+        isSubusuario = true;
+        tipoUsuarioVerificado = 2;
+        return isSubusuario;
       }
       
       const userData = await response.json();
@@ -341,16 +944,69 @@ async function verificarTipoUsuario() {
       
     } else {
       console.error("❌ No hay usuario en los parámetros URL");
-      return false;
+      // 🔥 Fallback a subusuario si no hay usuario
+      isSubusuario = true;
+      tipoUsuarioVerificado = 2;
+      return isSubusuario;
     }
     
     return isSubusuario;
     
   } catch (error) {
     console.error("❌ Error al verificar tipo de usuario:", error);
-    return false;
+    console.log("🔒 Usando MODO SUBUSUARIO por seguridad");
+    
+    // 🔥 SIEMPRE usar subusuario como fallback en caso de error
+    isSubusuario = true;
+    tipoUsuarioVerificado = 2;
+    
+    return isSubusuario;
   }
 }
+
+// 🔥 FUNCIÓN DE EMERGENCIA: Aplicar estilo de subusuario inmediatamente
+function aplicarEstiloSubusuarioEmergencia() {
+  console.log("🚨 Aplicando estilo de subusuario por emergencia...");
+  
+  // Ocultar precios inmediatamente
+  const elementosPrecio = [
+    'precioPorKilo',
+    'precioExtra',
+    'valorTotalContainer'
+  ];
+  
+  elementosPrecio.forEach(id => {
+    const elemento = document.getElementById(id);
+    if (elemento) {
+      elemento.style.display = 'none';
+      const label = document.querySelector(`label[for="${id}"]`);
+      if (label) label.style.display = 'none';
+    }
+  });
+  
+  // Cambiar botón
+  const enviarReciboBtn = document.getElementById('enviarReciboBtn');
+  if (enviarReciboBtn) {
+    enviarReciboBtn.innerHTML = "📤 Enviar Registro";
+  }
+  
+  // Forzar el valor de subusuario
+  isSubusuario = true;
+  tipoUsuarioVerificado = 2;
+  
+  console.log("✅ Estilo de subusuario aplicado por emergencia");
+}
+
+// 🔥 EJECUTAR INMEDIATAMENTE al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+  // Primero aplicar estilo de subusuario por defecto
+  aplicarEstiloSubusuarioEmergencia();
+  
+  // Luego intentar verificar el tipo real
+  setTimeout(async () => {
+    await verificarTipoUsuario();
+  }, 100);
+});
 
 // 🔥 FUNCIÓN: Obtener precio para fruta y calidad específicas
 function getPrecioPorFrutaYCalidad(fruta, calidad) {
@@ -374,10 +1030,16 @@ async function obtenerAliasUsuario() {
     }
 
     if (usuario) {
-      const response = await fetch(`https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
-      const data = await response.json();
-      console.log("✅ Alias desde servidor:", data.alias);
-      return data.alias;
+try {
+  const response = await fetch(`https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+  if (!response.ok) throw new Error("Servidor no respondió");
+  const data = await response.json();
+  return data.alias;
+} catch (err) {
+  console.warn("⚠️ Fallo al obtener alias desde servidor, usando fallback offline");
+  // Fallback: usar el alias que ya viene en la URL o en sessionStorage
+  return usuarioAlias || sessionData?.alias || usuario;
+}
     }
     
     console.error("❌ No se pudo obtener el alias");
@@ -783,39 +1445,40 @@ function configurarBotonGuardar() {
 }
 // FUNCIÓN PARA CONFIGURAR INTERFAZ SEGÚN TIPO DE USUARIO
 async function configurarInterfazSegunTipoUsuario() {
-  console.log("🎨 Configurando interfaz según tipo de usuario...");
-  
-  await verificarTipoUsuario();
-  
-  if (isSubusuario) {
-    console.log("🚫 Configurando interfaz para subusuario");
+    console.log("🎨 Configurando interfaz según tipo de usuario...");
     
-    if (precioExtraInput) {
-      precioExtraInput.style.display = "none";
-      const labelPrecioExtra = document.querySelector('label[for="precioExtra"]');
-      if (labelPrecioExtra) labelPrecioExtra.style.display = "none";
+    await verificarTipoUsuario();
+    
+    if (isSubusuario) {
+        console.log("🚫 Configurando interfaz para subusuario");
+        
+        // 🔥 OCULTAR CAMPOS INMEDIATAMENTE
+        if (precioExtraInput) {
+            precioExtraInput.style.display = "none";
+            const labelPrecioExtra = document.querySelector('label[for="precioExtra"]');
+            if (labelPrecioExtra) labelPrecioExtra.style.display = "none";
+        }
+        
+        if (precioPorKiloInput) {
+            precioPorKiloInput.style.display = "none";
+            const labelPrecioPorKilo = document.querySelector('label[for="precioPorKilo"]');
+            if (labelPrecioPorKilo) labelPrecioPorKilo.style.display = "none";
+        }
+        
+        const valorTotalElement = document.getElementById("valorTotal");
+        if (valorTotalElement) {
+            valorTotalElement.parentElement.style.display = "none";
+        }
+        
+        const enviarReciboBtn = document.getElementById("enviarReciboBtn");
+        if (enviarReciboBtn) {
+            enviarReciboBtn.innerHTML = "📤 Enviar Registro";
+        }
+        
+        console.log("✅ Interfaz configurada para subusuario");
+    } else {
+        console.log("✅ Configurando interfaz completa para administrador");
     }
-    
-    if (precioPorKiloInput) {
-      precioPorKiloInput.style.display = "none";
-      const labelPrecioPorKilo = document.querySelector('label[for="precioPorKilo"]');
-      if (labelPrecioPorKilo) labelPrecioPorKilo.style.display = "none";
-    }
-    
-    const valorTotalElement = document.getElementById("valorTotal");
-    if (valorTotalElement) {
-      valorTotalElement.parentElement.style.display = "none";
-    }
-    
-    const enviarReciboBtn = document.getElementById("enviarReciboBtn");
-    if (enviarReciboBtn) {
-      enviarReciboBtn.innerHTML = "📤 Enviar Registro";
-    }
-    
-    console.log("✅ Interfaz configurada para subusuario");
-  } else {
-    console.log("✅ Configurando interfaz completa para administrador");
-  }
 }
 
 // 🔥 FUNCIÓN MODIFICADA: Cargar frutas y precios
@@ -1502,3 +2165,34 @@ window.addEventListener('load', function() {
 // 🔥 EXPORTAR FUNCIONES PARA USO MANUAL SI ES NECESARIO
 window.limpiarDatosEdicion = limpiarDatosEdicion;
 window.limpiarAlSalirEdicion = limpiarAlCancelarEdicion;
+
+// 🔥 VERIFICACIÓN CONSTANTE PARA SUBUSUARIOS
+function verificarConstantementeSubusuario() {
+    if (isSubusuario) {
+        // Verificar cada segundo que los precios estén ocultos
+        const verificarOcultos = setInterval(() => {
+            const precioPorKilo = document.getElementById('precioPorKilo');
+            const valorTotalContainer = document.getElementById('valorTotalContainer');
+            
+            if (precioPorKilo && precioPorKilo.style.display !== 'none') {
+                precioPorKilo.style.display = 'none';
+                console.log("🚨 Campo precio por kilo reapareció - ocultando de nuevo");
+            }
+            
+            if (valorTotalContainer && valorTotalContainer.style.display !== 'none') {
+                valorTotalContainer.style.display = 'none';
+                console.log("🚨 Campo valor total reapareció - ocultando de nuevo");
+            }
+        }, 1000);
+        
+        // Detener después de 30 segundos
+        setTimeout(() => {
+            clearInterval(verificarOcultos);
+        }, 30000);
+    }
+}
+
+// Ejecutar cuando se cargue la página
+window.addEventListener('load', () => {
+    setTimeout(verificarConstantementeSubusuario, 2000);
+});

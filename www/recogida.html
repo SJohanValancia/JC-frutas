@@ -129,10 +129,9 @@ select:focus option {
       color: var(--text-secondary);
     }
 
-    .volver-btn {
-
-      top: -20px;
-      position: absolute;
+.volver-btn {
+  top: -20px;
+  position: absolute;
   background: linear-gradient(135deg, #6c757d, #495057);
   color: white;
   border: none;
@@ -152,15 +151,93 @@ select:focus option {
 
 }
 
+/* Indicador de conexión */
+.indicador-conexion {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 10px 15px;
+  border-radius: 25px;
+  z-index: 10000;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.bolita-conexion {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  animation: pulse 2s infinite;
+}
+
+.bolita-conexion.conectado {
+  background: #4CAF50;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.bolita-conexion.desconectado {
+  background: #9E9E9E;
+  box-shadow: 0 0 10px rgba(158, 158, 158, 0.3);
+}
+
+.mensaje-conexion {
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  max-width: 200px;
+  line-height: 1.3;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+}
+
+.mensaje-conexion {
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  transition: none;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+
 
   </style>
 </head>
 <body>
 
-    <button class="volver-btn" onclick="window.history.back()">← Volver</button>
+  <div id="indicadorConexion" class="indicador-conexion">
+  <div class="bolita-conexion" id="bolitaConexion"></div>
+  <div class="mensaje-conexion" id="mensajeConexion"></div>
+</div>
 
+
+
+    <!-- Indicador de conexión -->
 
   <div class="container">
+
+        <button class="volver-btn" onclick="window.history.back()">← Volver</button>
+
+
     <h2>Registro de Recogida</h2>
 
     <input id="fecha" type="date" disabled />
@@ -220,6 +297,8 @@ select:focus option {
         
         <!-- Valor total - se ocultará para subusuarios -->
         <span id="valorTotalContainer">Valor total: <strong id="valorTotal">$0</strong></span>
+
+<button onclick="verificarRecogidasPendientes()">🔍 Ver recogidas pendientes</button>
         
         <ul id="listaPesas" style="margin-top: 10px;"></ul>
       </div>
