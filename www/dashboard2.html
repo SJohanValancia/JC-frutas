@@ -94,10 +94,45 @@
       padding: 10px;
       font-style: italic;
     }
+
+
+      .btn-sync:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  }
+  .btn-sync:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+</style>
+
   </style>
 </head>
 <body>
   <div class="container">
+
+    <div id="syncContainer" style="display: none; text-align: center; margin: 15px 0;">
+  <button id="btnSincronizarDatos" class="btn-sync" style="
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 12px 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  ">
+    🔄 Sincronizar Datos
+  </button>
+  <p style="margin-top: 8px; font-size: 0.9em; opacity: 0.8;">
+    📱 Actualiza frutas y precios para uso offline
+  </p>
+</div>
+
+
     <h1 id="saludo">Bienvenido <span id="usuarioInfo"></span></h1>
 
     <input type="text" id="buscarFinca" placeholder="Buscar finca o propietario...">
@@ -116,6 +151,9 @@
 
 <script type="module">
   import { apiFetch } from "./api.js";
+  import './dbb.js'; // ✅ Cargar IDB_HELPER antes de usarlo
+
+  console.log("🔍 IDB_HELPER disponible:", window.IDB_HELPER);
 
   // Parámetros de URL
   const params = new URLSearchParams(window.location.search);
@@ -143,6 +181,275 @@
 
   // IndexedDB manager (import dinámico)
   let idbManager = null;
+
+
+
+  // 🔥 FUNCIÓN PARA VERIFICAR CONEXIÓN Y MOSTRAR/OCULTAR BOTÓN
+function verificarConexionYMostrarBoton() {
+  const syncContainer = document.getElementById('syncContainer');
+  const btnSincronizar = document.getElementById('btnSincronizarDatos');
+
+  if (navigator.onLine) {
+    console.log("🌐 Con conexión - mostrando botón de sincronización");
+    syncContainer.style.display = 'block';
+
+    // Verificar si ya hay datos sincronizados
+    const hayDatosOffline = localStorage.getItem('frutasSincronizadas_v1');
+    if (!hayDatosOffline) {
+      btnSincronizar.innerHTML = '🔄 Sincronizar Datos (Recomendado)';
+      btnSincronizar.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)';
+    } else {
+      btnSincronizar.innerHTML = '🔄 Sincronizar Datos';
+      btnSincronizar.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+    }
+  } else {
+    console.log("📴 Sin conexión - ocultando botón de sincronización");
+    syncContainer.style.display = 'none';
+  }
+}
+// 🔥 FUNCIÓN PARA SINCRONIZAR DATOS COMPLETOS (FINCAS + FRUTAS + PRECIOS)
+async function sincronizarDatosCompletos() {
+  const btnSincronizar = document.getElementById('btnSincronizarDatos');
+  
+
+  
+  console.log("🔄 Iniciando sincronización manual completa...");
+  
+  // Deshabilitar botón mientras sincroniza
+  btnSincronizar.disabled = true;
+  btnSincronizar.innerHTML = '⏳ Sincronizando...';
+  
+  try {
+    let totalFincas = 0;
+    let totalFrutas = 0;
+    
+    // 1. Obtener fincas del administrador
+    console.log("📋 Obteniendo fincas del administrador...");
+    const fincasResponse = await fetch(`https://jc-frutas.onrender.com/fincas/por-admin/${adminAlias}`);
+    
+    if (!fincasResponse.ok) throw new Error('No se pudieron obtener las fincas');
+    
+    const fincas = await fincasResponse.json();
+    totalFincas = fincas.length;
+    console.log(`✅ Obtenidas ${totalFincas} fincas`);
+    
+    // Guardar fincas en IndexedDB
+    if (idbManager && fincas.length > 0) {
+      await putFincasBulk(fincas);
+      console.log('✅ Fincas guardadas en IndexedDB');
+    }
+    
+    // 2. Obtener frutas y precios para cada finca
+    console.log("🍎 Obteniendo frutas y precios para cada finca...");
+    
+    for (const finca of fincas) {
+      try {
+        const preciosResponse = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${finca._id}`);
+        
+        if (!preciosResponse.ok) {
+          console.warn(`⚠️ No se pudieron obtener precios para finca ${finca.nombre}`);
+          continue;
+        }
+        
+        const preciosData = await preciosResponse.json();
+        let frutasFinales = [];
+        
+        // Buscar el documento con más frutas
+        for (const doc of preciosData) {
+          if (doc.frutas?.length > frutasFinales.length) {
+            frutasFinales = doc.frutas;
+          }
+        }
+        
+if (frutasFinales.length > 0) {
+  if (window.IDB_HELPER && window.IDB_HELPER.saveFruits) {
+    await window.IDB_HELPER.saveFruits(finca._id, frutasFinales);
+    totalFrutas += frutasFinales.length;
+    console.log(`✅ ${frutasFinales.length} frutas sincronizadas para ${finca.nombre}`);
+  } else {
+    console.warn("⚠️ IDB_HELPER no está disponible. Verifica que dbb.js se haya cargado.");
+  }
+}
+        
+      } catch (error) {
+        console.warn(`⚠️ Error al sincronizar frutas de ${finca.nombre}:`, error);
+      }
+    }
+    
+    // 3. Marcar que la sincronización fue exitosa
+    localStorage.setItem('frutasSincronizadas_v1', 'true');
+    localStorage.setItem('ultimaSincronizacion', new Date().toISOString());
+    
+    // 4. Actualizar la interfaz
+    await cargarFincas();
+    
+    // 5. Mostrar notificación de éxito
+    mostrarNotificacionElegante(
+      `✅ Sincronización completada!\n\n${totalFincas} fincas\n${totalFrutas} frutas actualizadas`, 
+      "success"
+    );
+    
+    console.log(`🎉 Sincronización completa: ${totalFincas} fincas, ${totalFrutas} frutas`);
+    
+  } catch (error) {
+    console.error("❌ Error durante la sincronización:", error);
+    mostrarNotificacionElegante("❌ Error al sincronizar: " + error.message, "error");
+  } finally {
+    // Rehabilitar botón
+    btnSincronizar.disabled = false;
+    btnSincronizar.innerHTML = '🔄 Sincronizar Datos';
+    verificarConexionYMostrarBoton(); // Revisar si aún sin conexión
+  }
+}
+
+// 🔥 FUNCIÓN PARA MOSTRAR NOTIFICACIONES ELEGANTES
+function mostrarNotificacionElegante(mensaje, tipo = "success") {
+  const colores = {
+    success: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+    error: "linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)",
+    warning: "linear-gradient(135deg, #f2994a 0%, #f2c94c 100%)",
+    info: "linear-gradient(135deg, #56ccf2 0%, #2f80ed 100%)"
+  };
+
+  const notificacion = document.createElement("div");
+  notificacion.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: ${colores[tipo] || colores.success};
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 25000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    transform: translateX(400px);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    max-width: 350px;
+    line-height: 1.4;
+  `;
+
+  notificacion.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 20px;">
+        ${tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : tipo === 'warning' ? '⚠️' : 'ℹ️'}
+      </span>
+      <div>${mensaje.replace(/\n/g, '<br>')}</div>
+    </div>
+  `;
+
+  document.body.appendChild(notificacion);
+
+  // Animación de entrada
+  setTimeout(() => {
+    notificacion.style.transform = "translateX(0)";
+  }, 100);
+
+  // Animación de salida
+  setTimeout(() => {
+    notificacion.style.transform = "translateX(400px)";
+    setTimeout(() => {
+      if (notificacion.parentNode) {
+        notificacion.parentNode.removeChild(notificacion);
+      }
+    }, 300);
+  }, 3000);
+}
+
+  // Agrega esta función antes de la función sincronizarPreciosEnSegundoPlano
+async function obtenerFincasDelAdmin() {
+  try {
+    if (!adminAlias) {
+      console.warn("⚠️ No hay adminAlias para obtener fincas");
+      return [];
+    }
+    
+    const response = await fetch(`https://jc-frutas.onrender.com/fincas/por-admin/${adminAlias}`);
+    if (!response.ok) throw new Error(`Error ${response.status}`);
+    
+    const fincas = await response.json();
+    console.log(`✅ Obtenidas ${fincas.length} fincas del admin`);
+    return fincas;
+    
+  } catch (error) {
+    console.error("❌ Error al obtener fincas del admin:", error);
+    return [];
+  }
+}
+
+
+// 🔁 SINCRONIZAR PRECIOS EN SEGUNDO PLANO AL INICIAR SESIÓN
+async function sincronizarPreciosEnSegundoPlano() {
+  console.log("🔄 Iniciando sincronización de precios en segundo plano...");
+
+  if (!navigator.onLine) {
+    console.log("📡 Sin conexión. Usando precios locales.");
+    return;
+  }
+
+  try {
+    // Verificar que adminAlias existe
+    if (!adminAlias) {
+      console.warn("⚠️ No hay adminAlias definido, no se pueden sincronizar precios");
+      return;
+    }
+
+    const fincas = await obtenerFincasDelAdmin();
+    if (!fincas || fincas.length === 0) {
+      console.warn("⚠️ No hay fincas para sincronizar.");
+      return;
+    }
+
+    let totalFrutas = 0;
+    
+    for (const finca of fincas) {
+      try {
+        const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${finca._id}`);
+        if (!res.ok) {
+          console.warn(`⚠️ No se pudieron obtener precios para finca ${finca._id}: ${res.status}`);
+          continue;
+        }
+
+        const data = await res.json();
+        let frutasFinales = [];
+
+        for (const doc of data) {
+          if (doc.frutas?.length > frutasFinales.length) {
+            frutasFinales = doc.frutas;
+          }
+        }
+
+        if (window.IDB_HELPER && window.IDB_HELPER.saveFruits && frutasFinales.length > 0) {
+          await window.IDB_HELPER.saveFruits(finca._id, frutasFinales);
+          totalFrutas += frutasFinales.length;
+          console.log(`✅ Precios sincronizados para finca: ${finca.nombre} (${frutasFinales.length} frutas)`);
+        }
+
+      } catch (err) {
+        console.warn(`⚠️ Error al sincronizar precios de finca ${finca._id}:`, err);
+      }
+    }
+
+    // Marcar sincronización exitosa
+    localStorage.setItem('frutasSincronizadas_v1', 'true');
+    localStorage.setItem('ultimaSincronizacion', new Date().toISOString());
+    
+    console.log(`✅ Sincronización de precios en segundo plano completada. Total: ${totalFrutas} frutas`);
+
+  } catch (error) {
+    console.error("❌ Error general al sincronizar precios:", error);
+  }
+}
+// Agrega este event listener adicional
+window.addEventListener('online', async () => {
+  console.log('🔔 Volviste online: sincronizando precios...');
+  await sincronizarPreciosEnSegundoPlano();
+});
+// 🔁 Ejecutar al cargar el dashboard
+document.addEventListener('DOMContentLoaded', async () => {
+  await sincronizarPreciosEnSegundoPlano();
+});
 
   // Helpers defensivos para trabajar con el módulo de IndexedDB aunque sus nombres varíen
   const putFincasBulk = async (fincas) => {
@@ -306,6 +613,24 @@
 
     // Cargar las fincas (prefiere servidor si hay Internet, si no usa caché)
     await cargarFincas();
+
+    // 🔥 CONFIGURAR BOTÓN DE SINCRONIZACIÓN Y VERIFICAR CONEXIÓN
+verificarConexionYMostrarBoton();
+document.getElementById('btnSincronizarDatos').addEventListener('click', sincronizarDatosCompletos);
+
+// Escuchar cambios de conexión
+window.addEventListener('online', () => {
+  console.log('🔔 Conexión restablecida');
+  verificarConexionYMostrarBoton();
+  mostrarNotificacionElegante("✅ Conexión restablecida", "success");
+});
+
+window.addEventListener('offline', () => {
+  console.log('❌ Conexión perdida');
+  verificarConexionYMostrarBoton();
+  mostrarNotificacionElegante("📴 Sin conexión - Botón de sincronización activado", "warning");
+});
+
   }
 
   // Reintentar al volver online

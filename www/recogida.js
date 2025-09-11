@@ -13,23 +13,60 @@ const idRecogida = params.get("idRecogida");
 import './dbb.js';
 
 async function loadFruitsForFinca(fincaId) {
-  // Intentar obtener del server si hay internet, sino usar IndexedDB
-  if (navigator.onLine) {
-    try {
-      const res = await fetch(`/api/fincas/${fincaId}/frutas`);
+  console.log("🍎 Cargando frutas para finca:", fincaId);
+  
+  if (!fincaId) {
+    console.error("❌ No hay fincaId");
+    return;
+  }
+
+  try {
+    if (navigator.onLine) {
+      console.log("🌐 Online: obteniendo frutas del servidor...");
+      const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
       if (!res.ok) throw new Error('No data from server');
-      const frutas = await res.json();
-      // Guardar copia en indexedDB
-      await window.IDB_HELPER.saveFruits(fincaId, frutas);
-      populateFruitsSelect(frutas);
-      return;
-    } catch (err) {
-      console.warn('Error trayendo frutas del server, fallback a cache', err);
+      
+      const data = await res.json();
+      let frutas = [];
+      
+      // Buscar el documento con más frutas
+      for (const doc of data) {
+        if (doc.frutas?.length > frutas.length) {
+          frutas = doc.frutas;
+        }
+      }
+      
+      if (frutas.length > 0) {
+        // Guardar en IndexedDB
+        await window.IDB_HELPER.saveFruits(fincaId, frutas);
+        console.log(`✅ ${frutas.length} frutas guardadas en IndexedDB`);
+        populateFruitsSelect(frutas);
+        return;
+      }
+    }
+    
+    // Fallback a IndexedDB
+    console.log("📴 Offline: usando frutas de IndexedDB");
+    const cached = await window.IDB_HELPER.getFruitsByFinca(fincaId);
+    if (cached && cached.length > 0) {
+      populateFruitsSelect(cached);
+      console.log(`✅ ${cached.length} frutas cargadas desde IndexedDB`);
+    } else {
+      console.warn("⚠️ No hay frutas disponibles ni online ni offline");
+      populateFruitsSelect([]);
+    }
+    
+  } catch (err) {
+    console.error("❌ Error al cargar frutas:", err);
+    // Intentar con IndexedDB como último recurso
+    try {
+      const cached = await window.IDB_HELPER.getFruitsByFinca(fincaId);
+      populateFruitsSelect(cached || []);
+    } catch (idbErr) {
+      console.error("❌ Error incluso con IndexedDB:", idbErr);
+      populateFruitsSelect([]);
     }
   }
-  // Fallback a IndexedDB
-  const cached = await window.IDB_HELPER.getFruitsByFinca(fincaId);
-  populateFruitsSelect(cached);
 }
 
 function populateFruitsSelect(frutas) {
@@ -128,6 +165,7 @@ async function syncPendingRecogidas() {
   console.log(`📊 Sincronización finalizada: ${sincronizadas} ok, ${errores} errores`);
 }
 
+// 🔥 FUNCIÓN PARA MOSTRAR RECOGIDAS PENDIENTES CON FECHA CORREGIDA
 window.verificarRecogidasPendientes = async () => {
   const pendings = await window.IDB_HELPER.getAllPendingRecogidas();
   if (pendings.length === 0) {
@@ -196,16 +234,45 @@ window.verificarRecogidasPendientes = async () => {
 
   pendings.forEach((p, i) => {
     const r = p.recogida;
-    const fecha = new Date(r.fecha).toLocaleDateString('es-CO');
-    const hora = p.createdAt ? new Date(p.createdAt).toLocaleTimeString('es-CO') : 'Hora no disponible';
+    
+    // 🔥 CORRECCIÓN: Usar la fecha correcta de la recogida
+    let fechaFormateada = 'Fecha no disponible';
+    let horaFormateada = 'Hora no disponible';
+    
+    if (r.fecha) {
+      try {
+        // Crear fecha ajustada a la zona horaria de Colombia (UTC-5)
+        const fechaUTC = new Date(r.fecha + 'T00:00:00Z'); // Agregar hora UTC para evitar desfase
+        const offsetColombia = -5 * 60 * 60 * 1000; // UTC-5 en milisegundos
+        const fechaColombia = new Date(fechaUTC.getTime() + offsetColombia);
+        
+        fechaFormateada = fechaColombia.toLocaleDateString('es-CO', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        
+        // Si hay createdAt, usar esa hora, sino usar la hora actual
+        if (p.createdAt) {
+          const horaColombia = new Date(new Date(p.createdAt).getTime() + offsetColombia);
+          horaFormateada = horaColombia.toLocaleTimeString('es-CO', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        }
+      } catch (error) {
+        console.error('Error al formatear fecha:', error);
+        fechaFormateada = r.fecha; // Usar fecha sin formato si hay error
+      }
+    }
     
     html += `
       <div style="margin-bottom: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
           <div style="flex: 1; min-width: 250px;">
-            <strong style="color: #4CAF50;">#${i + 1}</strong> - ${fecha} ${hora}<br>
+            <strong style="color: #4CAF50;">#${i + 1}</strong> - <br>
             <span style="font-size: 14px; opacity: 0.9;">${r.finca} - ${r.propietario}</span><br>
-            <span style="font-size: 14px;">📊 ${r.totalKilos}kg - $${r.valorPagar.toLocaleString()}</span><br>
+            <span style="font-size: 14px;">📊 ${r.totalKilos}kg </span><br>
             <span style="font-size: 12px; opacity: 0.8;">🍎 ${Object.keys(r.resumenFrutas || {}).join(', ')}</span>
           </div>
           <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -879,22 +946,7 @@ async function verificarTipoUsuario() {
   console.log("=== VERIFICANDO TIPO DE USUARIO ===");
   
   try {
-    // 📡 PRIMERO: Verificar si hay conexión
-    if (!navigator.onLine) {
-      console.log("📡 Sin conexión: usando MODO SUBUSUARIO por defecto");
-      
-      // 🔥 USAR SUBUSUARIO COMO VALOR POR DEFECTO SIN INTERNET
-      isSubusuario = true;
-      tipoUsuarioVerificado = 2;
-      
-      console.log("✅ Modo SUBUSUARIO activado (sin conexión)");
-      console.log("🚫 Precios estarán OCULTOS");
-      
-      // Aplicar interfaz de subusuario inmediatamente
-      await configurarInterfazSegunTipoUsuario();
-      
-      return isSubusuario;
-    }
+    
 
     // 🌐 SI HAY CONEXIÓN: Intentar obtener datos normales
     const storedData = sessionStorage.getItem('userData');
@@ -964,43 +1016,11 @@ async function verificarTipoUsuario() {
   }
 }
 
-// 🔥 FUNCIÓN DE EMERGENCIA: Aplicar estilo de subusuario inmediatamente
-function aplicarEstiloSubusuarioEmergencia() {
-  console.log("🚨 Aplicando estilo de subusuario por emergencia...");
-  
-  // Ocultar precios inmediatamente
-  const elementosPrecio = [
-    'precioPorKilo',
-    'precioExtra',
-    'valorTotalContainer'
-  ];
-  
-  elementosPrecio.forEach(id => {
-    const elemento = document.getElementById(id);
-    if (elemento) {
-      elemento.style.display = 'none';
-      const label = document.querySelector(`label[for="${id}"]`);
-      if (label) label.style.display = 'none';
-    }
-  });
-  
-  // Cambiar botón
-  const enviarReciboBtn = document.getElementById('enviarReciboBtn');
-  if (enviarReciboBtn) {
-    enviarReciboBtn.innerHTML = "📤 Enviar Registro";
-  }
-  
-  // Forzar el valor de subusuario
-  isSubusuario = true;
-  tipoUsuarioVerificado = 2;
-  
-  console.log("✅ Estilo de subusuario aplicado por emergencia");
-}
+
 
 // 🔥 EJECUTAR INMEDIATAMENTE al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
   // Primero aplicar estilo de subusuario por defecto
-  aplicarEstiloSubusuarioEmergencia();
   
   // Luego intentar verificar el tipo real
   setTimeout(async () => {
@@ -1008,10 +1028,19 @@ document.addEventListener('DOMContentLoaded', function() {
   }, 100);
 });
 
-// 🔥 FUNCIÓN: Obtener precio para fruta y calidad específicas
 function getPrecioPorFrutaYCalidad(fruta, calidad) {
-  const frutaObj = preciosDisponibles.find(f => f.nombre === fruta);
-  return frutaObj?.precios?.[calidad] || 0;
+  console.log(`💰 Buscando precio para: ${fruta} (${calidad})`);
+  console.log("📊 Frutas disponibles:", preciosDisponibles);
+  
+  const frutaObj = preciosDisponibles.find(f => {
+    const nombreNormalizado = (f.nombre || f.name || f.key || '').toLowerCase().trim();
+    const frutaBuscada = (fruta || '').toLowerCase().trim();
+    return nombreNormalizado === frutaBuscada;
+  });
+  
+  const precio = frutaObj?.precios?.[calidad] || 0;
+  console.log(`💰 Precio encontrado: $${precio} para ${fruta} (${calidad})`);
+  return precio;
 }
 
 // OBTENER EL ALIAS DEL USUARIO
@@ -1481,23 +1510,21 @@ async function configurarInterfazSegunTipoUsuario() {
     }
 }
 
-// 🔥 FUNCIÓN MODIFICADA: Cargar frutas y precios
-// Reemplaza la función cargarFrutas existente por esta
 async function cargarFrutas() {
   console.log("🍎 Iniciando carga de frutas para finca:", fincaId);
 
   if (!fincaId) {
     console.error("❌ No hay fincaId disponible");
     alert("Error: No se pudo identificar la finca");
-    return [];
+    return []; // ← Asegurar retorno de array vacío
   }
 
-  // Normaliza cómo esperas las frutas en IndexedDB
+  // Función para normalizar frutas
   const normalizeFrutas = (frutasRaw) => {
     return (frutasRaw || []).map(f => ({
       id: f.id ?? f._id ?? f.key ?? f.nombre,
       nombre: f.nombre ?? f.name ?? f.nombreFruta ?? f.key,
-      // copia cualquier campo extra si lo necesitas
+      precios: f.precios || {},
       ...f
     }));
   };
@@ -1508,7 +1535,7 @@ async function cargarFrutas() {
     if (!res.ok) throw new Error(`Error ${res.status}: No se pudo cargar precios`);
     const precios = await res.json();
 
-    // Extraer la lista de frutas (igual que antes)
+    // Extraer la lista de frutas
     let frutasFinales = [];
     for (const doc of precios) {
       if (doc.frutas && doc.frutas.length > frutasFinales.length) {
@@ -1516,42 +1543,20 @@ async function cargarFrutas() {
       }
     }
 
-    // Normalizar y guardar en IndexedDB para uso offline
+    // Normalizar y guardar en IndexedDB
     const frutasNormalizadas = normalizeFrutas(frutasFinales);
-    if (window.IDB_HELPER && typeof window.IDB_HELPER.saveFruits === 'function') {
+    
+    if (window.IDB_HELPER && frutasNormalizadas.length > 0) {
       await window.IDB_HELPER.saveFruits(fincaId, frutasNormalizadas);
       console.log("✅ Frutas guardadas en IndexedDB para offline");
-    } else if (window.IDB_HELPER && typeof window.IDB_HELPER.savePrices === 'function') {
-      // si tu db guarda por "precios", puedes guardar ahí también
-      await window.IDB_HELPER.savePrices(frutasNormalizadas);
-      console.log("✅ Frutas guardadas en IndexedDB (savePrices)");
-    } else {
-      console.warn("⚠️ IDB_HELPER.saveFruits no disponible");
     }
 
     preciosDisponibles = frutasNormalizadas;
-
-    // Poblar select (usa frutaSelect definido arriba)
-    if (frutaSelect) {
-      frutaSelect.innerHTML = '<option value="">Selecciona una fruta</option>';
-      frutasNormalizadas.forEach(fruta => {
-        const opt = document.createElement("option");
-        opt.value = fruta.nombre;
-        opt.textContent = fruta.nombre;
-        frutaSelect.appendChild(opt);
-      });
-    }
-
-    if (calidadSelect) {
-      calidadSelect.innerHTML = `
-        <option value="">Selecciona calidad</option>
-        <option value="primera">Primera</option>
-        <option value="segunda">Segunda</option>
-        <option value="tercera">Tercera</option>
-      `;
-    }
-
+    renderFrutas(frutasNormalizadas);
+    
+    console.log(`✅ ${frutasNormalizadas.length} frutas cargadas desde servidor`);
     return frutasNormalizadas;
+
   } catch (err) {
     console.warn("❌ Error al cargar frutas desde servidor, intentando fallback a IndexedDB:", err);
 
@@ -1559,35 +1564,41 @@ async function cargarFrutas() {
     try {
       const cached = await window.IDB_HELPER.getFruitsByFinca(fincaId);
       const frutasCached = normalizeFrutas(cached);
+      
       preciosDisponibles = frutasCached;
-
-      if (frutaSelect) {
-        frutaSelect.innerHTML = '<option value="">Selecciona una fruta</option>';
-        frutasCached.forEach(fruta => {
-          const opt = document.createElement("option");
-          opt.value = fruta.nombre;
-          opt.textContent = fruta.nombre;
-          frutaSelect.appendChild(opt);
-        });
-      }
-
-      if (calidadSelect) {
-        calidadSelect.innerHTML = `
-          <option value="">Selecciona calidad</option>
-          <option value="primera">Primera</option>
-          <option value="segunda">Segunda</option>
-          <option value="tercera">Tercera</option>
-        `;
-      }
-
+      renderFrutas(frutasCached);
+      
       console.log("✅ Frutas cargadas desde IndexedDB (offline):", frutasCached.length);
       return frutasCached;
+      
     } catch (err2) {
       console.error("❌ No hay frutas en IndexedDB:", err2);
-      alert("No se pudieron cargar las frutas (no hay conexión y no hay cache local).");
-      return [];
+      
+      // Si no hay datos en IndexedDB, inicializar con array vacío
+      const frutasVacias = [];
+      preciosDisponibles = frutasVacias;
+      renderFrutas(frutasVacias);
+      
+      console.log("⚠️ Usando array vacío de frutas");
+      return frutasVacias;
     }
   }
+}
+
+// Función para renderizar frutas en el select
+function renderFrutas(frutas) {
+  if (!frutaSelect) return;
+  
+  frutaSelect.innerHTML = '<option value="">Selecciona una fruta</option>';
+  
+  frutas.forEach(fruta => {
+    const opt = document.createElement("option");
+    opt.value = fruta.nombre || fruta.name || fruta.key;
+    opt.textContent = fruta.nombre || fruta.name || fruta.key;
+    frutaSelect.appendChild(opt);
+  });
+  
+  console.log(`✅ ${frutas.length} frutas renderizadas en select`);
 }
 
 
@@ -2166,31 +2177,6 @@ window.addEventListener('load', function() {
 window.limpiarDatosEdicion = limpiarDatosEdicion;
 window.limpiarAlSalirEdicion = limpiarAlCancelarEdicion;
 
-// 🔥 VERIFICACIÓN CONSTANTE PARA SUBUSUARIOS
-function verificarConstantementeSubusuario() {
-    if (isSubusuario) {
-        // Verificar cada segundo que los precios estén ocultos
-        const verificarOcultos = setInterval(() => {
-            const precioPorKilo = document.getElementById('precioPorKilo');
-            const valorTotalContainer = document.getElementById('valorTotalContainer');
-            
-            if (precioPorKilo && precioPorKilo.style.display !== 'none') {
-                precioPorKilo.style.display = 'none';
-                console.log("🚨 Campo precio por kilo reapareció - ocultando de nuevo");
-            }
-            
-            if (valorTotalContainer && valorTotalContainer.style.display !== 'none') {
-                valorTotalContainer.style.display = 'none';
-                console.log("🚨 Campo valor total reapareció - ocultando de nuevo");
-            }
-        }, 1000);
-        
-        // Detener después de 30 segundos
-        setTimeout(() => {
-            clearInterval(verificarOcultos);
-        }, 30000);
-    }
-}
 
 // Ejecutar cuando se cargue la página
 window.addEventListener('load', () => {

@@ -191,3 +191,54 @@ window.IDB_HELPER = {
   clearPendingRecogidas,
   countPendingRecogidas
 };
+
+// ----------------- SINCRONIZACIÓN GLOBAL DE PRECIOS -----------------
+
+/**
+ * Guarda los precios de todas las fincas de un administrador
+ * @param {Array} preciosPorFinca - Array de objetos { fincaId, frutas: [...] }
+ */
+async function saveAllPricesForAdmin(preciosPorFinca) {
+  await withStore(STORE_PRECIOS, 'readwrite', (store) => {
+    preciosPorFinca.forEach(({ fincaId, frutas }) => {
+      frutas.forEach(fruta => {
+        const key = `${fincaId}:${fruta.nombre}`;
+        store.put({ key, fincaId, ...fruta });
+      });
+    });
+  });
+}
+
+/**
+ * Obtiene todos los precios de todas las fincas de un administrador
+ * @param {string} adminAlias - Alias del administrador
+ * @returns {Array} - Array de objetos { fincaId, frutas: [...] }
+ */
+async function getAllPricesByAdmin(adminAlias) {
+  const resultado = [];
+
+  await withStore(STORE_PRECIOS, 'readonly', (store) => {
+    const req = store.openCursor();
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        const valor = cursor.value;
+        if (valor.adminAlias === adminAlias || valor.usuario === adminAlias) {
+          const existe = resultado.find(r => r.fincaId === valor.fincaId);
+          if (!existe) {
+            resultado.push({ fincaId: valor.fincaId, frutas: [] });
+          }
+          const index = resultado.findIndex(r => r.fincaId === valor.fincaId);
+          resultado[index].frutas.push(valor);
+        }
+        cursor.continue();
+      }
+    };
+  });
+
+  return resultado;
+}
+
+// Actualizar el export
+window.IDB_HELPER.saveAllPricesForAdmin = saveAllPricesForAdmin;
+window.IDB_HELPER.getAllPricesByAdmin = getAllPricesByAdmin;
