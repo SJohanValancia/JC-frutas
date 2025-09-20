@@ -1,4 +1,6 @@
 // calculadora.js - SISTEMA MEJORADO DE PERSISTENCIA DE PESAS
+
+
 let inputPeso = document.getElementById("inputPeso");
 let totalKilosSpan = document.getElementById("totalKilos");
 let ultimaPesaSpan = document.getElementById("ultimaPesa");
@@ -1709,26 +1711,23 @@ document.addEventListener("DOMContentLoaded", () => {
 // 🔥 FUNCIÓN SIMPLIFICADA: Solo generar página de totales con colores suaves
 let isSharingInProgress = false;
 
-// 🔥 FUNCIÓN MODIFICADA PARA VALIDAR INPUT ANTES DE ENVIAR
+
 async function enviarReciboWhatsApp() {
   if (isSharingInProgress) {
     console.log("Compartir ya está en curso, por favor espera.");
     return;
   }
 
-  // 🚨 NUEVA VALIDACIÓN: Verificar si hay datos en el input
+  // 🚨 VALIDACIÓN: Verificar si hay datos en el input
   const valorInput = inputPeso.value.trim();
   if (valorInput && valorInput !== "") {
-    // Mostrar alerta personalizada con estilo
     mostrarAlertaPersonalizada(
       "⚠️ Aún hay un dato que no se ha registrado",
       "Por favor dele al botón + en la calculadora para agregar el peso antes de enviar el recibo.",
       "warning"
     );
-    
-    // Resaltar el input para llamar la atención
     resaltarInput();
-    return; // No continuar con el envío
+    return;
   }
 
   // Verificar si hay pesas para enviar
@@ -1742,7 +1741,7 @@ async function enviarReciboWhatsApp() {
     return;
   }
 
-  // 💾 GUARDAR PESAS EN LOCALSTORAGE INMEDIATAMENTE
+  // 💾 GUARDAR PESAS EN LOCALSTORAGE
   const pesasActuales = getPesas();
   localStorage.setItem('pesas_backup', JSON.stringify(pesasActuales));
   console.log("💾 Pesas guardadas en localStorage como backup:", pesasActuales);
@@ -1765,11 +1764,11 @@ async function enviarReciboWhatsApp() {
       valor: pesa.valor || 0
     }));
 
-    // 🔥 CALCULAR TOTALES GENERALES
+    // 🔥 CALCULAR TOTALES
     const totalKilosGeneral = itemsFactura.reduce((sum, item) => sum + item.kilos, 0);
     const totalValorGeneral = itemsFactura.reduce((sum, item) => sum + item.valor, 0);
 
-    // 🔥 GENERAR SOLO LA PÁGINA DE TOTALES CON COLORES SUAVES
+    // 🔥 GENERAR IMAGEN
     const divTotales = crearPaginaTotalesSuave(itemsFactura, totalKilosGeneral, totalValorGeneral, finca, propietario, fecha);
     document.body.appendChild(divTotales);
     await document.fonts.ready;
@@ -1787,36 +1786,162 @@ async function enviarReciboWhatsApp() {
 
     document.body.removeChild(divTotales);
 
-    const blobTotales = await new Promise(resolve => 
-      canvasTotales.toBlob(resolve, "image/png", 1.0)
-    );
-    const fileTotales = new File([blobTotales], `resumen_totales.png`, { type: "image/png" });
+    // 🔥 CONVERTIR CANVAS A BASE64 PARA CAPACITOR
+    const imageBase64 = canvasTotales.toDataURL('image/png');
+    
+    console.log("📤 Compartiendo resumen de totales");
 
-    const mensaje = isSubusuario ? 
-      `¡Resumen de recogida con ${itemsFactura.length} productos!` : 
-      `¡Resumen de factura con ${itemsFactura.length} productos!`;
+    // 🔥 DETECTAR SI ESTAMOS EN CAPACITOR O WEB
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) {
+      // 📱 MODO CAPACITOR
+      console.log("📱 Usando Capacitor Share Plugin");
+      
+      await window.Capacitor.Plugins.Share.share({
+        title: isSubusuario ? 'Resumen de Registro' : 'Resumen de Factura',
+        text: `¡${isSubusuario ? 'Resumen de recogida' : 'Resumen de factura'} con ${itemsFactura.length} productos!`,
+        url: imageBase64,
+        dialogTitle: 'Compartir resumen'
+      });
+    } else if (navigator.share) {
+      // 🌐 MODO WEB CON NAVIGATOR.SHARE
+      console.log("🌐 Usando navigator.share (web)");
+      
+      const blobTotales = await new Promise(resolve => 
+        canvasTotales.toBlob(resolve, "image/png", 1.0)
+      );
+      const fileTotales = new File([blobTotales], `resumen_totales.png`, { type: "image/png" });
 
-    console.log(`📤 Compartiendo resumen de totales`);
+      await navigator.share({
+        title: isSubusuario ? 'Resumen de Registro' : 'Resumen de Factura',
+        text: `¡${isSubusuario ? 'Resumen de recogida' : 'Resumen de factura'} con ${itemsFactura.length} productos!`,
+        files: [fileTotales],
+      });
+    } else {
+      // 💾 FALLBACK: DESCARGAR IMAGEN
+      console.log("💾 Fallback: Descargando imagen");
+      
+      const link = document.createElement('a');
+      link.download = `resumen_totales_${new Date().toISOString().split('T')[0]}.png`;
+      link.href = imageBase64;
+      link.click();
+      
+      mostrarAlertaPersonalizada(
+        "📱 Imagen descargada",
+        "La imagen se ha descargado. Puedes compartir manualmente desde tu galería.",
+        "success"
+      );
+    }
 
-    await navigator.share({
-      title: isSubusuario ? 'Resumen de Registro' : 'Resumen de Factura',
-      text: mensaje,
-      files: [fileTotales],
-    });
-
-    // ✅ Si el envío fue exitoso, limpiar el input por precaución
+    // ✅ Limpiar el input después del envío exitoso
     inputPeso.value = "";
 
   } catch (err) {
     console.error("Error al compartir:", err);
+    
+    let mensajeError = "Error desconocido al generar el resumen";
+    
+    if (err.message.includes("share is not a function")) {
+      mensajeError = "Función de compartir no disponible en este dispositivo";
+    } else if (err.message.includes("AbortError")) {
+      mensajeError = "Compartir fue cancelado por el usuario";
+    } else if (err.message.includes("NotAllowedError")) {
+      mensajeError = "No se tienen permisos para compartir";
+    } else if (err.message) {
+      mensajeError = err.message;
+    }
+    
     mostrarAlertaPersonalizada(
       "❌ Error al generar el resumen",
-      err.message,
+      mensajeError,
       "error"
     );
   } finally {
     isSharingInProgress = false;
   }
+}
+
+
+// 🔥 FUNCIÓN AUXILIAR PARA DETECTAR CAPACITOR
+function esCapacitor() {
+  return !!(window.Capacitor && window.Capacitor.Plugins);
+}
+
+// 🔥 FUNCIÓN PARA INICIALIZAR CAPACITOR SHARE SI ESTÁ DISPONIBLE
+async function inicializarCapacitorShare() {
+  if (esCapacitor()) {
+    try {
+      console.log("📱 Capacitor detectado, verificando plugins...");
+      
+      // Verificar si el plugin Share está disponible
+      if (window.Capacitor.Plugins.Share) {
+        console.log("✅ Capacitor Share plugin disponible");
+        return true;
+      } else {
+        console.warn("⚠️ Capacitor Share plugin no encontrado");
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Error al inicializar Capacitor Share:", error);
+      return false;
+    }
+  } else {
+    console.log("🌐 Entorno web detectado (no Capacitor)");
+    return false;
+  }
+}
+
+// 🔥 MODIFICAR LA INICIALIZACIÓN EXISTENTE
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("🚀 Calculadora cargada, configurando interfaz mejorada...");
+  
+  // Marcar que estamos en una recarga para evitar limpieza
+  window.isRecarga = true;
+  
+  await configurarInterfazCalculadora();
+  await cargarPreciosFrutas();
+  
+  // 🔥 INICIALIZAR CAPACITOR SHARE
+  const capacitorShareDisponible = await inicializarCapacitorShare();
+  if (capacitorShareDisponible) {
+    console.log("📱 Capacitor Share configurado correctamente");
+  }
+  
+  // Iniciar auto-guardado
+  iniciarAutoGuardado();
+  
+  // Verificar si hay datos al cargar
+  const pesas = getPesas();
+  if (pesas.length > 0) {
+    mostrarNotificacion(`📦 ${pesas.length} pesas recuperadas correctamente`, "success");
+  }
+  
+  // Inicializar filtros
+  setTimeout(() => {
+    crearSistemaFiltros();
+    console.log("✅ Sistema de filtros inicializado");
+  }, 500);
+  
+  // Marcar que la recarga ha terminado
+  setTimeout(() => {
+    window.isRecarga = false;
+  }, 1000);
+  
+  console.log("✅ Calculadora configurada completamente con soporte para Capacitor");
+});
+
+// 🔥 TAMBIÉN AGREGAR ESTA VERIFICACIÓN EN EL EVENT LISTENER DEL BOTÓN
+if (enviarReciboBtn) {
+  enviarReciboBtn.addEventListener("click", async () => {
+    console.log("📤 Botón de enviar presionado - verificando entorno...");
+    
+    if (esCapacitor()) {
+      console.log("📱 Entorno Capacitor detectado");
+    } else {
+      console.log("🌐 Entorno web detectado");
+    }
+    
+    await enviarReciboWhatsApp();
+  });
 }
 
 // 🔥 NUEVA FUNCIÓN PARA MOSTRAR ALERTAS PERSONALIZADAS
