@@ -105,11 +105,66 @@
     cursor: not-allowed;
     transform: none;
   }
-</style>
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .scroll-button {
+    background: linear-gradient(135deg, #2E7D32, #1B5E20);
+    box-shadow: 0 8px 25px rgba(46, 125, 50, 0.3);
+  }
+  
+  .scroll-button:hover {
+    box-shadow: 0 12px 35px rgba(46, 125, 50, 0.5);
+  }
+}
+
+
+/* Botón flotante para cambiar tema */
+.theme-toggle {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #333;
+  font-size: 1.4em;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+  z-index: 99999;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1) rotate(10deg);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+body.light-mode {
+  background: #f5f5f5;
+  color: #222;
+}
+
+body.light-mode .card-glass {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+body.light-mode .info-value {
+  color: #0077cc;
+}
+
 
   </style>
 </head>
 <body>
+
+  <!-- Botón de cambio de tema -->
+<button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+  🌙
+</button>
+
   <div class="container">
 
     <div id="syncContainer" style="display: none; text-align: center; margin: 15px 0;">
@@ -642,5 +697,28 @@ window.addEventListener('offline', () => {
   // Ejecutar
   inicializarApp();
 </script>
+
+<script>
+  const themeToggle = document.getElementById("themeToggle");
+  const body = document.body;
+
+  // Mantener preferencia guardada
+  if (localStorage.getItem("theme") === "light") {
+    body.classList.add("light-mode");
+    themeToggle.textContent = "☀️";
+  }
+
+  themeToggle.addEventListener("click", () => {
+    body.classList.toggle("light-mode");
+    if (body.classList.contains("light-mode")) {
+      themeToggle.textContent = "☀️";
+      localStorage.setItem("theme", "light");
+    } else {
+      themeToggle.textContent = "🌙";
+      localStorage.setItem("theme", "dark");
+    }
+  });
+</script>
+
 </body>
 </html>

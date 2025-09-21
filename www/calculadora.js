@@ -1807,68 +1807,75 @@ async function enviarReciboWhatsApp() {
     document.body.removeChild(divTotales);
 
     // ✅ COMPARTIR EN CAPACITOR (Android/iOS)
-    // ✅ COMPARTIR EN CAPACITOR (Android/iOS)
-if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem && window.Capacitor.Plugins.Share) {
-  console.log("📱 Usando Capacitor con Filesystem");
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem && window.Capacitor.Plugins.Share) {
+console.log("📱 Usando Capacitor Share Plugin");
+// 1. Canvas → Blob
+const blob = await new Promise(resolve =>
+  canvasTotales.toBlob(resolve, 'image/png')
+);
 
-  const blob = await new Promise(resolve => canvasTotales.toBlob(resolve, 'image/png'));
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+// 2. Blob → Base64
+const base64 = await new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onloadend = () => resolve(reader.result);
+  reader.onerror  = reject;
+  reader.readAsDataURL(blob);
+});
 
-  const fileName = `resumen_${Date.now()}.png`;
-  const saved = await Capacitor.Plugins.Filesystem.writeFile({
-    path: fileName,
-    data: base64.split(',')[1],
-    directory: Capacitor.FilesystemDirectory.Cache,
-    recursive: true
-  });
+// 3. Guardar en caché de la app
+const fileName = `resumen_${Date.now()}.png`;
+const saved = await Capacitor.Plugins.Filesystem.writeFile({
+  path: fileName,
+  data: base64.split(',')[1],          // quitar “data:image/png;base64,”
+  directory: 'CACHE',
+  recursive: true
+});
 
-  await Capacitor.Plugins.Share.share({
-    title: isSubusuario ? 'Resumen de Registro' : 'Resumen de Factura',
-    text: `Resumen con ${itemsFactura.length} productos`,
-    url: saved.uri,
-    dialogTitle: 'Compartir resumen'
-  });
+// 4. Compartir la URI real
+await Capacitor.Plugins.Share.share({
+  title: isSubusuario ? 'Resumen de Registro' : 'Resumen de Factura',
+  text:  `Resumen con ${itemsFactura.length} productos`,
+  url:   saved.uri,                    // ← URI local válida
+  dialogTitle: 'Compartir resumen'
+});
 
-  // Opcional: borrar archivo temporal
-  await Capacitor.Plugins.Filesystem.deleteFile({
-    path: fileName,
-    directory: Capacitor.FilesystemDirectory.Cache
-  });
+// 5. (Opcional) Borrar archivo temporal
+await Capacitor.Plugins.Filesystem.deleteFile({
+  path: fileName,
+  directory: Capacitor.FilesystemDirectory.Cache
+});
 
-// ✅ COMPARTIR EN WEB (navigator.share)
-} else if (navigator.share && navigator.canShare) {
-  console.log("🌐 Usando navigator.share (web)");
 
-  const blob = await new Promise(resolve => canvasTotales.toBlob(resolve, 'image/png'));
-  const file = new File([blob], `resumen_${Date.now()}.png`, { type: 'image/png' });
 
-  await navigator.share({
-    title: isSubusuario ? 'Resumen de Registro' : 'Resumen de Factura',
-    text: `Resumen con ${itemsFactura.length} productos`,
-    files: [file]
-  });
+    // ✅ COMPARTIR EN WEB (navigator.share)
+    } else if (navigator.share && navigator.canShare) {
+      console.log("🌐 Usando navigator.share (web)");
 
-// ✅ FALLBACK: DESCARGAR IMAGEN
-} else {
-  console.log("💾 Fallback: Descargando imagen");
+      const blob = await new Promise(resolve => canvasTotales.toBlob(resolve, 'image/png'));
+      const file = new File([blob], `resumen_${Date.now()}.png`, { type: 'image/png' });
 
-  const imageBase64 = canvasTotales.toDataURL('image/png');
-  const link = document.createElement('a');
-  link.download = `resumen_totales_${new Date().toISOString().split('T')[0]}.png`;
-  link.href = imageBase64;
-  link.click();
+      await navigator.share({
+        title: isSubusuario ? 'Resumen de Registro' : 'Resumen de Factura',
+        text: `Resumen con ${itemsFactura.length} productos`,
+        files: [file]
+      });
 
-  mostrarAlertaPersonalizada(
-    "📱 Imagen descargada",
-    "La imagen se ha descargado. Puedes compartir manualmente desde tu galería.",
-    "success"
-  );
-}
+    // ✅ FALLBACK: DESCARGAR IMAGEN
+    } else {
+      console.log("💾 Fallback: Descargando imagen");
+
+      const imageBase64 = canvasTotales.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `resumen_totales_${new Date().toISOString().split('T')[0]}.png`;
+      link.href = imageBase64;
+      link.click();
+
+      mostrarAlertaPersonalizada(
+        "📱 Imagen descargada",
+        "La imagen se ha descargado. Puedes compartir manualmente desde tu galería.",
+        "success"
+      );
+    }
 
     // Limpiar input
     inputPeso.value = "";

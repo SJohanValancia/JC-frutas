@@ -3,23 +3,146 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="dbb.js"></script>
-
   <script src="jc-loader.js"></script>
-    <script src="blockCheck.js"></script>
+  <script src="blockCheck.js"></script>
 
   <title>Recogida</title>
   <link rel="stylesheet" href="style.css" />
   <style>
+    /* Variables CSS para temas */
+    :root {
+      --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.15);
+      --text-primary: #ffffff;
+      --text-secondary: #b0b0b0;
+      --input-bg: rgba(255, 255, 255, 0.05);
+      --input-border: rgba(255, 255, 255, 0.2);
+      --button-bg: rgba(255, 255, 255, 0.1);
+      --button-hover: rgba(255, 255, 255, 0.2);
+      --shadow-color: rgba(0, 0, 0, 0.2);
+      --accent-color: #4CAF50;
+      --error-color: #ff3b30;
+    }
+
+    /* Tema claro */
+    [data-theme="light"] {
+      --bg-gradient: linear-gradient(135deg, #f0f2f5 0%, #e8eaf0 50%, #dde1e7 100%);
+      --glass-bg: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(0, 0, 0, 0.1);
+      --text-primary: #2c3e50;
+      --text-secondary: #5a6c7d;
+      --input-bg: rgba(255, 255, 255, 0.9);
+      --input-border: rgba(0, 0, 0, 0.2);
+      --button-bg: rgba(255, 255, 255, 0.7);
+      --button-hover: rgba(255, 255, 255, 0.9);
+      --shadow-color: rgba(0, 0, 0, 0.1);
+      --accent-color: #27ae60;
+      --error-color: #e74c3c;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-primary);
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      transition: all 0.3s ease;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border);
+      border-radius: 50px;
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      box-shadow: 0 8px 25px var(--shadow-color);
+    }
+
+    .theme-toggle:hover {
+      background: var(--button-hover);
+      transform: scale(1.05);
+    }
+
+    .theme-icon {
+      font-size: 18px;
+      transition: transform 0.3s ease;
+    }
+
+    .theme-toggle.rotating .theme-icon {
+      transform: rotate(360deg);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: var(--text-primary);
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 15px 20px;
+      margin-bottom: 15px;
+      border-radius: 30px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      backdrop-filter: blur(8px);
+      color: var(--text-primary);
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent-color);
+      background: var(--button-hover);
+      transform: scale(1.02);
+    }
+
+    input::placeholder {
+      color: var(--text-secondary);
+    }
+
     .calculadora {
       margin-top: 40px;
       width: 100%;
       max-width: 400px;
       border-radius: 20px;
       padding: 20px;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 12px 30px var(--shadow-color);
+      backdrop-filter: blur(15px);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .calculadora h3 {
+      color: var(--text-primary);
+      text-align: center;
+      margin-bottom: 20px;
     }
 
     .calculadora input, .calculadora select {
@@ -34,67 +157,47 @@
     }
 
     /* Estilo moderno para select tipo glass */
-select {
-  width: 100%;
-  padding: 10px 15px;
-  border-radius: 30px; /* Muy redondeado */
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(8px); /* Efecto glass */
-  -webkit-backdrop-filter: blur(8px);
-  color: white;
-  font-size: 14px; /* Más compacto */
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-}
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 12px center;
+      background-repeat: no-repeat;
+      background-size: 16px;
+    }
 
-/* Flecha personalizada */
-select::after {
-  content: "▼";
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: white;
-  font-size: 12px;
-}
+    [data-theme="light"] select {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%232c3e50' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    }
 
-/* Hover y focus */
-select:hover,
-select:focus {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #4CAF50;
-  outline: none;
-  transform: scale(1.02);
-}
-
-/* Opciones dentro del select */
-select option {
-  background: rgba(44, 44, 44, 0.95);
-  color: white;
-  padding: 10px;
-  border-radius: 12px;
-}
-
-/* Animación suave al abrir el select */
-select:focus option {
-  background: rgba(58, 58, 58, 0.95);
-}
-
+    select option {
+      background: var(--input-bg);
+      color: var(--text-primary);
+      padding: 10px;
+      border-radius: 12px;
+    }
 
     .calculadora .teclado button {
       font-size: 20px;
       padding: 14px;
       border-radius: 12px;
-      background: rgba(255,255,255,0.1);
-      color: white;
-      border: 1px solid rgba(255,255,255,0.2);
+      background: var(--button-bg);
+      color: var(--text-primary);
+      border: 1px solid var(--input-border);
       cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 600;
+    }
+
+    .calculadora .teclado button:hover {
+      background: var(--button-hover);
+      transform: scale(1.05);
+    }
+
+    .calculadora .teclado button:active {
+      transform: scale(0.95);
     }
 
     .calculadora .resumen {
@@ -108,10 +211,14 @@ select:focus option {
       color: var(--text-secondary);
     }
 
+    .calculadora .resumen strong {
+      color: var(--text-primary);
+    }
+
     .borrarBtn {
-      background-color: #ff3b30;
-      border-color: #ff3b30;
-      color: white;
+      background-color: var(--error-color) !important;
+      border-color: var(--error-color) !important;
+      color: white !important;
     }
 
     .hidden {
@@ -127,116 +234,168 @@ select:focus option {
       display: block;
       margin-bottom: 5px;
       color: var(--text-secondary);
+      font-weight: 600;
     }
 
-.volver-btn {
-  top: -20px;
-  position: absolute;
-  background: linear-gradient(135deg, #6c757d, #495057);
-  color: white;
-  border: none;
-  padding: 15px 25px;
-  border-radius: 25px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 20px;
-  width: 10%;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
+    .volver-btn {
+      top: -20px;
+      position: absolute;
+      background: linear-gradient(135deg, #6c757d, #495057);
+      color: white;
+      border: none;
+      padding: 15px 25px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+      width: 10%;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
 
-.guardar{
+    .volver-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 25px var(--shadow-color);
+    }
 
-  padding: 30px;
+    .guardar {
+      background: linear-gradient(135deg, var(--accent-color), #45a049);
+      color: white;
+      border: none;
+      padding: 18px 30px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      width: 100%;
+      margin-top: 20px;
+      box-shadow: 0 8px 25px var(--shadow-color);
+    }
 
-}
+    .guardar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px var(--shadow-color);
+    }
 
-/* Indicador de conexión */
-.indicador-conexion {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  padding: 10px 15px;
-  border-radius: 25px;
-  z-index: 10000;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
+    #enviarReciboBtn {
+      background: linear-gradient(135deg, var(--accent-color), #45a049) !important;
+      color: white !important;
+    }
 
-.bolita-conexion {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  animation: pulse 2s infinite;
-}
+    /* Indicadores de conexión */
+    .indicador-conexion {
+      position: fixed;
+      top: 80px;
+      left: 20px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border);
+      border-radius: 25px;
+      padding: 8px 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: bold;
+      z-index: 1000;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 15px var(--shadow-color);
+    }
 
-.bolita-conexion.conectado {
-  background: #4CAF50;
-  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
-}
+    .bolita-conexion {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
 
-.bolita-conexion.desconectado {
-  background: #9E9E9E;
-  box-shadow: 0 0 10px rgba(158, 158, 158, 0.3);
-}
+    .bolita-conexion.conectado {
+      background: #4CAF50;
+      box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    }
 
-.mensaje-conexion {
-  color: white;
-  font-size: 12px;
-  font-weight: 500;
-  max-width: 200px;
-  line-height: 1.3;
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.3s ease;
-}
+    .bolita-conexion.desconectado {
+      background: #f44336;
+      box-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+    }
 
-.mensaje-conexion {
-  opacity: 1 !important;
-  transform: translateX(0) !important;
-  transition: none;
-}
+    .mensaje-conexion {
+      color: var(--text-primary);
+      font-size: 11px;
+    }
 
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
+    /* Notificaciones elegantes */
+    .notificacion-elegante {
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
 
+    /* Animaciones */
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
 
+    .calculadora {
+      animation: fadeInScale 0.5s ease-out;
+    }
 
+    /* Responsive */
+    @media (max-width: 768px) {
+      .theme-toggle {
+        top: 10px;
+        right: 10px;
+        padding: 10px 15px;
+        font-size: 12px;
+      }
+
+      .volver-btn {
+        width: auto;
+        min-width: 80px;
+        padding: 12px 20px;
+        font-size: 0.9rem;
+      }
+
+      .container {
+        padding: 10px;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+
+    /* Mejoras adicionales para el tema claro */
+    [data-theme="light"] .calculadora .teclado button {
+      background: var(--button-bg);
+      border: 1px solid var(--input-border);
+      box-shadow: 0 2px 8px var(--shadow-color);
+    }
+
+    [data-theme="light"] .calculadora .teclado button:hover {
+      box-shadow: 0 4px 15px var(--shadow-color);
+    }
   </style>
 </head>
 <body>
 
-  <div id="indicadorConexion" class="indicador-conexion">
-  <div class="bolita-conexion" id="bolitaConexion"></div>
-  <div class="mensaje-conexion" id="mensajeConexion"></div>
-</div>
+  <!-- Botón de cambio de tema -->
+  <div class="theme-toggle" onclick="toggleTheme()">
+    <span class="theme-icon">🌙</span>
+    <span class="theme-text">Modo Oscuro</span>
+  </div>
 
-
-
-    <!-- Indicador de conexión -->
-
+ 
   <div class="container">
 
-        <button class="volver-btn" onclick="window.history.back()">← Volver</button>
-
+     <button class="volver-btn" onclick="window.history.back()">← Volver</button>
 
     <h2>Registro de Recogida</h2>
 
@@ -252,12 +411,9 @@ select:focus option {
       <option value="primera">Primera</option>
       <option value="segunda">Segunda</option>
       <option value="tercera">Tercera</option>
-
     </select>
 
-
     <button class="guardar" id="guardarRecogida">Guardar Recogida</button>
-
 
     <!-- Calculadora -->
     <div class="calculadora">
@@ -297,13 +453,111 @@ select:focus option {
         
         <!-- Valor total - se ocultará para subusuarios -->
         <span id="valorTotalContainer">Valor total: <strong id="valorTotal">$0</strong></span>
-
-<button onclick="verificarRecogidasPendientes()">🔍 Ver recogidas pendientes</button>
         
         <ul id="listaPesas" style="margin-top: 10px;"></ul>
       </div>
     </div>
   </div>
+
+  <!-- Indicador de conexión -->
+  <div id="indicadorConexion" class="indicador-conexion" style="display: none;">
+    <div id="bolitaConexion" class="bolita-conexion"></div>
+    <div id="mensajeConexion" class="mensaje-conexion"></div>
+  </div>
+
+  <script>
+    // Función para cambiar tema
+    function toggleTheme() {
+      const body = document.body;
+      const themeToggle = document.querySelector('.theme-toggle');
+      const themeIcon = document.querySelector('.theme-icon');
+      const themeText = document.querySelector('.theme-text');
+      
+      // Agregar clase de rotación
+      themeToggle.classList.add('rotating');
+      
+      if (body.getAttribute('data-theme') === 'light') {
+        // Cambiar a modo oscuro
+        body.setAttribute('data-theme', 'dark');
+        themeIcon.textContent = '🌙';
+        themeText.textContent = 'Modo Oscuro';
+        localStorage.setItem('theme', 'dark');
+      } else {
+        // Cambiar a modo claro
+        body.setAttribute('data-theme', 'light');
+        themeIcon.textContent = '☀️';
+        themeText.textContent = 'Modo Claro';
+        localStorage.setItem('theme', 'light');
+      }
+      
+      // Remover clase de rotación después de la animación
+      setTimeout(() => {
+        themeToggle.classList.remove('rotating');
+      }, 300);
+    }
+
+    // Cargar tema guardado al iniciar
+    function loadSavedTheme() {
+      const savedTheme = localStorage.getItem('theme');
+      const body = document.body;
+      const themeIcon = document.querySelector('.theme-icon');
+      const themeText = document.querySelector('.theme-text');
+      
+      if (savedTheme === 'light') {
+        body.setAttribute('data-theme', 'light');
+        themeIcon.textContent = '☀️';
+        themeText.textContent = 'Modo Claro';
+      } else {
+        body.setAttribute('data-theme', 'dark');
+        themeIcon.textContent = '🌙';
+        themeText.textContent = 'Modo Oscuro';
+      }
+    }
+
+    // Cargar tema al iniciar la página
+    document.addEventListener('DOMContentLoaded', function() {
+      loadSavedTheme();
+    });
+
+    // Funciones dummy para demostración (reemplaza con tus funciones reales)
+    function escribirNumero(num) {
+      const input = document.getElementById('inputPeso');
+      input.value = (input.value || '') + num;
+    }
+
+    function borrarNumero() {
+      const input = document.getElementById('inputPeso');
+      input.value = input.value.slice(0, -1);
+    }
+
+    function limpiarTodo() {
+      const input = document.getElementById('inputPeso');
+      input.value = '';
+      document.getElementById('ultimaPesa').textContent = '0';
+      document.getElementById('totalKilos').textContent = '0';
+      document.getElementById('valorTotal').textContent = '$0';
+    }
+
+    function sumarPesa() {
+      const input = document.getElementById('inputPeso');
+      const valor = parseInt(input.value) || 0;
+      if (valor > 0) {
+        const ultimaPesa = document.getElementById('ultimaPesa');
+        const totalKilos = document.getElementById('totalKilos');
+        const valorTotal = document.getElementById('valorTotal');
+        
+        ultimaPesa.textContent = valor;
+        const nuevoTotal = parseInt(totalKilos.textContent) + valor;
+        totalKilos.textContent = nuevoTotal;
+        
+        // Simulación de cálculo de valor
+        const precioKilo = parseInt(document.getElementById('precioPorKilo').value) || 1000;
+        valorTotal.textContent = '$' + (nuevoTotal * precioKilo).toLocaleString();
+        
+        input.value = '';
+      }
+    }
+  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="module" src="recogida.js"></script>
