@@ -386,6 +386,8 @@
 </head>
 <body>
 
+  
+
   <!-- Botón de cambio de tema -->
   <div class="theme-toggle" onclick="toggleTheme()">
     <span class="theme-icon">🌙</span>
@@ -394,6 +396,10 @@
 
  
   <div class="container">
+
+    <button onclick="verificarRecogidasPendientes()">🔍 Ver recogidas pendientes</button>
+
+
 
      <button class="volver-btn" onclick="window.history.back()">← Volver</button>
 
@@ -464,6 +470,8 @@
     <div id="bolitaConexion" class="bolita-conexion"></div>
     <div id="mensajeConexion" class="mensaje-conexion"></div>
   </div>
+
+  
 
   <script>
     // Función para cambiar tema

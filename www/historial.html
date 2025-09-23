@@ -1087,30 +1087,108 @@ select:focus option {
     }
 
     // 🔥 NUEVA FUNCIÓN PARA MANEJAR RECIBOS (SOLUCIÓN AL PROBLEMA)
-    async function manejarRecibos(recogidaData) {
-      try {
-        console.log("📤 Iniciando manejo de recibos:", recogidaData);
-        
-        const totalPesas = recogidaData.pesas.length;
-        const pesasPorRecibo = 20;
-        const totalRecibos = Math.ceil(totalPesas / pesasPorRecibo);
-        
-        console.log(`📊 Total pesas: ${totalPesas}, Recibos necesarios: ${totalRecibos}`);
-        
-        if (totalRecibos === 1) {
-          // Un solo recibo: enviar directamente
-          await enviarReciboDirecto(recogidaData);
-        } else {
-          // Múltiples recibos: mostrar modal para elegir
-          await mostrarModalRecibos(recogidaData, totalRecibos);
-        }
-        
-      } catch (error) {
-        console.error("❌ Error al manejar recibos:", error);
-        alert("Error al procesar los recibos. Inténtalo de nuevo.");
-      }
+  /* ---------- 1.  Polyfill: carga el plugin si no está listo ---------- */
+/* ---------- 1.  Polyfill: carga el plugin si no está listo ---------- */
+(async () => {
+  if (window.Capacitor && !window.Capacitor.Plugins?.Share) {
+    await window.Capacitor.registerPlugin('Share');
+  }
+})();
+
+/* ---------- 2.  Función principal (SIN CAMBIOS) ---------- */
+async function manejarRecibos(recogidaData) {
+  try {
+    const totalPesas   = recogidaData.pesas.length;
+    const pesasXRecibo = 20;
+    const totalRecibos = Math.ceil(totalPesas / pesasXRecibo);
+    const fechaFmt     = formatearFecha(recogidaData.fecha);
+
+    /* ---- 2-a  Generar todos los recibos (base64) ---- */
+    const recibosBase64 = [];          // array de strings base64
+    for (let i = 0; i < totalRecibos; i++) {
+      const inicio     = i * pesasXRecibo;
+      const fin        = Math.min(inicio + pesasXRecibo, totalPesas);
+      const pedazo     = recogidaData.pesas.slice(inicio, fin);
+      const blob       = await generarRecibo(recogidaData, pedazo, i + 1, totalRecibos, fechaFmt);
+      const base64     = await blobToBase64(blob);
+      recibosBase64.push(base64);
     }
 
+    /* ---- 2-b  Texto que acompaña la(s) imagen(es) ---- */
+    const texto =
+      totalRecibos > 1
+        ? `📄 Factura ${recogidaData.fincaNombre} – ${totalRecibos} recibos (${totalPesas} pesas) – ${fechaFmt}`
+        : `📄 Factura ${recogidaData.fincaNombre} – ${totalPesas} pesas – ${fechaFmt}`;
+
+    /* ---- 2-c  ¿Estamos en Capacitor? ---- */
+    if (window.Capacitor?.Plugins?.Share) {
+      const { Share, Filesystem } = window.Capacitor.Plugins;
+
+      /* 2-c-1  Guardar cada recibo como archivo temporal */
+      const archivosTemporales = [];
+      for (let i = 0; i < recibosBase64.length; i++) {
+        const nombre = `recibo_${recogidaData.fincaNombre}_${i + 1}_${Date.now()}.png`;
+        const { uri } = await Filesystem.writeFile({
+          path: nombre,
+          data: recibosBase64[i],
+          directory: 'CACHE'          // ← string directo, sin Directory
+        });
+        archivosTemporales.push(uri);
+      }
+
+      /* 2-c-2  Compartir archivos reales */
+      await Share.share({
+        title: 'Factura de recogida',
+        text: texto,
+        files: archivosTemporales
+      });
+
+      /* 2-c-3  Limpiar temporales (5 s) */
+      setTimeout(() => {
+        archivosTemporales.forEach(async uri => {
+          try { await Filesystem.deleteFile({ path: uri }); } catch {}
+        });
+      }, 5000);
+
+      return;   // fin
+    }
+
+    /* ---- 2-d  Web ---- */
+    if (navigator.canShare && navigator.canShare({ files: recibosBase64.map(b64 => dataURLtoFile(`data:image/png;base64,${b64}`, `recibo_${i+1}.png`)) })) {
+      const files = recibosBase64.map((b64, i) => dataURLtoFile(`data:image/png;base64,${b64}`, `recibo_${i+1}.png`));
+      await navigator.share({ title: 'Factura de recogida', text: texto, files });
+    } else {
+      /* fallback: descargar la primera página */
+      const a = document.createElement('a');
+      a.href = `data:image/png;base64,${recibosBase64[0]}`;
+      a.download = `factura_${recogidaData.fincaNombre}_${fechaFmt.replace(/\//g, '-')}.png`;
+      a.click();
+    }
+
+  } catch (err) {
+    console.error('❌ Error al compartir factura:', err);
+    alert('No se pudo compartir la factura: ' + err.message);
+  }
+}
+/* ---------- 3.  Helpers ---------- */
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function dataURLtoFile(dataurl, filename) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) u8arr[n] = bstr.charCodeAt(n);
+  return new File([u8arr], filename, { type: mime });
+}
     // 🔥 FUNCIÓN PARA ENVIAR UN SOLO RECIBO DIRECTAMENTE
     async function enviarReciboDirecto(recogidaData) {
       try {

@@ -439,6 +439,385 @@
         const propietario = urlParams.get('propietario');
         const usuario = urlParams.get('usuario');
 
+// REEMPLAZAR la función isCapacitor() en liquidacion.html
+
+function isCapacitor() {
+    // Verificar múltiples indicadores de Capacitor
+    const capacitorIndicators = [
+        // Indicador principal
+        typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNative,
+        // Plugin disponible
+        typeof window !== 'undefined' && window.Capacitor && window.Capacitor.Plugins,
+        // Verificar si existe el objeto Capacitor
+        typeof window !== 'undefined' && window.Capacitor,
+        // User agent contiene información de Capacitor
+        typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.includes('Capacitor')
+    ];
+    
+    const isCapacitorEnv = capacitorIndicators.some(indicator => indicator);
+    
+    console.log('🔍 Verificando entorno Capacitor:');
+    console.log('  - window.Capacitor existe:', !!(window && window.Capacitor));
+    console.log('  - window.Capacitor.isNative:', !!(window && window.Capacitor && window.Capacitor.isNative));
+    console.log('  - window.Capacitor.Plugins:', !!(window && window.Capacitor && window.Capacitor.Plugins));
+    console.log('  - User Agent:', navigator.userAgent);
+    console.log('  - Resultado final isCapacitor():', isCapacitorEnv);
+    
+    if (window && window.Capacitor && window.Capacitor.Plugins) {
+        console.log('  - Plugins disponibles:', Object.keys(window.Capacitor.Plugins));
+    }
+    
+    return isCapacitorEnv;
+}
+
+// TAMBIÉN agregar esta función de debug justo después
+function debugCapacitorEnvironment() {
+    console.log('=== DEBUG CAPACITOR ENVIRONMENT ===');
+    console.log('window:', typeof window);
+    console.log('window.Capacitor:', window?.Capacitor);
+    console.log('window.Capacitor.isNative:', window?.Capacitor?.isNative);
+    console.log('window.Capacitor.Plugins:', window?.Capacitor?.Plugins);
+    
+    if (window?.Capacitor?.Plugins) {
+        console.log('Plugins disponibles:');
+        Object.keys(window.Capacitor.Plugins).forEach(pluginName => {
+            console.log(`  - ${pluginName}:`, window.Capacitor.Plugins[pluginName]);
+        });
+    }
+    
+    console.log('navigator.userAgent:', navigator.userAgent);
+    console.log('===================================');
+}
+
+// MODIFICAR el inicio de la función generarReciboLiquidacion():
+
+async function generarReciboLiquidacion() {
+    if (recogidasFiltradas.length === 0) {
+        alert('No hay recogidas activas para generar el recibo');
+        return;
+    }
+
+    try {
+        console.log('🚀 Iniciando generación de recibo de liquidación de recogidas ACTIVAS...');
+        
+        // 🔍 DEBUG: Verificar entorno antes de continuar
+        debugCapacitorEnvironment();
+        const esCapacitor = isCapacitor();
+        console.log('🔍 Resultado de isCapacitor():', esCapacitor);
+        
+        // Procesar datos para el recibo - SOLO RECOGIDAS FILTRADAS ACTIVAS
+        const fechaInicio = document.getElementById('fechaInicio').value;
+        const fechaFin = document.getElementById('fechaFin').value;
+        
+        const resumenPorFrutaCalidad = {};
+        let totalKilosGeneral = 0;
+        let totalValorGeneral = 0;
+        let totalPesasGeneral = 0;
+
+        console.log('📊 Procesando', recogidasFiltradas.length, 'recogidas activas filtradas...');
+
+        recogidasFiltradas.forEach(recogida => {
+            totalKilosGeneral += recogida.totalKilos || 0;
+            totalValorGeneral += recogida.valorPagar || 0;
+            
+            if (recogida.pesas) {
+                totalPesasGeneral += recogida.pesas.length;
+                
+                recogida.pesas.forEach(pesa => {
+                    const fruta = pesa.fruta || recogida.fruta || 'Sin especificar';
+                    const calidad = pesa.calidad || recogida.calidad || 'Sin especificar';
+                    const precio = pesa.precio || recogida.precio || 0;
+                    const clave = `${fruta} - ${calidad}`;
+                    
+                    if (!resumenPorFrutaCalidad[clave]) {
+                        resumenPorFrutaCalidad[clave] = {
+                            kilos: 0,
+                            valor: 0,
+                            precio: precio,
+                            cantidad: 0
+                        };
+                    }
+                    
+                    resumenPorFrutaCalidad[clave].kilos += pesa.kilos || 0;
+                    resumenPorFrutaCalidad[clave].valor += pesa.valor || 0;
+                    resumenPorFrutaCalidad[clave].cantidad += 1;
+                });
+            }
+        });
+
+        console.log('📋 Resumen procesado:', Object.keys(resumenPorFrutaCalidad).length, 'combinaciones fruta-calidad');
+
+        // Crear mensaje de texto para fallback
+        const mensaje = `💰 Recogidas Pendientes - ${fincaNombre}
+📊 ${recogidasFiltradas.length} recogidas activas
+⚖️ ${totalKilosGeneral} kg`;
+
+        // 🔥 CAPACITOR: Forzar detección alternativa si es necesario
+        console.log('🔍 Verificaciones adicionales:');
+        console.log('  - location.protocol:', window.location.protocol);
+        console.log('  - location.hostname:', window.location.hostname);
+        
+        // Forzar modo Capacitor si estamos en localhost con protocolo capacitor o file
+        const esForzadamenteCapacitor = 
+            window.location.protocol === 'capacitor:' ||
+            window.location.protocol === 'file:' ||
+            (window.location.hostname === 'localhost' && window.Capacitor) ||
+            window.location.hostname.includes('capacitor');
+            
+        console.log('🔍 Es forzadamente Capacitor:', esForzadamenteCapacitor);
+        
+        if (esCapacitor || esForzadamenteCapacitor) {
+            console.log('📱 MODO CAPACITOR DETECTADO - generando imagen directamente...');
+            
+            try {
+                // Verificar plugins con más detalle
+                if (!window.Capacitor) {
+                    throw new Error('window.Capacitor no existe');
+                }
+                
+                if (!window.Capacitor.Plugins) {
+                    throw new Error('window.Capacitor.Plugins no existe');
+                }
+                
+                const { Share, Filesystem } = window.Capacitor.Plugins;
+                
+                if (!Share) {
+                    throw new Error('Plugin Share no disponible');
+                }
+                
+                if (!Filesystem) {
+                    throw new Error('Plugin Filesystem no disponible');
+                }
+                
+                console.log('✅ Plugins verificados correctamente');
+
+                // Crear imagen usando Canvas API directamente
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Configurar dimensiones
+                canvas.width = 800;
+                canvas.height = 1000;
+                
+                // Fondo
+                ctx.fillStyle = '#f5f7fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Configurar texto
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = 'bold 32px Arial';
+                ctx.textAlign = 'center';
+                
+                let y = 80;
+                
+                // Título
+                ctx.fillText('⏳ LIQUIDACIÓN', canvas.width / 2, y);
+                y += 60;
+                
+                // Información de finca
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`🏠 Finca: ${fincaNombre || 'Sin especificar'}`, 50, y);
+                y += 40;
+                ctx.fillText(`👤 Propietario: ${propietario || 'Sin especificar'}`, 50, y);
+                y += 40;
+                ctx.fillText(`⏳ Recogidas Pendientes: ${recogidasFiltradas.length}`, 50, y);
+                y += 60;
+                
+                // Resumen por fruta y calidad
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('📋 RESUMEN POR FRUTA Y CALIDAD', canvas.width / 2, y);
+                y += 40;
+                
+                ctx.font = '18px Arial';
+                ctx.textAlign = 'left';
+                
+                Object.entries(resumenPorFrutaCalidad).forEach(([clave, datos]) => {
+                    ctx.fillText(`${clave}`, 50, y);
+                    ctx.fillText(`${datos.kilos} kg`, 400, y);
+                    if (!isSubusuario) {
+                        ctx.fillText(`$${datos.precio.toLocaleString()}/kg`, 500, y);
+                        ctx.fillText(`$${datos.valor.toLocaleString()}`, 650, y);
+                    }
+                    y += 30;
+                });
+                
+                y += 40;
+                
+                // Totales
+                ctx.font = 'bold 28px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('⏳ TOTALES', canvas.width / 2, y);
+                y += 40;
+                
+                ctx.font = 'bold 22px Arial';
+                ctx.fillText(`⚖️ ${totalKilosGeneral} kg`, canvas.width / 2, y);
+                y += 35;
+                
+                if (!isSubusuario) {
+                    ctx.fillText(`💰 $${totalValorGeneral.toLocaleString()}`, canvas.width / 2, y);
+                }
+                
+                // Fecha de generación
+                y = canvas.height - 30;
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#95a5a6';
+                ctx.fillText(`Generado: ${new Date().toLocaleString('es-ES')}`, canvas.width - 30, y);
+                
+                console.log('🎨 Canvas creado exitosamente');
+                
+                // Convertir canvas a blob
+                const blob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/png', 1.0);
+                });
+                
+                console.log('📸 Imagen generada, tamaño:', blob.size);
+                
+                // Convertir a base64
+                const reader = new FileReader();
+                reader.onload = async function() {
+                    try {
+                        const base64Data = reader.result.split(',')[1];
+                        console.log('🔄 Imagen convertida a base64, tamaño:', base64Data.length);
+                        
+                        // Generar nombre único
+                        const nombreArchivo = `liquidacion_${fincaNombre}_${Date.now()}.png`;
+                        console.log('💾 Guardando como:', nombreArchivo);
+                        
+                       const reader = new FileReader();
+reader.onload = async function() {
+    try {
+        console.log('🔄 Imagen convertida a base64, tamaño:', base64Data.length);
+        
+        // Generar nombre único
+        const nombreArchivo = `liquidacion_${fincaNombre.replace(/\s+/g, '_')}_${Date.now()}.png`;
+        console.log('💾 Guardando como:', nombreArchivo);
+        
+        // 🔥 USAR DIRECTORIO DOCUMENTS EN LUGAR DE CACHE
+        console.log('📁 Directorios disponibles:', Object.keys(Filesystem.Directory || {}));
+        
+        let directorioAUsar;
+        if (Filesystem.Directory.Documents) {
+            directorioAUsar = Filesystem.Directory.Documents;
+            console.log('📁 Usando Directory.Documents');
+        } else if (Filesystem.Directory.Data) {
+            directorioAUsar = Filesystem.Directory.Data;
+            console.log('📁 Usando Directory.Data');
+        } else {
+            // Usar string directamente como fallback
+            directorioAUsar = 'DOCUMENTS';
+            console.log('📁 Usando string DOCUMENTS como fallback');
+        }
+        
+        // Guardar archivo
+// ✅ Guardar imagen como archivo
+const base64Data = canvas.toDataURL('image/png').split(',')[1]; // solo el base64
+const fileName = `liquidacion_${Date.now()}.png`;
+
+await Filesystem.writeFile({
+  path: fileName,
+  data: base64Data,
+  directory: Directory.Cache,
+  recursive: true
+});
+        console.log('💾 Archivo guardado exitosamente:', fileResult.uri);
+        
+        // Compartir
+        const shareResult = await Share.share({
+            title: 'Recibo de Liquidación',
+            text: mensaje,
+            url: fileResult.uri,
+            dialogTitle: 'Compartir recibo'
+        });
+        
+        console.log('📤 Compartido exitosamente:', shareResult);
+        
+        // Limpiar después de 10 segundos (más tiempo por seguridad)
+        setTimeout(async () => {
+            try {
+                await Filesystem.deleteFile({
+                    path: nombreArchivo,
+                    directory: directorioAUsar
+                });
+                console.log('🗑️ Archivo temporal eliminado');
+            } catch (e) {
+                console.warn('⚠️ No se pudo eliminar archivo temporal:', e);
+            }
+        }, 10000);
+        
+    } catch (error) {
+        console.error('❌ Error al procesar imagen:', error);
+        
+        // 🔥 MÉTODO ALTERNATIVO: Compartir directamente el blob como data URL
+        console.log('🔄 Intentando método alternativo...');
+        try {
+            const dataUrl = reader.result;
+            await Share.share({
+                title: 'Recibo de Liquidación',
+                text: mensaje,
+                url: dataUrl,
+                dialogTitle: 'Compartir recibo'
+            });
+            console.log('✅ Compartido con data URL exitosamente');
+        } catch (fallbackError) {
+            console.error('❌ Error en método alternativo:', fallbackError);
+            alert('Error al generar/compartir imagen: ' + error.message);
+        }
+    }
+};
+                        
+                        console.log('💾 Archivo guardado:', fileResult.uri);
+                        
+                        // Compartir
+                        const shareResult = await Share.share({
+                            title: 'Recibo de Liquidación',
+                            text: mensaje,
+                            url: fileResult.uri,
+                            dialogTitle: 'Compartir recibo'
+                        });
+                        
+                        console.log('📤 Compartido exitosamente:', shareResult);
+                        
+                        // Limpiar después de 5 segundos
+                        setTimeout(async () => {
+                            try {
+                                await Filesystem.deleteFile({
+                                    path: nombreArchivo,
+                                    directory: Filesystem.Directory.Cache
+                                });
+                                console.log('🗑️ Archivo temporal eliminado');
+                            } catch (e) {
+                                console.warn('⚠️ No se pudo eliminar archivo temporal:', e);
+                            }
+                        }, 5000);
+                        
+                    } catch (error) {
+                        console.error('❌ Error al procesar imagen:', error);
+                        alert('Error al generar imagen: ' + error.message);
+                    }
+                };
+                
+                reader.readAsDataURL(blob);
+                
+            } catch (capacitorError) {
+                console.error('❌ Error en Capacitor:', capacitorError);
+                alert('Error al generar imagen en Capacitor: ' + capacitorError.message);
+            }
+            
+            return; // Salir aquí para Capacitor
+        }
+
+        // El resto del código para navegador web continúa igual...
+        console.log('🌐 Modo navegador web - usando html2canvas...');
+        // ... resto del código original
+        
+    } catch (error) {
+        console.error('❌ Error generando recibo:', error);
+        alert('Error al generar recibo: ' + error.message);
+    }
+}
         function configurarEventosFecha() {
     const fechaInicioInput = document.getElementById('fechaInicio');
     const fechaFinInput = document.getElementById('fechaFin');
@@ -1146,146 +1525,368 @@ function crearTarjetaRecogida(recogida, numero) {
             window.history.back();
         }
 
+
+        // -------------------------------------------------
+//  Helper: Blob → base64 (para Capacitor)
+// -------------------------------------------------
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend  = () => resolve(reader.result.split(',')[1]);
+    reader.onerror    = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
         // Generar recibo de liquidación con múltiples páginas - SOLO RECOGIDAS ACTIVAS
-        async function generarReciboLiquidacion() {
-            if (recogidasFiltradas.length === 0) {
-                alert('No hay recogidas activas para generar el recibo');
-                return;
-            }
+// REEMPLAZAR COMPLETAMENTE la función generarReciboLiquidacion() en liquidacion.html
 
-            try {
-                console.log('🚀 Iniciando generación de recibo de liquidación de recogidas ACTIVAS...');
+// Generar recibo de liquidación con múltiples páginas - SOLO RECOGIDAS ACTIVAS
+async function generarReciboLiquidacion() {
+    if (recogidasFiltradas.length === 0) {
+        alert('No hay recogidas activas para generar el recibo');
+        return;
+    }
+
+    try {
+        console.log('🚀 Iniciando generación de recibo de liquidación de recogidas ACTIVAS...');
+        
+        // Procesar datos para el recibo - SOLO RECOGIDAS FILTRADAS ACTIVAS
+        const fechaInicio = document.getElementById('fechaInicio').value;
+        const fechaFin = document.getElementById('fechaFin').value;
+        
+        const resumenPorFrutaCalidad = {};
+        let totalKilosGeneral = 0;
+        let totalValorGeneral = 0;
+        let totalPesasGeneral = 0;
+
+        console.log('📊 Procesando', recogidasFiltradas.length, 'recogidas activas filtradas...');
+
+        recogidasFiltradas.forEach(recogida => {
+            totalKilosGeneral += recogida.totalKilos || 0;
+            totalValorGeneral += recogida.valorPagar || 0;
+            
+            if (recogida.pesas) {
+                totalPesasGeneral += recogida.pesas.length;
                 
-                // Procesar datos para el recibo - SOLO RECOGIDAS FILTRADAS ACTIVAS
-                const fechaInicio = document.getElementById('fechaInicio').value;
-                const fechaFin = document.getElementById('fechaFin').value;
-                
-                const resumenPorFrutaCalidad = {};
-                let totalKilosGeneral = 0;
-                let totalValorGeneral = 0;
-                let totalPesasGeneral = 0;
-
-                console.log('📊 Procesando', recogidasFiltradas.length, 'recogidas activas filtradas...');
-
-                recogidasFiltradas.forEach(recogida => {
-                    totalKilosGeneral += recogida.totalKilos || 0;
-                    totalValorGeneral += recogida.valorPagar || 0;
+                recogida.pesas.forEach(pesa => {
+                    const fruta = pesa.fruta || recogida.fruta || 'Sin especificar';
+                    const calidad = pesa.calidad || recogida.calidad || 'Sin especificar';
+                    const precio = pesa.precio || recogida.precio || 0;
+                    const clave = `${fruta} - ${calidad}`;
                     
-                    if (recogida.pesas) {
-                        totalPesasGeneral += recogida.pesas.length;
-                        
-                        recogida.pesas.forEach(pesa => {
-                            const fruta = pesa.fruta || recogida.fruta || 'Sin especificar';
-                            const calidad = pesa.calidad || recogida.calidad || 'Sin especificar';
-                            const precio = pesa.precio || recogida.precio || 0;
-                            const clave = `${fruta} - ${calidad}`;
-                            
-                            if (!resumenPorFrutaCalidad[clave]) {
-                                resumenPorFrutaCalidad[clave] = {
-                                    kilos: 0,
-                                    valor: 0,
-                                    precio: precio,
-                                    cantidad: 0
-                                };
-                            }
-                            
-                            resumenPorFrutaCalidad[clave].kilos += pesa.kilos || 0;
-                            resumenPorFrutaCalidad[clave].valor += pesa.valor || 0;
-                            resumenPorFrutaCalidad[clave].cantidad += 1;
-                        });
+                    if (!resumenPorFrutaCalidad[clave]) {
+                        resumenPorFrutaCalidad[clave] = {
+                            kilos: 0,
+                            valor: 0,
+                            precio: precio,
+                            cantidad: 0
+                        };
                     }
+                    
+                    resumenPorFrutaCalidad[clave].kilos += pesa.kilos || 0;
+                    resumenPorFrutaCalidad[clave].valor += pesa.valor || 0;
+                    resumenPorFrutaCalidad[clave].cantidad += 1;
                 });
+            }
+        });
 
-                console.log('📋 Resumen procesado:', Object.keys(resumenPorFrutaCalidad).length, 'combinaciones fruta-calidad');
+        console.log('📋 Resumen procesado:', Object.keys(resumenPorFrutaCalidad).length, 'combinaciones fruta-calidad');
 
-                // 🔥 DIVIDIR EN PÁGINAS DE 15 ELEMENTOS MÁXIMO
-                const entradasResumen = Object.entries(resumenPorFrutaCalidad);
-                const ITEMS_POR_PAGINA = 15;
-                const totalPaginas = Math.ceil(entradasResumen.length / ITEMS_POR_PAGINA);
+        // Crear mensaje de texto para fallback
+        const mensaje = `💰 Recogidas Pendientes - ${fincaNombre}
+📊 ${recogidasFiltradas.length} recogidas activas
+⚖️ ${totalKilosGeneral} kg`;
+
+        // 🔥 CAPACITOR: Implementación directa sin html2canvas
+        if (isCapacitor()) {
+            try {
+                console.log('📱 Modo Capacitor - generando imagen directamente...');
                 
-                console.log('📄 Se generarán', totalPaginas, 'páginas de recibo');
-
-                const archivos = [];
-
-                // Generar cada página
-                for (let i = 0; i < totalPaginas; i++) {
-                    const inicio = i * ITEMS_POR_PAGINA;
-                    const fin = Math.min(inicio + ITEMS_POR_PAGINA, entradasResumen.length);
-                    const entradasPagina = entradasResumen.slice(inicio, fin);
-                    
-                    console.log(`📄 Generando página ${i + 1}/${totalPaginas} con ${entradasPagina.length} elementos`);
-
-                    // Convertir de vuelta a objeto para esta página
-                    const resumenPagina = {};
-                    entradasPagina.forEach(([clave, datos]) => {
-                        resumenPagina[clave] = datos;
-                    });
-
-                    // Crear página de recibo
-                    const divRecibo = crearReciboLiquidacionPaginado(
-                        resumenPagina,
-                        totalKilosGeneral,
-                        totalValorGeneral,
-                        totalPesasGeneral,
-                        recogidasFiltradas.length,
-                        fechaInicio,
-                        fechaFin,
-                        i + 1,
-                        totalPaginas
-                    );
-
-                    document.body.appendChild(divRecibo);
-                    await document.fonts.ready;
-
-                    // Generar imagen
-                    const canvas = await html2canvas(divRecibo, {
-                        scale: 3,
-                        useCORS: true,
-                        allowTaint: false,
-                        backgroundColor: '#ffffff',
-                        width: divRecibo.offsetWidth,
-                        height: divRecibo.offsetHeight,
-                        logging: false,
-                        imageTimeout: 0
-                    });
-
-                    document.body.removeChild(divRecibo);
-
-                    // Crear archivo
-                    const blob = await new Promise(resolve => 
-                        canvas.toBlob(resolve, "image/png", 1.0)
-                    );
-                    
-                    const nombreArchivo = totalPaginas > 1 ? 
-                        `liquidacion_pendiente_${fincaNombre}_pagina_${i + 1}.png` :
-                        `liquidacion_pendiente_${fincaNombre}.png`;
-                    
-                    const file = new File([blob], nombreArchivo, { type: "image/png" });
-                    archivos.push(file);
+                // Verificar plugins
+                const { Share, Filesystem } = window.Capacitor.Plugins;
+                if (!Share || !Filesystem) {
+                    throw new Error('Plugins no disponibles');
                 }
 
-                // Compartir todos los archivos
-                const mensaje = totalPaginas > 1 ?
-                    `💰 Recogidas Pendientes - ${fincaNombre}\n📊 ${recogidasFiltradas.length} recogidas activas\n⚖️ ${totalKilosGeneral} kg \n📄 ${totalPaginas} páginas generadas` :
-                    `💰 Recogidas  - ${fincaNombre}\n📊 ${recogidasFiltradas.length} recogidas activas\n⚖️ ${totalKilosGeneral} kg `;
-
-                console.log('📤 Compartiendo', archivos.length, 'archivos...');
-
-                await navigator.share({
-                    title: 'Recogidas Pendientes de Liquidación',
-                    text: mensaje,
-                    files: archivos,
+                // Crear imagen usando Canvas API directamente
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Configurar dimensiones
+                canvas.width = 800;
+                canvas.height = 1000;
+                
+                // Fondo
+                ctx.fillStyle = '#f5f7fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Configurar texto
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = 'bold 32px Arial';
+                ctx.textAlign = 'center';
+                
+                let y = 80;
+                
+                // Título
+                ctx.fillText('⏳ LIQUIDACIÓN', canvas.width / 2, y);
+                y += 60;
+                
+                // Información de finca
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`🏠 Finca: ${fincaNombre || 'Sin especificar'}`, 50, y);
+                y += 40;
+                ctx.fillText(`👤 Propietario: ${propietario || 'Sin especificar'}`, 50, y);
+                y += 40;
+                ctx.fillText(`⏳ Recogidas Pendientes: ${recogidasFiltradas.length}`, 50, y);
+                y += 60;
+                
+                // Resumen por fruta y calidad
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('📋 RESUMEN POR FRUTA Y CALIDAD', canvas.width / 2, y);
+                y += 40;
+                
+                ctx.font = '18px Arial';
+                ctx.textAlign = 'left';
+                
+                Object.entries(resumenPorFrutaCalidad).forEach(([clave, datos]) => {
+                    ctx.fillText(`${clave}`, 50, y);
+                    ctx.fillText(`${datos.kilos} kg`, 400, y);
+                    if (!isSubusuario) {
+                        ctx.fillText(`$${datos.precio.toLocaleString()}/kg`, 500, y);
+                        ctx.fillText(`$${datos.valor.toLocaleString()}`, 650, y);
+                    }
+                    y += 30;
                 });
+                
+                y += 40;
+                
+                // Totales
+                ctx.font = 'bold 28px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('⏳ TOTALES', canvas.width / 2, y);
+                y += 40;
+                
+                ctx.font = 'bold 22px Arial';
+                ctx.fillText(`⚖️ ${totalKilosGeneral} kg`, canvas.width / 2, y);
+                y += 35;
+                
+                if (!isSubusuario) {
+                    ctx.fillText(`💰 $${totalValorGeneral.toLocaleString()}`, canvas.width / 2, y);
+                }
+                
+                // Fecha de generación
+                y = canvas.height - 30;
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#95a5a6';
+                ctx.fillText(`Generado: ${new Date().toLocaleString('es-ES')}`, canvas.width - 30, y);
+                
+                console.log('🎨 Canvas creado exitosamente');
+                
+                // Convertir canvas a blob
+                const blob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/png', 1.0);
+                });
+                
+                console.log('📸 Imagen generada, tamaño:', blob.size);
+                
+                // Convertir a base64
+             // ENCONTRAR Y REEMPLAZAR esta sección en tu archivo liquidacion.html
+// Buscar desde "// Convertir a base64" hasta el final del reader.onload
 
-                console.log('✅ Recibo de recogidas  generado y compartido exitosamente');
-
-            } catch (error) {
-                console.error('❌ Error generando recibo:', error);
-                mostrarNotificacion('❌ Error al generar recibo: ' + error.message, 'error');
+// Convertir a base64
+const reader = new FileReader();
+reader.onload = async function() {
+    try {
+        const base64Data = reader.result.split(',')[1];
+        console.log('🔄 Imagen convertida a base64, tamaño:', base64Data.length);
+        
+        // Generar nombre único
+        const nombreArchivo = `liquidacion_${fincaNombre.replace(/\s+/g, '_')}_${Date.now()}.png`;
+        console.log('💾 Guardando como:', nombreArchivo);
+        
+        // 🔥 USAR DIRECTORIO DOCUMENTS EN LUGAR DE CACHE
+        console.log('📁 Verificando directorios disponibles...');
+        
+        let directorioAUsar;
+        try {
+            // Verificar qué directorios están disponibles
+            if (Filesystem.Directory && Filesystem.Directory.Documents) {
+                directorioAUsar = Filesystem.Directory.Documents;
+                console.log('📁 Usando Directory.Documents');
+            } else if (Filesystem.Directory && Filesystem.Directory.Data) {
+                directorioAUsar = Filesystem.Directory.Data;
+                console.log('📁 Usando Directory.Data');
+            } else {
+                // Último recurso: usar string directamente
+                directorioAUsar = 'DOCUMENTS';
+                console.log('📁 Usando string DOCUMENTS como fallback');
+            }
+        } catch (dirError) {
+            console.warn('⚠️ Error verificando directorios:', dirError);
+            directorioAUsar = 'DOCUMENTS';
+        }
+        
+        // Intentar guardar archivo
+        try {
+  const fileResult = await Filesystem.writeFile({
+  path: nombreArchivo,
+  data: base64Data,
+  directory: 'CACHE'           // ← string directo, siempre disponible // ← Sin encoding, usa Cache
+});
+            console.log('💾 Archivo guardado exitosamente:', fileResult.uri);
+            
+            // Compartir usando el archivo guardado
+          await Share.share({
+  title: 'Recibo de Liquidación',
+  text: mensaje,
+  url: fileResult.uri  // ← URI real del archivo guardado
+});
+            
+            console.log('📤 Compartido exitosamente:', shareResult);
+            
+            // Limpiar después de 10 segundos
+            setTimeout(async () => {
+                try {
+                    await Filesystem.deleteFile({
+                        path: nombreArchivo,
+                        directory: directorioAUsar
+                    });
+                    console.log('🗑️ Archivo temporal eliminado');
+                } catch (e) {
+                    console.warn('⚠️ No se pudo eliminar archivo temporal:', e);
+                }
+            }, 10000);
+            
+        } catch (filesystemError) {
+            console.error('❌ Error con Filesystem:', filesystemError);
+            
+            // 🔥 MÉTODO ALTERNATIVO: Compartir directamente como data URL
+            console.log('🔄 Intentando método alternativo con data URL...');
+            try {
+                const dataUrl = reader.result; // Usar el data URL completo
+                const shareResult = await Share.share({
+                    title: 'Recibo de Liquidación',
+                    text: mensaje,
+                    url: dataUrl,
+                    dialogTitle: 'Compartir recibo'
+                });
+                console.log('✅ Compartido con data URL exitosamente:', shareResult);
+                
+            } catch (dataUrlError) {
+                console.error('❌ Error con data URL:', dataUrlError);
+                
+                // ÚLTIMO RECURSO: Mostrar mensaje de error
+                alert(`Error al compartir imagen: ${filesystemError.message}\n\nPor favor, verifica los permisos de la aplicación.`);
             }
         }
+        
+    } catch (error) {
+        console.error('❌ Error general al procesar imagen:', error);
+        alert('Error al generar/compartir imagen: ' + error.message);
+    }
+};
 
+reader.readAsDataURL(blob);
+                
+            } catch (capacitorError) {
+                console.error('❌ Error en Capacitor:', capacitorError);
+                alert('Error al generar imagen en Capacitor: ' + capacitorError.message);
+            }
+            
+            return; // Salir aquí para Capacitor
+        }
 
+        // 🌐 NAVEGADOR WEB: Código original con html2canvas
+        console.log('🌐 Modo navegador web - usando html2canvas...');
+        
+        const entradasResumen = Object.entries(resumenPorFrutaCalidad);
+        const ITEMS_POR_PAGINA = 15;
+        const totalPaginas = Math.ceil(entradasResumen.length / ITEMS_POR_PAGINA);
+        
+        console.log('📄 Se generarán', totalPaginas, 'páginas de recibo');
+
+        const archivos = [];
+
+        // Generar cada página
+        for (let i = 0; i < totalPaginas; i++) {
+            const inicio = i * ITEMS_POR_PAGINA;
+            const fin = Math.min(inicio + ITEMS_POR_PAGINA, entradasResumen.length);
+            const entradasPagina = entradasResumen.slice(inicio, fin);
+            
+            console.log(`📄 Generando página ${i + 1}/${totalPaginas} con ${entradasPagina.length} elementos`);
+
+            // Convertir de vuelta a objeto para esta página
+            const resumenPagina = {};
+            entradasPagina.forEach(([clave, datos]) => {
+                resumenPagina[clave] = datos;
+            });
+
+            // Crear página de recibo
+            const divRecibo = crearReciboLiquidacionPaginado(
+                resumenPagina,
+                totalKilosGeneral,
+                totalValorGeneral,
+                totalPesasGeneral,
+                recogidasFiltradas.length,
+                fechaInicio,
+                fechaFin,
+                i + 1,
+                totalPaginas
+            );
+
+            document.body.appendChild(divRecibo);
+            await document.fonts.ready;
+
+            // Generar imagen
+            const canvas = await html2canvas(divRecibo, {
+                scale: 3,
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: '#ffffff',
+                width: divRecibo.offsetWidth,
+                height: divRecibo.offsetHeight,
+                logging: false,
+                imageTimeout: 0
+            });
+
+            document.body.removeChild(divRecibo);
+
+            // Crear archivo
+            const blob = await new Promise(resolve => 
+                canvas.toBlob(resolve, "image/png", 1.0)
+            );
+            
+            const nombreArchivo = totalPaginas > 1 ? 
+                `liquidacion_pendiente_${fincaNombre}_pagina_${i + 1}.png` :
+                `liquidacion_pendiente_${fincaNombre}.png`;
+            
+            const file = new File([blob], nombreArchivo, { type: "image/png" });
+            archivos.push(file);
+        }
+
+        // Compartir navegador web
+        if (navigator.share) {
+            await navigator.share({
+                title: 'Recibo de Liquidación',
+                text: mensaje,
+                files: archivos,
+            });
+        } else {
+            await navigator.clipboard.writeText(mensaje);
+            alert("📋 Recibo copiado al portapapeles");
+        }
+
+        console.log('✅ Recibo generado y compartido exitosamente');
+
+    } catch (error) {
+        console.error('❌ Error generando recibo:', error);
+        mostrarNotificacion('❌ Error al generar recibo: ' + error.message, 'error');
+    }
+}
 
         // Crear recibo de liquidación paginado con el mismo estilo - ACTUALIZADO PARA PENDIENTES
   function crearReciboLiquidacionPaginado(resumen, totalKilos, totalValor, totalPesas, totalRecogidas, fechaInicio, fechaFin, numeroPagina, totalPaginasRecibo) {
