@@ -8,6 +8,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+
+<!-- Icono de descarga flotante -->
+
   <div class="container-account">
     <h2>Iniciar sesión</h2>
     <form id="loginForm">
@@ -21,12 +24,20 @@
 
   </div>
 
+<a href="instalador.html" class="download-icon" id="downloadIcon">
+  <div class="download-arrow"></div>
+  <div class="notification-badge" id="notificationBadge">1</div>
+</a>
+
   <script>
     // Limpiar localStorage y sessionStorage cuando se carga la página de login (index.html)
-    document.addEventListener("DOMContentLoaded", () => {
-      localStorage.clear();  // Limpia localStorage
-      sessionStorage.clear();  // Limpia sessionStorage
-    });
+document.addEventListener("DOMContentLoaded", () => {
+  const lastSeen = localStorage.getItem('lastSeenUpdate'); // 1. leer
+  localStorage.clear();                                    // 2. limpiar
+  if (lastSeen) {                                          // 3. restaurar
+    localStorage.setItem('lastSeenUpdate', lastSeen);
+  }
+});
   </script>
 </body>
 <script type="module">

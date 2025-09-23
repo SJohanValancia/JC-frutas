@@ -1,4 +1,11 @@
 {
+  "scripts": {
+    "update-installer": "node update-installer.js",
+    "build:android": "npx cap sync android && cd android && ./gradlew assembleDebug && cd .. && node update-installer.js",
+    "deploy": "npx cap sync android && cd android && ./gradlew assembleDebug && cd .. && node update-installer.js",
+    "sync:android": "npx cap sync android",
+    "open:android": "npx cap open android"
+  },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
     "@capacitor/cli": "^7.4.3",
