@@ -356,16 +356,19 @@
 </head>
 <body>
     <div class="particles" id="particles"></div>
+
+    <center>
+    <button  onclick="window.history.back()" >⬅️ Volver</button>
+    </center>
     
     <div class="container">
         <div class="logo" id="logo"></div>
         
-        <h1 class="app-name" id="appName">Mi Aplicación</h1>
+        <h1 class="app-name" id="appName">JC-F</h1>
         <div class="version" id="version">Versión 1.0.0</div>
         
         <p class="description" id="description">
-            Una aplicación increíble que transformará tu experiencia digital. Descárgala ahora y disfruta de todas sus características únicas.
-        </p>
+Nueva version en donde se implementan nuevas funcionalidades como.  -1. nuevo boton para descargar la app desde la pagina web,   -2. seguridad de datos mejorada    -3. ahora se puede mandar facturacion al cliente desde cualqueir apartado, facturacion de enviar pesas, generar recibo de la semana, y recibo de una recogida en especifico        </p>
 
         <div class="file-info">
             <div class="file-name">📱 MiApp.apk</div>
@@ -398,27 +401,36 @@
         // Esta configuración se actualiza automáticamente con el script
         const APP_CONFIG = {
             name: "Mi Aplicación",
-            version: "Versión 23/09/2025 - 13:59",
+            version: "Versión 23/09/2025 - 15:43",
             description: "Una aplicación increíble que transformará tu experiencia digital. Descárgala ahora y disfruta de todas sus características únicas.",
             fileName: "app-debug.apk",
-            fileSize: "4.2 MB",
+            fileSize: "58.6 MB",
             logoEmoji: "📱",
             downloadUrl: "./app-debug.apk" // Se actualiza automáticamente al path correcto
         };
 
-        // ===== INICIALIZACIÓN =====
-        function initApp() {
-            document.getElementById('appName').textContent = APP_CONFIG.name;
-            document.getElementById('version').textContent = APP_CONFIG.version;
-            document.getElementById('description').textContent = APP_CONFIG.description;
-            document.querySelector('.file-name').textContent = `📱 ${APP_CONFIG.fileName}`;
-            document.querySelector('.file-size').textContent = `Tamaño: ${APP_CONFIG.fileSize}`;
-            document.getElementById('logo').textContent = APP_CONFIG.logoEmoji;
-            
-            // Si tienes una imagen logo, descomenta esta línea y agrega la URL
-            // document.getElementById('logo').style.backgroundImage = `url('${APP_CONFIG.logoUrl}')`;
-        }
+        // Guardar la descripción ORIGINAL que escribiste a mano
+const DESCRIPCION_FIJA = document.getElementById('description').textContent.trim();
 
+const NOMBRE_FIJO = document.getElementById('appName').textContent.trim();
+
+        // ===== INICIALIZACIÓN =====
+     function initApp() {
+const nombreActual = document.getElementById('appName').textContent.trim();
+if (nombreActual !== NOMBRE_FIJO) {
+    document.getElementById('appName').textContent = APP_CONFIG.name;
+}  document.getElementById('version').textContent = APP_CONFIG.version;
+
+  // ⬇️ solo cambia la descripción si NO es la que tú dejaste
+  const descActual = document.getElementById('description').textContent.trim();
+  if (descActual !== DESCRIPCION_FIJA) {
+    document.getElementById('description').textContent = APP_CONFIG.description;
+  }
+
+  document.querySelector('.file-name').textContent = `📱 ${APP_CONFIG.fileName}`;
+  document.querySelector('.file-size').textContent = `Tamaño: ${APP_CONFIG.fileSize}`;
+  document.getElementById('logo').textContent = APP_CONFIG.logoEmoji;
+}
         // ===== FUNCIONES DE DESCARGA =====
         function showConfirmation() {
             document.getElementById('confirmModal').style.display = 'block';
@@ -485,6 +497,105 @@
             initApp();
             createParticles();
         });
+
+       
+document.addEventListener('DOMContentLoaded', function () {
+  // Ajusta estos selectores si tu botón tiene otro id/clase/atributo
+  const installBtn = document.querySelector('#installBtn') 
+                   || document.querySelector('.install-btn') 
+                   || document.querySelector('[data-install-btn]');
+  if (!installBtn) return; // nada que hacer si no se encuentra el botón
+
+  const targetUrl = 'https://jc-frutas.netlify.app/';
+
+  // Detección simple y robusta de Capacitor
+  const isCapacitorApp = (typeof window !== 'undefined') && (
+    (typeof window.Capacitor !== 'undefined') ||
+    /Capacitor/i.test(navigator.userAgent)
+  );
+
+  if (!isCapacitorApp) return; // si no es la app, mantenemos el botón original
+
+  // Creamos el enlace que reemplazará al botón de instalar
+  const link = document.createElement('a');
+  link.href = targetUrl;
+  link.id = installBtn.id ? installBtn.id + '-link' : 'openWebLink';
+  link.className = installBtn.className || 'install-link';
+  link.textContent = 'Abrir en la web';
+  link.setAttribute('role', 'button');
+  link.setAttribute('rel', 'noopener noreferrer');
+  link.style.cursor = 'pointer';
+  // opcional: heredar estilos inline si quieres que se vea igual
+  // link.style.cssText = getComputedStyle(installBtn).cssText;
+
+  link.addEventListener('click', function (e) {
+    e.preventDefault();
+    // Preferimos usar el plugin Browser de Capacitor si está disponible
+    try {
+      const hasBrowserPlugin = window.Capacitor &&
+        window.Capacitor.Plugins &&
+        window.Capacitor.Plugins.Browser &&
+        typeof window.Capacitor.Plugins.Browser.open === 'function';
+
+      if (hasBrowserPlugin) {
+        window.Capacitor.Plugins.Browser.open({ url: targetUrl });
+        return;
+      }
+
+      // Algunas versiones/implementaciones exponen API distinta:
+      if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+        // Intento de abrir con esquema que algunas WebViews manejan para abrir el navegador del sistema
+        window.open(targetUrl, '_system');
+        return;
+      }
+
+      // Fallback web normal
+      window.open(targetUrl, '_blank', 'noopener');
+    } catch (err) {
+      // último recurso
+      window.open(targetUrl, '_blank', 'noopener');
+    }
+  });
+
+  // Reemplazamos visualmente el botón original por el enlace
+  installBtn.parentNode.replaceChild(link, installBtn);
+});
+
+
     </script>
+
+    
+
+<script>
+(async () => {
+  const apkURL = APP_CONFIG.downloadUrl; // "./app-debug.apk"
+  try {
+    const r = await fetch(apkURL, { method: 'HEAD', cache: 'no-store' });
+    const lastMod = r.headers.get('last-modified');
+    const buildTime = lastMod ? new Date(lastMod).getTime() : Date.now();
+    const huella = 'apk-' + buildTime;
+
+    // Si la huella cambió → borramos la marca de visto (para que aparezca el badge en index)
+    const previous = localStorage.getItem('lastSeenBuild');
+    if (previous !== huella) {
+      // existe nueva build: eliminamos la marca "visto" para forzar el badge en index
+      localStorage.removeItem('lastSeenUpdate');
+    }
+
+    // Guardamos la huella más reciente
+    localStorage.setItem('lastSeenBuild', huella);
+
+    // Como ahora estamos en el instalador, marcamos que ya visto esta build
+    // (esto oculta el badge cuando vuelvas al index)
+    localStorage.setItem('lastSeenUpdate', huella);
+
+  } catch (err) {
+    // fallback: no podemos leer el APK -> limpiamos marca de visto para evitar falsos positivos
+    localStorage.removeItem('lastSeenUpdate');
+  }
+})();
+</script>
+
+
 </body>
 </html>

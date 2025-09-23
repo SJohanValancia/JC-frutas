@@ -29,16 +29,37 @@
   <div class="notification-badge" id="notificationBadge">1</div>
 </a>
 
-  <script>
-    // Limpiar localStorage y sessionStorage cuando se carga la página de login (index.html)
-document.addEventListener("DOMContentLoaded", () => {
-  const lastSeen = localStorage.getItem('lastSeenUpdate'); // 1. leer
-  localStorage.clear();                                    // 2. limpiar
-  if (lastSeen) {                                          // 3. restaurar
-    localStorage.setItem('lastSeenUpdate', lastSeen);
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const badge = document.getElementById('notificationBadge');
+  const downloadIcon = document.getElementById('downloadIcon');
+
+  // comprobar keys
+  const lastSeenBuild = localStorage.getItem('lastSeenBuild');
+  const lastSeenUpdate = localStorage.getItem('lastSeenUpdate');
+
+  // Mostrar badge sólo si hay una build y no fue vista
+  if (lastSeenBuild && lastSeenBuild !== lastSeenUpdate) {
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
   }
+
+  // Al hacer click marcamos como "visto" (para que al volver al index desaparezca el 1)
+  downloadIcon.addEventListener('click', function () {
+    const cur = localStorage.getItem('lastSeenBuild');
+    if (cur) {
+      localStorage.setItem('lastSeenUpdate', cur);
+    } else {
+      // fallback: marcamos algo para ocultar el badge hasta que instalador escriba la huella real
+      localStorage.setItem('lastSeenUpdate', 'seen');
+    }
+    // Nota: no prevenimos la navegación; el navegador seguirá a instalador.html
+  });
 });
-  </script>
+</script>
+
+
 </body>
 <script type="module">
   import { openDB } from 'https://cdn.jsdelivr.net/npm/idb@7/+esm';

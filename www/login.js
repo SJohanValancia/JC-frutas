@@ -1,37 +1,29 @@
 import { apiFetch } from "./api.js";
 import { getUserFromDB, saveUserToDB } from "./db.js";
 
-// Limpiar localStorage cuando se carga la página de login
-document.addEventListener("DOMContentLoaded", () => {
-  // 1. Guardar la marca (si existe)
-  const lastSeen = localStorage.getItem('lastSeenUpdate');
-
-  // 2. Limpiar TODO lo demás
+window.addEventListener("DOMContentLoaded", () => {
+  // 1. Limpiar TODO menos la huella de build
+  const buildHuella = localStorage.getItem('lastSeenBuild');
   localStorage.clear();
+  if (buildHuella) localStorage.setItem('lastSeenBuild', buildHuella);
 
-  // 3. Restaurar la marca
-  if (lastSeen) {
-    localStorage.setItem('lastSeenUpdate', lastSeen);
-  }
+  // 2. Restaurar la marca **solo si la huella NO cambió**
+  const lastSeen = localStorage.getItem('lastSeenUpdate');
+  if (lastSeen) localStorage.setItem('lastSeenUpdate', lastSeen);
 
-  // 🔽 Ocultar badge al hacer clic en el ícono de descarga
+  // 3. Seguir con el resto
   const downloadIcon = document.getElementById('downloadIcon');
   if (downloadIcon) {
     downloadIcon.addEventListener('click', hideUpdateNotification);
   }
-
-  // Simular notificación de actualización después de 2 segundos
-  setTimeout(() => {
-    showUpdateNotification();
-  }, 2000);
+  setTimeout(() => showUpdateNotification(), 2000);
 });
-/* ========== NOTIFICACIÓN DE ACTUALIZACIÓN ========== */
+
+/* ---------- notificaciones ---------- */
 function showUpdateNotification() {
   const downloadIcon = document.getElementById('downloadIcon');
   const badge = document.getElementById('notificationBadge');
-
-  const lastSeen = localStorage.getItem('lastSeenUpdate');
-  if (lastSeen === '1') return; // Ya la vio, no mostrar
+  if (localStorage.getItem('lastSeenUpdate') === '1') return;
 
   downloadIcon.classList.add('has-update');
   badge.textContent = '1';
@@ -42,15 +34,12 @@ function showUpdateNotification() {
 function hideUpdateNotification() {
   const downloadIcon = document.getElementById('downloadIcon');
   const badge = document.getElementById('notificationBadge');
-
   downloadIcon.classList.remove('has-update');
   badge.style.opacity = '0';
   badge.style.transform = 'scale(0)';
-
-  // Marcar como vista
   localStorage.setItem('lastSeenUpdate', '1');
 }
-/* ===================================================== */
+
 
 /* ========== LOGIN ========== */
 async function handleLogin(username, password) {

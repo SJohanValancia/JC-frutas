@@ -876,7 +876,7 @@ body {
 /* Icono de descarga flotante en esquina superior derecha */
 .download-icon {
     position: fixed;
-    top: 20px;
+    top: 50px;
     right: 20px;
     width: 60px;
     height: 60px;
