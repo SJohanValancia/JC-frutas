@@ -1,5 +1,11 @@
 // server.js (versión corregida con soporte completo CORS para Capacitor, Android y Web)
 
+app.use((req,res,next)=>{
+  console.log('[ORIGIN-DEBUG] Origin=', req.get('Origin'), 'Host=', req.get('Host'), 'Path=', req.path);
+  next();
+});
+
+
 const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
