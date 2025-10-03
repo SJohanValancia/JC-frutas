@@ -1,11 +1,5 @@
 // server.js (versión corregida con soporte completo CORS para Capacitor, Android y Web)
 
-app.use((req,res,next)=>{
-  console.log('[ORIGIN-DEBUG] Origin=', req.get('Origin'), 'Host=', req.get('Host'), 'Path=', req.path);
-  next();
-});
-
-
 const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
@@ -23,28 +17,6 @@ const notaRoutes = require("./routes/nota");
 dotenv.config();
 
 const app = express();
-
-// --- CORS FORCE + DEBUG (temporal, colocar justo después de `const app = express();`) ---
-app.set('trust proxy', 1);
-
-app.use((req, res, next) => {
-  const origin = req.get('Origin') || req.get('origin') || 'NO-ORIGIN';
-  console.log('[CORS-FORCE] Origin:', origin, 'Path:', req.path, 'Method:', req.method);
-
-  if (origin && origin !== 'NO-ORIGIN') {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  }
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
-
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  next();
-});
-// --- FIN CORS FORCE + DEBUG ---
-
 
 // --- CONFIGURACIÓN CORS ROBUSTA ---
 const allowedOrigins = [
