@@ -1,4 +1,4 @@
-// server.js (CORS CORREGIDO - Sin conflictos)
+// server.js (versión corregida con soporte completo CORS para Capacitor, Android y Web)
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -18,43 +18,66 @@ dotenv.config();
 
 const app = express();
 
-// --- CONFIGURACIÓN CORS SIMPLIFICADA Y FUNCIONAL ---
+// --- CONFIGURACIÓN CORS ROBUSTA ---
 const allowedOrigins = [
-  "https://jc-frutas.netlify.app",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "http://localhost:5500",
+  "https://jc-frutas.netlify.app",   // Frontend en Netlify
+  "http://localhost:3000",           // React local
+  "http://127.0.0.1:3000",           
+  "http://localhost:5500",           // Live Server
   "http://127.0.0.1:5500",
-  "http://127.0.0.1:5501",
-  "http://localhost:5501",
   "http://127.0.0.1:5502",
+  "http://127.0.0.1:5501",
   "http://localhost:5502",
   "http://localhost:8000",
-  "http://127.0.0.1:8000",
-  "capacitor://localhost",
+  "capacitor://localhost",           // Capacitor Android/iOS
   "ionic://localhost",
+  "file://",
+  "http://localhost",
+  "https://localhost"
 ];
 
-// SOLO UN MIDDLEWARE DE CORS - usando el paquete cors()
+function isValidOrigin(origin) {
+  if (!origin) return true; // Permitir requests sin origin (ej: apps nativas)
+  if (allowedOrigins.includes(origin)) return true;
+
+  // Patrones comunes para Capacitor / Ionic
+  if (
+    origin.startsWith("capacitor://") ||
+    origin.startsWith("ionic://") ||
+    origin.startsWith("file://") ||
+    origin.includes("localhost")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+// Middleware manual CORS
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (isValidOrigin(origin)) {
+    res.header("Access-Control-Allow-Origin", origin || "*");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With");
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+// Middleware cors() adicional (para fallback)
 app.use(cors({
-  origin: function (origin, callback) {
-    // Permitir requests sin origin (apps nativas, Postman, etc)
-    if (!origin) return callback(null, true);
-    
-    // Verificar si el origin está en la lista o es un patrón válido
-    if (
-      allowedOrigins.includes(origin) ||
-      origin.startsWith("capacitor://") ||
-      origin.startsWith("ionic://") ||
-      origin.startsWith("file://") ||
-      origin.includes("localhost") ||
-      origin.includes("127.0.0.1")
-    ) {
-      return callback(null, true);
+  origin: (origin, callback) => {
+    if (isValidOrigin(origin)) {
+      return callback(null, origin || true);
     }
-    
-    console.log("🚫 Origin bloqueado:", origin);
-    callback(new Error("No permitido por CORS"));
+    return callback(new Error("Origin no permitido por CORS"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -68,15 +91,14 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.static(__dirname));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || "secreto_seguro_cambiar_en_produccion",
+  secret: "secreto_seguro",
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
   cookie: {
     secure: process.env.NODE_ENV === "production", 
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 
@@ -95,33 +117,19 @@ app.use("/notas-finca", notaRoutes);
 // --- TEST CORS ---
 app.get("/api/test-cors", (req, res) => {
   res.json({
-    message: "✅ CORS funcionando correctamente",
+    message: "CORS funcionando correctamente",
     origin: req.headers.origin || "Sin Origin",
     timestamp: new Date().toISOString()
   });
 });
 
-// --- HEALTH CHECK ---
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() });
-});
-
 // --- ERRORES ---
 app.use((err, req, res, next) => {
   console.error("🚨 Error:", err.message || err);
-  
   if (err.message && err.message.includes("CORS")) {
-    return res.status(403).json({ 
-      error: "CORS_ERROR",
-      message: "Origen no permitido", 
-      origin: req.headers.origin 
-    });
+    return res.status(403).json({ error: "Origen no permitido", origin: req.headers.origin });
   }
-  
-  res.status(500).json({ 
-    error: "ERROR_SERVIDOR",
-    message: "Error interno del servidor" 
-  });
+  res.status(500).json({ error: "Error interno del servidor" });
 });
 
 app.use((req, res) => {
@@ -132,6 +140,5 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend en puerto ${PORT}`);
-  console.log(`🌍 Orígenes CORS permitidos: ${allowedOrigins.length} configurados`);
-  console.log(`🔒 Modo: ${process.env.NODE_ENV || "development"}`);
+  console.log("🌐 Orígenes CORS permitidos:", allowedOrigins);
 });
