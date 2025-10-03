@@ -2350,7 +2350,7 @@ function crearPaginaTotales(todosLosItems, totalKilosGeneral, totalValorGeneral,
     </div>
 
     <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 15px; margin-bottom: 25px; backdrop-filter: blur(10px);">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 16px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 26px;">
         <div><strong>🏠 Finca:</strong> ${finca}</div>
         <div><strong>👤 Propietario:</strong> ${propietario}</div>
         <div><strong>📅 Fecha:</strong> ${fecha}</div>
