@@ -2,10 +2,10 @@
   "name": "jc-frutas",
   "version": "1.0.0",
   "description": "Sistema de gestión de recogidas de frutas",
-  "main": "server.js",
+  "main": "www/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node www/server.js",
+    "dev": "nodemon www/server.js",
     "update-installer": "node update-installer.js",
     "build:android": "npx cap sync android && cd android && ./gradlew assembleDebug && cd .. && node update-installer.js",
     "deploy": "npx cap sync android && cd android && ./gradlew assembleDebug && cd .. && node update-installer.js",
