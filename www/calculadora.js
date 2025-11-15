@@ -2182,7 +2182,7 @@ function crearPaginaTotalesSuave(todosLosItems, totalKilosGeneral, totalValorGen
     </div>
 
     <div style="background: rgba(255,255,255,0.15); padding: 25px; border-radius: 15px; margin-bottom: 30px; backdrop-filter: blur(10px);">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 20px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 32px;">
         <div><strong>🏠 Finca:</strong> ${finca}</div>
         <div><strong>👤 Propietario:</strong> ${propietario}</div>
         <div><strong>📅 Fecha:</strong> ${fecha}</div>

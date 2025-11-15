@@ -1,4 +1,4 @@
-// server.js (versión corregida con soporte completo CORS para Capacitor, Android y Web)
+// server.js (PROGRAMA DE FRUTAS - CORS PERMISIVO)
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -18,51 +18,15 @@ dotenv.config();
 
 const app = express();
 
-// --- CONFIGURACIÓN CORS ROBUSTA ---
-const allowedOrigins = [
-  "https://jc-frutas.netlify.app",   // Frontend en Netlify
-  "http://localhost:3000",           // React local
-  "http://127.0.0.1:3000",           
-  "http://localhost:5500",           // Live Server
-  "http://127.0.0.1:5500",
-  "http://127.0.0.1:5502",
-  "http://127.0.0.1:5501",
-  "http://localhost:5502",
-  "http://localhost:8000",
-  "capacitor://localhost",           // Capacitor Android/iOS
-  "ionic://localhost",
-  "file://",
-  "http://localhost",
-  "https://localhost"
-];
-
-function isValidOrigin(origin) {
-  if (!origin) return true; // Permitir requests sin origin (ej: apps nativas)
-  if (allowedOrigins.includes(origin)) return true;
-
-  // Patrones comunes para Capacitor / Ionic
-  if (
-    origin.startsWith("capacitor://") ||
-    origin.startsWith("ionic://") ||
-    origin.startsWith("file://") ||
-    origin.includes("localhost")
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-// Middleware manual CORS
+// --- CONFIGURACIÓN CORS ULTRA PERMISIVA (COMO EL PROGRAMA PRINCIPAL) ---
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-
-  if (isValidOrigin(origin)) {
-    res.header("Access-Control-Allow-Origin", origin || "*");
-    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With");
-    res.header("Access-Control-Allow-Credentials", "true");
-  }
+  
+  // ✅ PERMITIR CUALQUIER ORIGEN
+  res.header("Access-Control-Allow-Origin", origin || "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
+  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With");
+  res.header("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
@@ -71,16 +35,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware cors() adicional (para fallback)
+// Middleware cors() adicional
 app.use(cors({
-  origin: (origin, callback) => {
-    if (isValidOrigin(origin)) {
-      return callback(null, origin || true);
-    }
-    return callback(new Error("Origin no permitido por CORS"));
-  },
+  origin: true, // ✅ ACEPTA CUALQUIER ORIGEN
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   optionsSuccessStatus: 200
 }));
@@ -91,7 +50,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.static(__dirname));
 
 app.use(session({
-  secret: "secreto_seguro",
+  secret: process.env.SESSION_SECRET || "secreto_seguro_frutas",
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
@@ -104,8 +63,8 @@ app.use(session({
 
 // --- CONEXIÓN A MONGO ---
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ Conectado a MongoDB"))
-  .catch(err => console.error("❌ Error al conectar:", err));
+  .then(() => console.log("✅ Conectado a MongoDB (Programa Frutas)"))
+  .catch(err => console.error("❌ Error al conectar a MongoDB:", err));
 
 // --- RUTAS ---
 app.use("/auth", authRoutes);
@@ -117,28 +76,54 @@ app.use("/notas-finca", notaRoutes);
 // --- TEST CORS ---
 app.get("/api/test-cors", (req, res) => {
   res.json({
-    message: "CORS funcionando correctamente",
+    message: "✅ CORS funcionando correctamente (Programa Frutas)",
     origin: req.headers.origin || "Sin Origin",
+    timestamp: new Date().toISOString(),
+    programa: "Frutas"
+  });
+});
+
+// --- RUTA RAÍZ ---
+app.get("/", (req, res) => {
+  res.json({
+    message: "🍎 API Sistema de Frutas funcionando",
+    status: "OK",
+    mongodb: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado",
     timestamp: new Date().toISOString()
   });
 });
 
-// --- ERRORES ---
-app.use((err, req, res, next) => {
-  console.error("🚨 Error:", err.message || err);
-  if (err.message && err.message.includes("CORS")) {
-    return res.status(403).json({ error: "Origen no permitido", origin: req.headers.origin });
-  }
-  res.status(500).json({ error: "Error interno del servidor" });
+// --- HEALTH CHECK ---
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
+    programa: "Frutas",
+    mongodb: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado",
+    timestamp: new Date().toISOString()
+  });
 });
 
+// --- MANEJO DE ERRORES ---
+app.use((err, req, res, next) => {
+  console.error("🚨 Error:", err.message || err);
+  res.status(500).json({ 
+    error: "Error interno del servidor",
+    message: err.message 
+  });
+});
+
+// --- 404 ---
 app.use((req, res) => {
-  res.status(404).json({ error: "Ruta no encontrada" });
+  res.status(404).json({ 
+    error: "Ruta no encontrada",
+    path: req.path 
+  });
 });
 
 // --- START SERVER ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor backend en puerto ${PORT}`);
-  console.log("🌐 Orígenes CORS permitidos:", allowedOrigins);
+  console.log(`🚀 Servidor Frutas corriendo en puerto ${PORT}`);
+  console.log(`🌐 CORS: Aceptando TODOS los orígenes`);
+  console.log(`📊 MongoDB: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
 });

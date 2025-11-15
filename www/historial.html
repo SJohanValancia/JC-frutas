@@ -836,6 +836,65 @@ select:focus option {
     </div>
   </div>
 
+  <script>
+// 🔥 VERIFICAR SI VIENE DEL PROGRAMA PRINCIPAL
+window.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const vieneDeIntegracion = params.get('origenIntegracion') === 'true';
+    
+    if (vieneDeIntegracion) {
+        console.log('✅ Acceso desde programa principal - Sesión compartida activa');
+        
+        // Recuperar sesión compartida
+        const sesionCompartida = sessionStorage.getItem('sesionCompartida');
+        
+        if (sesionCompartida) {
+            const datos = JSON.parse(sesionCompartida);
+            console.log('👤 Usuario desde programa principal:', datos.usuario);
+            
+            // Agregar botón para volver al dashboard
+            agregarBotonVolverDashboard();
+        }
+    }
+});
+
+function agregarBotonVolverDashboard() {
+    const boton = document.createElement('button');
+    boton.innerHTML = '← Volver al Dashboard';
+    boton.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: linear-gradient(135deg, #6c757d, #495057);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 25px;
+        font-weight: 600;
+        cursor: pointer;
+        z-index: 10000;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+    `;
+    
+    boton.onmouseover = () => {
+        boton.style.transform = 'translateY(-2px)';
+        boton.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
+    };
+    
+    boton.onmouseout = () => {
+        boton.style.transform = 'translateY(0)';
+        boton.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+    };
+    
+    boton.onclick = () => {
+        window.location.href = 'dashboard.html';
+    };
+    
+    document.body.appendChild(boton);
+}
+</script>
+
   <script type="module">
     import { apiFetch } from "./api.js";
 
