@@ -102,7 +102,7 @@ app.use("/notas-finca", notaRoutes);
 // --- RUTA RAÍZ ---
 app.get("/", (req, res) => {
   res.json({
-    message: "🍎 API Sistema de Frutas funcionando correctamente",
+    message: "🎯 API Sistema de Frutas funcionando correctamente",
     status: "OK",
     programa: "JC Frutas",
     mongodb: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado",
@@ -159,14 +159,14 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log(`
-╔════════════════════════════════════════╗
-║   🍎 JC FRUTAS - SERVIDOR INICIADO    ║
-╠════════════════════════════════════════╣
+╔═══════════════════════════════════════╗
+║   🎯 JC FRUTAS - SERVIDOR INICIADO    ║
+╠═══════════════════════════════════════╣
 ║ 🚀 Puerto: ${PORT.toString().padEnd(28)} ║
 ║ 🌐 CORS: Todos los orígenes           ║
 ║ 📊 MongoDB: Conectado                  ║
 ║ ⏰ Hora: ${new Date().toLocaleTimeString('es-CO').padEnd(29)} ║
-╚════════════════════════════════════════╝
+╚═══════════════════════════════════════╝
   `);
 });
 
