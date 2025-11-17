@@ -8,9 +8,59 @@ const usuarioAlias = params.get("usuarioAlias");
 const modo = params.get("modo");
 const idRecogida = params.get("idRecogida");
 
+// 🔥 MODO DESARROLLO - Desactivar para producción
+const IS_DEVELOPMENT = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1';
+
+if (IS_DEVELOPMENT) {
+  console.log('🛠️ Modo desarrollo activado - usando fallbacks');
+  window.DISABLE_INTERCEPTOR = true;
+}
 
 // recogida.js (fragmento)
 import './dbb.js';
+
+// 🔥 INTERCEPTOR GLOBAL PARA TODAS LAS PETICIONES A JC-FRUTAS
+// 🔥 INTERCEPTOR GLOBAL CORREGIDO
+window.DISABLE_INTERCEPTOR = true; // Cambiar a true para deshabilitar
+
+(function() {
+  if (window.DISABLE_INTERCEPTOR) {
+    console.log('⚠️ Interceptor deshabilitado manualmente');
+    return;
+  }
+  
+  const originalFetch = window.fetch;
+  
+  window.fetch = function(...args) {
+    let [url, options = {}] = args;
+    
+    if (typeof url === 'string' && url.includes('jc-frutas.onrender.com')) {
+      console.log('🔄 Interceptando petición a:', url);
+      
+      const newOptions = {
+        ...options,
+        mode: 'cors',
+        credentials: 'omit',
+        headers: {
+          ...(options.headers || {}),
+        }
+      };
+      
+      // Solo agregar Content-Type si hay body
+      if (options.method === 'POST' || options.method === 'PUT') {
+        newOptions.headers['Content-Type'] = 'application/json';
+      }
+      
+      console.log('✅ Opciones finales:', newOptions);
+      return originalFetch(url, newOptions);
+    }
+    
+    return originalFetch(...args);
+  };
+  
+  console.log('🔧 Interceptor fetch instalado');
+})();
 
 async function loadFruitsForFinca(fincaId) {
   console.log("🍎 Cargando frutas para finca:", fincaId);
@@ -940,15 +990,10 @@ function mostrarAnimacionError(mensaje) {
   setTimeout(() => div.remove(), 2000);
 }
 
-// FUNCIÓN PARA VERIFICAR TIPO DE USUARIO
-// 🔥 FUNCIÓN CORREGIDA: Siempre usar subusuario como fallback cuando no hay conexión
 async function verificarTipoUsuario() {
   console.log("=== VERIFICANDO TIPO DE USUARIO ===");
   
   try {
-    
-
-    // 🌐 SI HAY CONEXIÓN: Intentar obtener datos normales
     const storedData = sessionStorage.getItem('userData');
     console.log("📦 Datos en sessionStorage:", storedData);
     
@@ -962,18 +1007,24 @@ async function verificarTipoUsuario() {
         console.log("✅ Tipo desde sessionStorage:", tipoUsuarioVerificado, "Es subusuario:", isSubusuario);
         return isSubusuario;
       }
-    } else {
-      console.log("⚠️ No hay datos en sessionStorage");
     }
     
     if (usuario) {
       console.log("🔍 Consultando servidor para usuario:", usuario);
       
-      const response = await fetch(`https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`);
+      // 🔥 MODIFICACIÓN: Petición simplificada sin headers problemáticos
+      const response = await fetch(
+        `https://jc-frutas.onrender.com/auth/get-alias?usuario=${encodeURIComponent(usuario)}`,
+        {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'omit', // No enviar cookies
+          cache: 'no-cache'
+        }
+      );
       
       if (!response.ok) {
         console.error("❌ Error en respuesta del servidor:", response.status);
-        // 🔥 Fallback a subusuario si el servidor falla
         isSubusuario = true;
         tipoUsuarioVerificado = 2;
         return isSubusuario;
@@ -996,7 +1047,6 @@ async function verificarTipoUsuario() {
       
     } else {
       console.error("❌ No hay usuario en los parámetros URL");
-      // 🔥 Fallback a subusuario si no hay usuario
       isSubusuario = true;
       tipoUsuarioVerificado = 2;
       return isSubusuario;
@@ -1008,7 +1058,6 @@ async function verificarTipoUsuario() {
     console.error("❌ Error al verificar tipo de usuario:", error);
     console.log("🔒 Usando MODO SUBUSUARIO por seguridad");
     
-    // 🔥 SIEMPRE usar subusuario como fallback en caso de error
     isSubusuario = true;
     tipoUsuarioVerificado = 2;
     
@@ -1322,6 +1371,19 @@ try {
     // aquí va el código de limpieza/feedback que ya tenías...
     const limpiezaExitosa = limpiarPesasCompleto();
     if (limpiezaExitosa) mostrarAnimacionExito("✔ Recogida guardada");
+    notificarProgramaPrincipal('recogidaGuardada', {
+  recogida: result,
+  timestamp: Date.now()
+});
+
+// 🔥 BOTÓN PARA CERRAR DESDE DENTRO DEL IFRAME
+function cerrarDesdeIframe() {
+  if (estaEnIframe()) {
+    notificarProgramaPrincipal('cerrarModal');
+  } else {
+    window.history.back();
+  }
+}
     setTimeout(() => { window.location.reload(); }, 1200);
     return result;
   } else {
@@ -1511,15 +1573,14 @@ async function configurarInterfazSegunTipoUsuario() {
 }
 
 async function cargarFrutas() {
-  console.log("🍎 Iniciando carga de frutas para finca:", fincaId);
+  console.log("🎯 Iniciando carga de frutas para finca:", fincaId);
 
   if (!fincaId) {
     console.error("❌ No hay fincaId disponible");
     alert("Error: No se pudo identificar la finca");
-    return []; // ← Asegurar retorno de array vacío
+    return [];
   }
 
-  // Función para normalizar frutas
   const normalizeFrutas = (frutasRaw) => {
     return (frutasRaw || []).map(f => ({
       id: f.id ?? f._id ?? f.key ?? f.nombre,
@@ -1530,12 +1591,20 @@ async function cargarFrutas() {
   };
 
   try {
-    // Intentar traer precios/frutas desde el servidor
-    const res = await fetch(`https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`);
+    // 🔥 Petición simplificada
+    const res = await fetch(
+      `https://jc-frutas.onrender.com/precios/por-finca/${fincaId}`,
+      {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-cache'
+      }
+    );
+    
     if (!res.ok) throw new Error(`Error ${res.status}: No se pudo cargar precios`);
     const precios = await res.json();
 
-    // Extraer la lista de frutas
     let frutasFinales = [];
     for (const doc of precios) {
       if (doc.frutas && doc.frutas.length > frutasFinales.length) {
@@ -1543,7 +1612,6 @@ async function cargarFrutas() {
       }
     }
 
-    // Normalizar y guardar en IndexedDB
     const frutasNormalizadas = normalizeFrutas(frutasFinales);
     
     if (window.IDB_HELPER && frutasNormalizadas.length > 0) {
@@ -1560,7 +1628,6 @@ async function cargarFrutas() {
   } catch (err) {
     console.warn("❌ Error al cargar frutas desde servidor, intentando fallback a IndexedDB:", err);
 
-    // Fallback a IndexedDB
     try {
       const cached = await window.IDB_HELPER.getFruitsByFinca(fincaId);
       const frutasCached = normalizeFrutas(cached);
@@ -1574,7 +1641,6 @@ async function cargarFrutas() {
     } catch (err2) {
       console.error("❌ No hay frutas en IndexedDB:", err2);
       
-      // Si no hay datos en IndexedDB, inicializar con array vacío
       const frutasVacias = [];
       preciosDisponibles = frutasVacias;
       renderFrutas(frutasVacias);

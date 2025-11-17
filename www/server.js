@@ -21,19 +21,16 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 
 // --- CONFIGURACIÓN CORS ULTRA PERMISIVA ---
+// En tu servidor Express de jc-frutas
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
+  res.header('Access-Control-Allow-Origin', '*'); // O especifica tu dominio
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
   
-  // ✅ PERMITIR CUALQUIER ORIGEN
-  res.header("Access-Control-Allow-Origin", origin || "*");
-  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
-  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With");
-  res.header("Access-Control-Allow-Credentials", "true");
-
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
-
   next();
 });
 

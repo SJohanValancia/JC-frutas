@@ -401,8 +401,8 @@
 
 
 
-     <button class="volver-btn" onclick="window.history.back()">← Volver</button>
-
+<!-- Reemplaza el botón volver existente con: -->
+<button class="volver-btn" onclick="cerrarDesdeIframe()">← Volver</button>
     <h2>Registro de Recogida</h2>
 
     <input id="fecha" type="date" disabled />
@@ -622,7 +622,53 @@ function agregarBotonVolverDashboard() {
         input.value = '';
       }
     }
+
+    // 🔥 COMUNICACIÓN CON EL PROGRAMA PRINCIPAL (si está en iframe)
+function estaEnIframe() {
+  try {
+    return window.self !== window.top;
+  } catch (e) {
+    return true;
+  }
+}
+
+// 🔥 ENVIAR MENSAJE AL PROGRAMA PRINCIPAL
+function notificarProgramaPrincipal(action, data = {}) {
+  if (estaEnIframe()) {
+    window.parent.postMessage({
+      action: action,
+      data: data,
+      origen: 'jc-frutas'
+    }, '*'); // En producción, especifica el origen exacto
+  }
+}
   </script>
+
+  <style>
+#modalRecogidaFrutas, #modalHistorialFrutas {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+#modalRecogidaFrutas button[onclick^="cerrarModal"],
+#modalHistorialFrutas button[onclick^="cerrarModal"] {
+  transition: all 0.3s ease;
+}
+
+#modalRecogidaFrutas button[onclick^="cerrarModal"]:hover,
+#modalHistorialFrutas button[onclick^="cerrarModal"]:hover {
+  background: #ff0000;
+  transform: scale(1.1);
+}
+</style>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="module" src="recogida.js"></script>
