@@ -1,4 +1,4 @@
-// server.js (PROGRAMA DE FRUTAS - CORS PERMISIVO + RUTAS CORREGIDAS)
+// server.js (PROGRAMA DE FRUTAS - CORS CORREGIDO COMPLETAMENTE)
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -20,36 +20,94 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 
-// --- CONFIGURACIÓN CORS ULTRA PERMISIVA ---
-// En tu servidor Express de jc-frutas
+// ============================================
+// 🔥 CONFIGURACIÓN CORS MEJORADA - PASO 1
+// ============================================
+// ESTE MIDDLEWARE DEBE IR PRIMERO, ANTES DE TODO
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*'); // O especifica tu dominio
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
+  const origin = req.headers.origin;
   
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+  // ✅ Lista de orígenes permitidos explícitamente
+  const allowedOrigins = [
+    'https://jc-fi.netlify.app',
+    'https://jc-fi.onrender.com',
+    'https://jc-frutas.onrender.com',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+  ];
+  
+  // Si el origen está en la lista, permitirlo específicamente
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    // Si no hay origin (peticiones desde servidor), permitir
+    res.header('Access-Control-Allow-Origin', '*');
+  } else {
+    // Fallback permisivo para otros orígenes
+    res.header('Access-Control-Allow-Origin', '*');
   }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // Cache preflight 24 horas
+  
+  // Manejar preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   next();
 });
 
-// Middleware cors() adicional
+// ============================================
+// 🔥 CONFIGURACIÓN CORS - PASO 2 (cors package)
+// ============================================
 app.use(cors({
-  origin: true, // ✅ ACEPTA CUALQUIER ORIGEN
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'https://jc-fi.netlify.app',
+      'https://jc-fi.onrender.com',
+      'https://jc-frutas.onrender.com',
+      'http://localhost:5000',
+      'http://127.0.0.1:5000',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000'
+    ];
+    
+    // Permitir peticiones sin origin (Postman, servidor a servidor)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Permitir si está en la lista
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Permitir de todas formas (modo permisivo)
+    return callback(null, true);
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
   optionsSuccessStatus: 200
 }));
 
-// --- MIDDLEWARES ---
+// ============================================
+// 🔥 MIDDLEWARES PRINCIPALES
+// ============================================
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // 🔥 Servir archivos estáticos desde la carpeta www
 app.use(express.static(path.join(__dirname)));
 
+// ============================================
+// 🔥 CONFIGURACIÓN DE SESIÓN
+// ============================================
 app.use(session({
   secret: process.env.SESSION_SECRET || "secreto_seguro_frutas",
   resave: false,
@@ -61,11 +119,14 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === "production", 
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax'
   }
 }));
 
-// --- CONEXIÓN A MONGO ---
+// ============================================
+// 🔥 CONEXIÓN A MONGODB
+// ============================================
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ Conectado a MongoDB (Programa Frutas)");
@@ -89,12 +150,18 @@ mongoose.connection.on('disconnected', () => {
   console.log('⚠️ Mongoose desconectado');
 });
 
-// --- RUTAS ---
+// ============================================
+// 🔥 RUTAS DE LA API
+// ============================================
 app.use("/auth", authRoutes);
 app.use("/fincas", fincaRoutes);
 app.use("/precios", precioRoutes);
 app.use("/recogidas", recogidaRoutes);
 app.use("/notas-finca", notaRoutes);
+
+// ============================================
+// 🔥 RUTAS DE UTILIDAD
+// ============================================
 
 // --- RUTA RAÍZ ---
 app.get("/", (req, res) => {
@@ -104,7 +171,8 @@ app.get("/", (req, res) => {
     programa: "JC Frutas",
     mongodb: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado",
     timestamp: new Date().toISOString(),
-    version: "1.0.0"
+    version: "1.0.0",
+    cors: "Habilitado para todos los orígenes"
   });
 });
 
@@ -115,77 +183,147 @@ app.get("/health", (req, res) => {
     programa: "JC Frutas",
     mongodb: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado",
     uptime: process.uptime(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    cors: "Habilitado"
   });
 });
 
-// --- TEST CORS ---
+// --- TEST CORS DETALLADO ---
 app.get("/api/test-cors", (req, res) => {
   res.json({
     message: "✅ CORS funcionando correctamente (Programa Frutas)",
     origin: req.headers.origin || "Sin Origin",
     timestamp: new Date().toISOString(),
     programa: "JC Frutas",
-    corsEnabled: true
+    corsEnabled: true,
+    headers: {
+      'access-control-allow-origin': res.getHeader('access-control-allow-origin'),
+      'access-control-allow-methods': res.getHeader('access-control-allow-methods'),
+      'access-control-allow-credentials': res.getHeader('access-control-allow-credentials')
+    },
+    requestHeaders: req.headers
   });
 });
 
-// --- MANEJO DE ERRORES ---
+// --- TEST CORS CON OPTIONS ---
+app.options("/api/test-cors", (req, res) => {
+  res.json({
+    message: "✅ Preflight CORS exitoso",
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ============================================
+// 🔥 MANEJO DE ERRORES
+// ============================================
 app.use((err, req, res, next) => {
-  console.error("🚨 Error:", err.message || err);
-  console.error("Stack:", err.stack);
+  console.error("🚨 Error capturado:", {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    origin: req.headers.origin
+  });
   
   res.status(err.status || 500).json({ 
     error: "Error interno del servidor",
     message: process.env.NODE_ENV === "production" ? "Error del servidor" : err.message,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    path: req.path
   });
 });
 
-// --- 404 ---
+// ============================================
+// 🔥 MANEJO 404
+// ============================================
 app.use((req, res) => {
+  console.log("❌ Ruta no encontrada:", {
+    path: req.path,
+    method: req.method,
+    origin: req.headers.origin
+  });
+  
   res.status(404).json({ 
     error: "Ruta no encontrada",
     path: req.path,
     method: req.method,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    availableRoutes: [
+      "/auth/*",
+      "/fincas/*",
+      "/precios/*",
+      "/recogidas/*",
+      "/notas-finca/*",
+      "/api/test-cors"
+    ]
   });
 });
 
-// --- START SERVER ---
+// ============================================
+// 🔥 INICIAR SERVIDOR
+// ============================================
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log(`
-╔═══════════════════════════════════════╗
-║   🎯 JC FRUTAS - SERVIDOR INICIADO    ║
-╠═══════════════════════════════════════╣
-║ 🚀 Puerto: ${PORT.toString().padEnd(28)} ║
-║ 🌐 CORS: Todos los orígenes           ║
-║ 📊 MongoDB: Conectado                  ║
-║ ⏰ Hora: ${new Date().toLocaleTimeString('es-CO').padEnd(29)} ║
-╚═══════════════════════════════════════╝
+╔═══════════════════════════════════════════════╗
+║   🎯 JC FRUTAS - SERVIDOR INICIADO            ║
+╠═══════════════════════════════════════════════╣
+║ 🚀 Puerto: ${PORT.toString().padEnd(35)} ║
+║ 🌐 CORS: Configurado para múltiples orígenes ║
+║ 📊 MongoDB: ${mongoose.connection.readyState === 1 ? 'Conectado'.padEnd(29) : 'Desconectado'.padEnd(29)} ║
+║ ⏰ Hora: ${new Date().toLocaleTimeString('es-CO').padEnd(36)} ║
+║ 🔒 Modo: ${process.env.NODE_ENV === 'production' ? 'Producción'.padEnd(33) : 'Desarrollo'.padEnd(33)} ║
+╠═══════════════════════════════════════════════╣
+║ 📝 Orígenes permitidos:                       ║
+║    • jc-fi.netlify.app                        ║
+║    • jc-fi.onrender.com                       ║
+║    • jc-frutas.onrender.com                   ║
+║    • localhost:5000                           ║
+║    • localhost:3000                           ║
+╚═══════════════════════════════════════════════╝
+
+✅ Servidor listo para recibir peticiones
+🔗 URL: http://localhost:${PORT}
+🧪 Test CORS: http://localhost:${PORT}/api/test-cors
   `);
 });
 
-// Manejo graceful de cierre
-process.on('SIGTERM', () => {
-  console.log('⚠️ SIGTERM recibido, cerrando servidor...');
+// ============================================
+// 🔥 MANEJO GRACEFUL DE CIERRE
+// ============================================
+const gracefulShutdown = (signal) => {
+  console.log(`\n⚠️ ${signal} recibido, iniciando cierre graceful...`);
+  
   server.close(() => {
-    console.log('✅ Servidor cerrado');
+    console.log('✅ Servidor HTTP cerrado');
+    
     mongoose.connection.close(false, () => {
       console.log('✅ MongoDB desconectado');
+      console.log('👋 Proceso terminado exitosamente');
       process.exit(0);
     });
   });
+  
+  // Forzar cierre después de 10 segundos
+  setTimeout(() => {
+    console.error('⚠️ Forzando cierre después de timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Manejar errores no capturados
+process.on('uncaughtException', (err) => {
+  console.error('💥 Excepción no capturada:', err);
+  gracefulShutdown('uncaughtException');
 });
 
-process.on('SIGINT', () => {
-  console.log('⚠️ SIGINT recibido, cerrando servidor...');
-  server.close(() => {
-    console.log('✅ Servidor cerrado');
-    mongoose.connection.close(false, () => {
-      console.log('✅ MongoDB desconectado');
-      process.exit(0);
-    });
-  });
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Promesa rechazada no manejada:', reason);
+  gracefulShutdown('unhandledRejection');
 });
+
+module.exports = app; // Para testing

@@ -42,6 +42,33 @@ let nuevoPrecioManual = 0;
 let frutaConPrecioModificado = null;
 let calidadConPrecioModificado = null;
 
+// Configuración de fetch mejorada para CORS
+const originalFetch = window.fetch;
+window.fetch = function(...args) {
+  let [url, options = {}] = args;
+  
+  // Solo modificar peticiones a jc-frutas
+  if (typeof url === 'string' && url.includes('jc-frutas.onrender.com')) {
+    options = {
+      ...options,
+      mode: 'cors',
+      credentials: 'omit', // CRÍTICO: no enviar cookies
+      cache: 'no-cache',
+      headers: {
+        ...(options.headers || {}),
+        'Accept': 'application/json'
+      }
+    };
+    
+    // Solo agregar Content-Type si hay body
+    if (options.body && (options.method === 'POST' || options.method === 'PUT')) {
+      options.headers['Content-Type'] = 'application/json';
+    }
+  }
+  
+  return originalFetch(url, options);
+};
+
 // 🔥 FUNCIÓN PARA DETECTAR CAMBIOS MANUALES EN EL PRECIO
 function configurarDeteccionCambioPrecio() {
   if (!precioPorKilo || isSubusuario) {

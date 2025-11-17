@@ -8,6 +8,33 @@ const usuarioAlias = params.get("usuarioAlias");
 const modo = params.get("modo");
 const idRecogida = params.get("idRecogida");
 
+// Configuración de fetch mejorada para CORS
+const originalFetch = window.fetch;
+window.fetch = function(...args) {
+  let [url, options = {}] = args;
+  
+  // Solo modificar peticiones a jc-frutas
+  if (typeof url === 'string' && url.includes('jc-frutas.onrender.com')) {
+    options = {
+      ...options,
+      mode: 'cors',
+      credentials: 'omit', // CRÍTICO: no enviar cookies
+      cache: 'no-cache',
+      headers: {
+        ...(options.headers || {}),
+        'Accept': 'application/json'
+      }
+    };
+    
+    // Solo agregar Content-Type si hay body
+    if (options.body && (options.method === 'POST' || options.method === 'PUT')) {
+      options.headers['Content-Type'] = 'application/json';
+    }
+  }
+  
+  return originalFetch(url, options);
+};
+
 // 🔥 MODO DESARROLLO - Desactivar para producción
 const IS_DEVELOPMENT = window.location.hostname === 'localhost' || 
                        window.location.hostname === '127.0.0.1';
