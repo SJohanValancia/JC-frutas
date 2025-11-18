@@ -876,6 +876,75 @@ router.post("/liquidar-multiples", async (req, res) => {
 });
 
 
+// 🔥 OBTENER RECOGIDAS SIN LIQUIDAR
+router.get("/sin-liquidar/:adminAlias", async (req, res) => {
+  const { adminAlias } = req.params;
+  
+  try {
+    const recogidas = await Recogida.find({ 
+      adminAlias,
+      reciboDia: { $ne: true } // Recogidas que NO han sido liquidadas
+    }).sort({ fecha: -1 });
+    
+    console.log(`📋 Encontradas ${recogidas.length} recogidas sin liquidar para ${adminAlias}`);
+    
+    res.status(200).json(recogidas);
+  } catch (err) {
+    console.error("❌ Error al obtener recogidas sin liquidar:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
+// 🔥 OBTENER MÚLTIPLES RECOGIDAS POR IDS
+router.post("/obtener-multiples", async (req, res) => {
+  const { ids } = req.body;
+  
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "Se requiere un array de IDs" });
+  }
+  
+  try {
+    const recogidas = await Recogida.find({ 
+      _id: { $in: ids } 
+    });
+    
+    res.status(200).json(recogidas);
+  } catch (err) {
+    console.error("❌ Error al obtener recogidas múltiples:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 🔥 MARCAR RECOGIDAS COMO LIQUIDADAS
+router.post("/marcar-liquidadas", async (req, res) => {
+  const { ids, liquidacionId } = req.body;
+  
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "Se requiere un array de IDs" });
+  }
+  
+  try {
+    const resultado = await Recogida.updateMany(
+      { _id: { $in: ids } },
+      { 
+        $set: { 
+          reciboDia: true,
+          fechaLiquidacion: new Date(),
+          liquidacionId: liquidacionId
+        } 
+      }
+    );
+    
+    console.log(`✅ ${resultado.modifiedCount} recogidas marcadas como liquidadas`);
+    
+    res.status(200).json({ 
+      success: true,
+      modificadas: resultado.modifiedCount
+    });
+  } catch (err) {
+    console.error("❌ Error al marcar recogidas como liquidadas:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;

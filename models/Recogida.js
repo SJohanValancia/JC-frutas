@@ -51,7 +51,21 @@ usuarioLiquida: {
   resumenCalidades: { type: Map, of: Number }, // { "primera": 20, "segunda": 5 }
   
   fechaCreacion: { type: Date, default: Date.now },
-  fechaModificacion: { type: Date, default: Date.now }
+  fechaModificacion: { type: Date, default: Date.now },
+
+  // Agregar después del campo fechaModificacion:
+reciboDia: {
+  type: Boolean,
+  default: false
+},
+fechaLiquidacion: {
+  type: Date,
+  default: null
+},
+liquidacionId: {
+  type: String, // String porque viene de otra BD
+  default: null
+}
 });
 
 // Middleware para actualizar fechaModificacion antes de guardar

@@ -12,7 +12,11 @@
     "sync:android": "npx cap sync android",
     "open:android": "npx cap open android"
   },
-  "keywords": ["frutas", "recogidas", "fincas"],
+  "keywords": [
+    "frutas",
+    "recogidas",
+    "fincas"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {
@@ -25,14 +29,15 @@
     "@capacitor/filesystem": "^7.1.4",
     "@capacitor/ios": "^7.4.3",
     "@capacitor/share": "^7.0.2",
+    "axios": "^1.13.2",
     "connect-mongo": "^5.1.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
     "idb": "^8.0.3",
-    "mongoose": "^8.16.3",
     "mongodb": "^6.3.0",
+    "mongoose": "^8.16.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
   },
