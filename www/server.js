@@ -32,7 +32,15 @@ const allowedOrigins = [
   'http://localhost:5000',
   'http://127.0.0.1:5000',
   'http://localhost:3000',
-  'http://127.0.0.1:3000'
+  'http://127.0.0.1:3000',
+  // 🔥 AGREGAR ESTOS ORÍGENES LOCALES:
+  'http://localhost:5502',
+  'http://127.0.0.1:5502',
+  'http://localhost:5501',
+  'http://127.0.0.1:5501',
+  // 🔥 Para Live Server con cualquier puerto:
+  'http://localhost:5500',
+  'http://127.0.0.1:5500'
 ];
 
 // 🔥 MIDDLEWARE CORS PRINCIPAL (antes de todo)
@@ -45,6 +53,7 @@ app.use(cors({
     
     // Verificar si el origin está en la lista permitida
     if (allowedOrigins.includes(origin)) {
+      console.log('✅ Origen permitido:', origin); // 🔥 Log para debug
       return callback(null, true);
     }
     
@@ -52,9 +61,10 @@ app.use(cors({
     console.log('⚠️ Origen no permitido:', origin);
     return callback(new Error('Not allowed by CORS'));
   },
-  credentials: true, // 🔥 MANTENER credentials: true
+  credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  exposedHeaders: ["Set-Cookie"], // 🔥 Agregar esto
   optionsSuccessStatus: 200
 }));
 
