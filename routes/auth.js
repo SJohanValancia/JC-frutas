@@ -654,4 +654,34 @@ router.get("/inspect-user/:id", async (req, res) => {
   }
 });
 
+// En auth.js de JC-FRUTAS
+router.post("/login-token", async (req, res) => {
+  const { username, token } = req.body;
+
+  try {
+    // Verificar que el token sea válido (puedes usar JWT o una validación simple)
+    const user = await User.findOne({ username });
+    
+    if (!user) {
+      return res.status(401).json({ error: "Usuario no encontrado" });
+    }
+
+    // Crear sesión automáticamente
+    req.session.user = user;
+
+    const respuesta = {
+      tipo: user.tipo,
+      alias: user.alias,
+      usuario: user.username,
+      enlazadoAAdmin: user.enlazadoAAdmin || false
+    };
+
+    console.log("✅ Login automático exitoso para:", username);
+    res.status(200).json(respuesta);
+  } catch (err) {
+    console.error("❌ Error en login-token:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
 module.exports = router;
