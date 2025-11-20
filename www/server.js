@@ -1,4 +1,4 @@
-// server.js (PROGRAMA DE FRUTAS - CORS CORREGIDO)
+// server.js (PROGRAMA DE FRUTAS - CORS ABIERTO PARA TODOS LOS ORÍGENES)
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -20,51 +20,15 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 
 // ============================================
-// 🔥 CONFIGURACIÓN CORS CORREGIDA
+// 🔥 CONFIGURACIÓN CORS - TODOS LOS ORÍGENES
 // ============================================
-
-// Lista de orígenes permitidos
-// 📍 Busca esta sección en server.js (línea ~23)
-const allowedOrigins = [
-  'https://jc-fi.netlify.app',
-  'https://jc-fi.onrender.com',
-  'https://jc-frutas.onrender.com',
-  'https://jc-frutas.netlify.app',
-  'http://localhost:5000',
-  'http://127.0.0.1:5000',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  // 🔥 AGREGAR ESTOS ORÍGENES LOCALES:
-  'http://localhost:5502',
-  'http://127.0.0.1:5502',  // ⬅️ ESTE ES EL QUE FALTA
-  'http://localhost:5501',
-  'http://127.0.0.1:5501',
-  'http://localhost:5500',
-  'http://127.0.0.1:5500'
-];
-// 🔥 MIDDLEWARE CORS PRINCIPAL (antes de todo)
 app.use(cors({
-  origin: function(origin, callback) {
-    // Permitir peticiones sin origin (Postman, servidor a servidor)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // Verificar si el origin está en la lista permitida
-    if (allowedOrigins.includes(origin)) {
-      console.log('✅ Origen permitido:', origin); // 🔥 Log para debug
-      return callback(null, true);
-    }
-    
-    // 🔥 IMPORTANTE: No permitir otros orígenes cuando usas credentials
-    console.log('⚠️ Origen no permitido:', origin);
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
+  origin: "*", // ✅ Permite TODOS los orígenes
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-  exposedHeaders: ["Set-Cookie"], // 🔥 Agregar esto
-  optionsSuccessStatus: 200
+  exposedHeaders: ["Set-Cookie"],
+  optionsSuccessStatus: 200,
+  credentials: false
 }));
 
 // ============================================
@@ -91,7 +55,7 @@ app.use(session({
     secure: process.env.NODE_ENV === "production", 
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax'
+    sameSite: 'lax'
   }
 }));
 
@@ -143,7 +107,7 @@ app.get("/", (req, res) => {
     mongodb: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
-    cors: "Habilitado con orígenes específicos"
+    cors: "✅ Habilitado para TODOS los orígenes"
   });
 });
 
@@ -165,7 +129,8 @@ app.get("/api/test-cors", (req, res) => {
     origin: req.headers.origin || "Sin Origin",
     timestamp: new Date().toISOString(),
     programa: "JC Frutas",
-    corsEnabled: true
+    corsEnabled: true,
+    corsPolicy: "TODOS los orígenes permitidos"
   });
 });
 
@@ -214,22 +179,19 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log(`
-╔═══════════════════════════════════════════╗
-║   🎯 JC FRUTAS - SERVIDOR INICIADO            ║
-╠═══════════════════════════════════════════╣
+╔════════════════════════════════════════════════════╗
+║   🎯 JC FRUTAS - SERVIDOR INICIADO                ║
+╠════════════════════════════════════════════════════╣
 ║ 🚀 Puerto: ${PORT.toString().padEnd(35)} ║
-║ 🌐 CORS: Orígenes específicos permitidos ║
+║ 🌐 CORS: ✅ TODOS los orígenes permitidos        ║
 ║ 📊 MongoDB: ${mongoose.connection.readyState === 1 ? 'Conectado'.padEnd(29) : 'Desconectado'.padEnd(29)} ║
 ║ ⏰ Hora: ${new Date().toLocaleTimeString('es-CO').padEnd(36)} ║
-║ 🔒 Modo: ${process.env.NODE_ENV === 'production' ? 'Producción'.padEnd(33) : 'Desarrollo'.padEnd(33)} ║
-╠═══════════════════════════════════════════╣
-║ 📝 Orígenes permitidos:                       ║
-║    • jc-fi.netlify.app                        ║
-║    • jc-fi.onrender.com                       ║
-║    • jc-frutas.onrender.com                   ║
-║    • localhost:5000                           ║
-║    • localhost:3000                           ║
-╚═══════════════════════════════════════════╝
+║ 🔐 Modo: ${process.env.NODE_ENV === 'production' ? 'Producción'.padEnd(33) : 'Desarrollo'.padEnd(33)} ║
+╠════════════════════════════════════════════════════╣
+║ ✅ CORS ABIERTO - SIN RESTRICCIONES               ║
+║    • Acepta solicitudes desde cualquier origen    ║
+║    • Incluye localhost, Netlify, Render, etc.     ║
+╚════════════════════════════════════════════════════╝
 
 ✅ Servidor listo para recibir peticiones
 🔗 URL: http://localhost:${PORT}
