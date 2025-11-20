@@ -7,6 +7,40 @@
   <script src="blockCheck.js"></script>
   <script src="auth-iframe.js"></script>
 
+    <!-- 🔥 NUEVO CÓDIGO AQUÍ -->
+  <script>
+    // 🔥 DETECTOR DE INTEGRACIÓN - EJECUTAR ANTES QUE TODO
+    window.addEventListener('DOMContentLoaded', function() {
+        console.log('🔍 Verificando origen de acceso...');
+        
+        const params = new URLSearchParams(window.location.search);
+        const vieneDeIntegracion = params.get('origenIntegracion') === 'true';
+        
+        if (vieneDeIntegracion) {
+            console.log('✅ Acceso desde programa principal');
+            
+            // Recuperar sesión compartida
+            const sesionCompartida = sessionStorage.getItem('sesionCompartida');
+            
+            if (sesionCompartida) {
+                const datos = JSON.parse(sesionCompartida);
+                console.log('✅ Sesión compartida recuperada:', datos);
+                
+                // ✅ GUARDAR TAMBIÉN EN LOCALSTORAGE DEL IFRAME
+                localStorage.setItem('userData', JSON.stringify({
+                    usuario: datos.usuario,
+                    tipo: datos.tipo || 1,
+                    alias: datos.alias || datos.usuario
+                }));
+                
+                console.log('✅ Datos de usuario guardados en iframe');
+            } else {
+                console.warn('⚠️ No se encontró sesión compartida');
+            }
+        }
+    });
+  </script>
+
   <title>Recogida</title>
   <link rel="stylesheet" href="style.css" />
   <style>
@@ -473,6 +507,9 @@
   </div>
 
   <script>
+
+
+
 // 🔥 VERIFICAR SI VIENE DEL PROGRAMA PRINCIPAL
 window.addEventListener('DOMContentLoaded', function() {
     const params = new URLSearchParams(window.location.search);

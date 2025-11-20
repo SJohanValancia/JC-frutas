@@ -1,4 +1,4 @@
-// server.js (PROGRAMA DE FRUTAS - CORS ABIERTO PARA TODOS LOS ORÍGENES)
+// server.js (PROGRAMA DE FRUTAS - CORS OPTIMIZADO PARA IFRAME)
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -20,16 +20,88 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 
 // ============================================
-// 🔥 CONFIGURACIÓN CORS - TODOS LOS ORÍGENES
+// 🔥 CONFIGURACIÓN CORS MEJORADA - SOPORTA IFRAMES
 // ============================================
 app.use(cors({
-  origin: "*", // ✅ Permite TODOS los orígenes
+  origin: function(origin, callback) {
+    // ✅ Permitir peticiones sin origin (como herramientas de desarrollo)
+    if (!origin) return callback(null, true);
+    
+    // ✅ Lista de orígenes permitidos (puedes agregar los tuyos)
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5500',
+      'http://localhost:5501',
+      'http://localhost:5502',
+      'http://localhost:5503',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5500',
+      'http://127.0.0.1:5501',
+      'http://127.0.0.1:5502',
+      'http://127.0.0.1:5503',
+      'https://jc-fi.netlify.app',
+      'https://jc-frutas.onrender.com',
+      'https://jc-frutas.netlify.app'
+    ];
+    
+    // ✅ Permitir todos los subdominios de Netlify y Render
+    if (origin.includes('netlify.app') || 
+        origin.includes('onrender.com') || 
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    
+    // ✅ Verificar si el origen está en la lista
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    // ⚠️ Si no está permitido, rechazar
+    callback(new Error('No permitido por CORS'));
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  allowedHeaders: [
+    "Content-Type", 
+    "Authorization", 
+    "X-Requested-With", 
+    "Accept",
+    "Origin",
+    "Access-Control-Request-Method",
+    "Access-Control-Request-Headers"
+  ],
   exposedHeaders: ["Set-Cookie"],
+  credentials: false, // ✅ FALSE para permitir iframes de diferentes orígenes
   optionsSuccessStatus: 200,
-  credentials: false
+  preflightContinue: false
 }));
+
+// ============================================
+// 🔥 HEADERS ADICIONALES PARA IFRAMES
+// ============================================
+app.use((req, res, next) => {
+  // ✅ Permitir que la página sea embebida en iframes
+  res.removeHeader('X-Frame-Options');
+  res.setHeader('Content-Security-Policy', "frame-ancestors *");
+  
+  // ✅ Asegurar que las respuestas tengan CORS correcto
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  
+  // ✅ Manejar preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 
 // ============================================
 // 🔥 MIDDLEWARES PRINCIPALES
@@ -41,7 +113,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.static(path.join(__dirname)));
 
 // ============================================
-// 🔥 CONFIGURACIÓN DE SESIÓN
+// 🔥 CONFIGURACIÓN DE SESIÓN MEJORADA
 // ============================================
 app.use(session({
   secret: process.env.SESSION_SECRET || "secreto_seguro_frutas",
@@ -49,20 +121,31 @@ app.use(session({
   saveUninitialized: false,
   store: MongoStore.create({ 
     mongoUrl: process.env.MONGO_URI,
-    touchAfter: 24 * 3600
+    touchAfter: 24 * 3600,
+    crypto: {
+      secret: process.env.SESSION_SECRET || "secreto_seguro_frutas"
+    }
   }),
   cookie: {
-    secure: process.env.NODE_ENV === "production", 
-    httpOnly: true,
+    secure: false, // ✅ FALSE para desarrollo local
+    httpOnly: false, // ✅ FALSE para permitir acceso desde iframes
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'lax'
-  }
+    sameSite: 'none', // ✅ 'none' para iframes cross-origin
+    domain: undefined // ✅ Sin dominio específico
+  },
+  proxy: true, // ✅ Importante si estás detrás de un proxy (Render)
+  name: 'jc-frutas.sid' // ✅ Nombre específico de la sesión
 }));
 
 // ============================================
 // 🔥 CONEXIÓN A MONGODB
 // ============================================
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+})
   .then(() => {
     console.log("✅ Conectado a MongoDB (Programa Frutas)");
     console.log("📊 Base de datos:", mongoose.connection.name);
@@ -86,6 +169,14 @@ mongoose.connection.on('disconnected', () => {
 });
 
 // ============================================
+// 🔥 LOGGING DE PETICIONES (OPCIONAL - ÚTIL PARA DEBUG)
+// ============================================
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'No origin'}`);
+  next();
+});
+
+// ============================================
 // 🔥 RUTAS DE LA API
 // ============================================
 app.use("/auth", authRoutes);
@@ -106,8 +197,13 @@ app.get("/", (req, res) => {
     programa: "JC Frutas",
     mongodb: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado",
     timestamp: new Date().toISOString(),
-    version: "1.0.0",
-    cors: "✅ Habilitado para TODOS los orígenes"
+    version: "2.0.0",
+    cors: "✅ Habilitado con soporte para iframes",
+    features: {
+      iframe_support: true,
+      cross_origin: true,
+      session_sharing: true
+    }
   });
 });
 
@@ -118,7 +214,11 @@ app.get("/health", (req, res) => {
     programa: "JC Frutas",
     mongodb: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado",
     uptime: process.uptime(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+    }
   });
 });
 
@@ -130,7 +230,22 @@ app.get("/api/test-cors", (req, res) => {
     timestamp: new Date().toISOString(),
     programa: "JC Frutas",
     corsEnabled: true,
-    corsPolicy: "TODOS los orígenes permitidos"
+    corsPolicy: "Orígenes específicos + wildcards",
+    headers: {
+      'access-control-allow-origin': res.getHeader('access-control-allow-origin'),
+      'access-control-allow-methods': res.getHeader('access-control-allow-methods')
+    }
+  });
+});
+
+// --- TEST IFRAME ---
+app.get("/api/test-iframe", (req, res) => {
+  res.json({
+    message: "✅ Iframe support activo",
+    canBeEmbedded: true,
+    xFrameOptions: res.getHeader('x-frame-options') || 'Not set',
+    csp: res.getHeader('content-security-policy') || 'Not set',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -140,11 +255,18 @@ app.get("/api/test-cors", (req, res) => {
 app.use((err, req, res, next) => {
   console.error("🚨 Error capturado:", {
     message: err.message,
-    stack: err.stack,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     path: req.path,
     method: req.method,
-    origin: req.headers.origin
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
   });
+  
+  // ✅ Asegurar headers CORS incluso en errores
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   
   res.status(err.status || 500).json({ 
     error: "Error interno del servidor",
@@ -168,7 +290,10 @@ app.use((req, res) => {
       "/fincas/*",
       "/precios/*",
       "/recogidas/*",
-      "/notas-finca/*"
+      "/notas-finca/*",
+      "/api/test-cors",
+      "/api/test-iframe",
+      "/health"
     ]
   });
 });
@@ -179,23 +304,26 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log(`
-╔════════════════════════════════════════════════════╗
+╔═══════════════════════════════════════════════════╗
 ║   🎯 JC FRUTAS - SERVIDOR INICIADO                ║
-╠════════════════════════════════════════════════════╣
+╠═══════════════════════════════════════════════════╣
 ║ 🚀 Puerto: ${PORT.toString().padEnd(35)} ║
-║ 🌐 CORS: ✅ TODOS los orígenes permitidos        ║
+║ 🌐 CORS: ✅ Configurado para iframes             ║
 ║ 📊 MongoDB: ${mongoose.connection.readyState === 1 ? 'Conectado'.padEnd(29) : 'Desconectado'.padEnd(29)} ║
 ║ ⏰ Hora: ${new Date().toLocaleTimeString('es-CO').padEnd(36)} ║
-║ 🔐 Modo: ${process.env.NODE_ENV === 'production' ? 'Producción'.padEnd(33) : 'Desarrollo'.padEnd(33)} ║
-╠════════════════════════════════════════════════════╣
-║ ✅ CORS ABIERTO - SIN RESTRICCIONES               ║
-║    • Acepta solicitudes desde cualquier origen    ║
-║    • Incluye localhost, Netlify, Render, etc.     ║
-╚════════════════════════════════════════════════════╝
+║ 🔧 Modo: ${process.env.NODE_ENV === 'production' ? 'Producción'.padEnd(33) : 'Desarrollo'.padEnd(33)} ║
+╠═══════════════════════════════════════════════════╣
+║ ✅ CARACTERÍSTICAS ACTIVAS:                       ║
+║    • Soporte para iframes cross-origin           ║
+║    • CORS con whitelist flexible                 ║
+║    • Sesiones sin cookies httpOnly               ║
+║    • X-Frame-Options removido                    ║
+╚═══════════════════════════════════════════════════╝
 
 ✅ Servidor listo para recibir peticiones
 🔗 URL: http://localhost:${PORT}
 🧪 Test CORS: http://localhost:${PORT}/api/test-cors
+🖼️  Test Iframe: http://localhost:${PORT}/api/test-iframe
   `);
 });
 
