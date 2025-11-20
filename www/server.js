@@ -24,6 +24,7 @@ const app = express();
 // ============================================
 
 // Lista de orígenes permitidos
+// 📍 Busca esta sección en server.js (línea ~23)
 const allowedOrigins = [
   'https://jc-fi.netlify.app',
   'https://jc-fi.onrender.com',
@@ -35,14 +36,12 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   // 🔥 AGREGAR ESTOS ORÍGENES LOCALES:
   'http://localhost:5502',
-  'http://127.0.0.1:5502',
+  'http://127.0.0.1:5502',  // ⬅️ ESTE ES EL QUE FALTA
   'http://localhost:5501',
   'http://127.0.0.1:5501',
-  // 🔥 Para Live Server con cualquier puerto:
   'http://localhost:5500',
   'http://127.0.0.1:5500'
 ];
-
 // 🔥 MIDDLEWARE CORS PRINCIPAL (antes de todo)
 app.use(cors({
   origin: function(origin, callback) {
