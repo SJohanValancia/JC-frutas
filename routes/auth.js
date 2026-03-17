@@ -684,4 +684,97 @@ router.post("/login-token", async (req, res) => {
   }
 });
 
+// Marcar usuario como pagado (solo tipo 3 - super admin)
+router.post("/marcar-pagado", async (req, res) => {
+  try {
+    const { username, pagado } = req.body;
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    user.pagado = pagado;
+    
+    // Si se marca como pagado y estaba bloqueado, desbloquearlo
+    if (pagado && user.bloqueado) {
+      user.bloqueado = false;
+      user.motivoBloqueo = '';
+      user.fechaBloqueo = null;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: pagado ? 'Usuario marcado como pagado' : 'Usuario marcado como no pagado',
+      usuario: {
+        username: user.username,
+        alias: user.alias,
+        pagado: user.pagado,
+        bloqueado: user.bloqueado
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al marcar pagado:', error);
+    res.status(500).json({ success: false, message: 'Error al actualizar estado de pago' });
+  }
+});
+
+// Obtener todos los usuarios (solo tipo 3 - super admin)
+router.get("/todos-usuarios", async (req, res) => {
+  try {
+    const usuarios = await User.find().sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      usuarios
+    });
+
+  } catch (error) {
+    console.error('Error al obtener usuarios:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener usuarios' });
+  }
+});
+
+// Desbloquear usuario manualmente (solo si está marcado como pagado)
+router.post("/desbloquear", async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    // Solo desbloquear si está marcado como pagado
+    if (!user.pagado) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No se puede desbloquear. El usuario debe estar marcado como pagado primero.' 
+      });
+    }
+
+    user.bloqueado = false;
+    user.motivoBloqueo = '';
+    user.fechaBloqueo = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario desbloqueado exitosamente',
+      usuario: {
+        username: user.username,
+        alias: user.alias,
+        bloqueado: user.bloqueado
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al desbloquear:', error);
+    res.status(500).json({ success: false, message: 'Error al desbloquear usuario' });
+  }
+});
+
 module.exports = router;
